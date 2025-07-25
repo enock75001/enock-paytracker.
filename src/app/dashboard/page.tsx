@@ -296,17 +296,18 @@ function RecapTab() {
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
         (doc as any).autoTable({
             startY: (doc as any).autoTable.previous.finalY + 15 || 30,
-            head: [[{ content: domain, colSpan: 5, styles: { fillColor: [22, 163, 74], textColor: 255 } }]],
+            head: [[{ content: domain, colSpan: 6, styles: { fillColor: [22, 163, 74], textColor: 255 } }]],
             body: summaries.map(s => [
                 `${s.employee.firstName} ${s.employee.lastName}`,
                 s.daysPresent,
                 s.daysAbsent,
+                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage),
                 new Intl.NumberFormat('fr-FR').format(s.totalPay),
                 ''
             ]),
             headStyles: { halign: 'center'},
             foot: [[
-                { content: 'Total Département', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: 'Total Département', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
                 { content: new Intl.NumberFormat('fr-FR').format(summaries.reduce((acc, curr) => acc + curr.totalPay, 0)), styles: { halign: 'right', fontStyle: 'bold' } },
                 ''
             ]],
@@ -315,7 +316,8 @@ function RecapTab() {
                 { header: 'Employé' },
                 { header: 'Présents', styles: { halign: 'center' } },
                 { header: 'Absents', styles: { halign: 'center' } },
-                { header: 'Salaire', styles: { halign: 'right' } },
+                { header: 'Salaire Journalier', styles: { halign: 'right' } },
+                { header: 'Paie Totale', styles: { halign: 'right' } },
                 { header: 'Actions', styles: { halign: 'center'} }
             ],
             theme: 'striped',
@@ -396,6 +398,7 @@ function RecapTab() {
                                     <TableHead>Employé</TableHead>
                                     <TableHead className="text-center">Jours Présents</TableHead>
                                     <TableHead className="text-center">Jours Absents</TableHead>
+                                    <TableHead className="text-right">Salaire Journalier</TableHead>
                                     <TableHead className="text-right">Paie Totale</TableHead>
                                     <TableHead className="text-center">Actions</TableHead>
                                 </TableRow>
@@ -420,6 +423,9 @@ function RecapTab() {
                                     <TableCell className="text-center">
                                         <Badge variant="secondary">{summary.daysAbsent}</Badge>
                                     </TableCell>
+                                    <TableCell className="text-right">
+                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage)} FCFA
+                                    </TableCell>
                                     <TableCell className="text-right font-semibold">
                                         {new Intl.NumberFormat('fr-FR').format(summary.totalPay)} FCFA
                                     </TableCell>
@@ -436,7 +442,7 @@ function RecapTab() {
                             </TableBody>
                             <TableFooter>
                                 <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
-                                    <TableCell colSpan={3} className="text-right font-bold text-lg">Total Département</TableCell>
+                                    <TableCell colSpan={4} className="text-right font-bold text-lg">Total Département</TableCell>
                                     <TableCell className="text-right font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(domainTotal)} FCFA</TableCell>
                                     <TableCell />
                                 </TableRow>
