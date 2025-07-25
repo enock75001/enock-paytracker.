@@ -314,7 +314,7 @@ export default function EmployeeRecapPage() {
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Jours de présence:</span>
-                            <Badge className="text-lg bg-accent/80 text-accent-foreground hover:bg-accent">{daysPresent}</Badge>
+                            <Badge className="text-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">{daysPresent}</Badge>
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Jours d'absence:</span>
