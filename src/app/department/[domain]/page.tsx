@@ -16,15 +16,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, ArrowLeft, LogOut } from 'lucide-react';
+import { Eye, LogOut } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, startOfWeek, addDays, endOfWeek } from "date-fns"
 import { fr } from 'date-fns/locale';
-import { Calendar as CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Calendar } from "@/components/ui/calendar"
 import {
   Form,
   FormControl,
@@ -34,7 +31,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from "@/hooks/use-toast";
 import {
   Tabs,
@@ -50,7 +46,7 @@ const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
   lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
   domain: z.string(),
-  birthDate: z.date({ required_error: 'Une date de naissance est requise.' }),
+  birthDate: z.coerce.date({ required_error: 'Une date de naissance est requise.' }),
   address: z.string().min(5, { message: "L'adresse est requise." }),
   dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
   phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
@@ -141,21 +137,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                 )} />
 
               <FormField control={form.control} name="birthDate" render={({ field }) => (
-                <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                          {field.value ? (format(field.value, "PPP", { locale: fr })) : (<span>Choisissez une date</span>)}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus />
-                    </PopoverContent>
-                  </Popover><FormMessage />
-                </FormItem>
+                <FormItem><FormLabel>Date de naissance</FormLabel><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>
               )} />
                 <FormField control={form.control} name="address" render={({ field }) => (
                     <FormItem><FormLabel>Adresse</FormLabel><FormControl><Input placeholder="123 Rue Principale, Anytown" {...field} /></FormControl><FormMessage /></FormItem>
