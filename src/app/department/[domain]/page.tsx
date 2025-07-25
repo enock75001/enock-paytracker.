@@ -89,10 +89,11 @@ function RegisterInDepartment({ domain }: { domain: string }) {
         toast({
             title: "Employé Enregistré",
             description: `${values.firstName} ${values.lastName} a été ajouté avec succès au département ${values.domain}.`,
-            className: 'bg-green-600'
+            className: 'bg-accent text-accent-foreground'
         });
         form.reset();
         form.setValue('domain', domain);
+        form.setValue('dailyWage', 5000);
     }
     
     return (
@@ -208,7 +209,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                     <TableHead className="w-[250px] min-w-[250px]">Employé</TableHead>
                     {days.map((day, index) => (
                         <TableHead key={day} className="text-center min-w-[80px]">
-                            <div>{day}</div>
+                            <div className='font-bold capitalize'>{day}</div>
                             <div className="font-normal text-xs">{format(weekDates[index], 'dd')}</div>
                         </TableHead>
                     ))}
@@ -226,7 +227,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </Avatar>
                             <div>
                             <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA/jour</div>
+                            <div className="text-sm text-muted-foreground">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage || 0)} FCFA/jour</div>
                             </div>
                         </div>
                         </TableCell>
@@ -316,3 +317,5 @@ export default function DepartmentPage() {
     </div>
   );
 }
+
+    
