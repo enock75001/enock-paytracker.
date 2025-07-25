@@ -18,8 +18,8 @@ interface EmployeeContextType {
   deleteEmployee: (employeeId: string) => Promise<void>;
   transferEmployee: (employeeId: string, newDomain: string) => Promise<void>;
   days: string[];
-  addDepartment: (department: Department) => Promise<void>;
-  updateDepartment: (originalName: string, updatedDepartment: Department) => Promise<void>;
+  addDepartment: (department: Omit<Department, 'id'>) => Promise<void>;
+  updateDepartment: (originalName: string, updatedDepartment: Omit<Department, 'id'>) => Promise<void>;
   deleteDepartment: (departmentName: string) => Promise<void>;
   startNewWeek: () => Promise<void>;
 }
@@ -38,35 +38,59 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       try {
         const departmentsSnapshot = await getDocs(collection(db, 'departments'));
+        
         if (departmentsSnapshot.empty) {
-          // Initialize with mock data if firestore is empty
+          console.log("Database is empty, seeding with mock data...");
           const batch = writeBatch(db);
+          
+          const departmentRefs: { [key: string]: string } = {};
           mockDepartments.forEach(dept => {
             const docRef = doc(collection(db, 'departments'));
-            batch.set(docRef, dept);
+            departmentRefs[dept.name] = docRef.id;
+            batch.set(docRef, {name: dept.name, manager: dept.manager});
           });
-          mockEmployees.forEach(emp => {
-            const docRef = doc(collection(db, 'employees'));
-            batch.set(docRef, emp);
-          })
+
+          const seededDepartments = mockDepartments.map(d => ({...d, id: departmentRefs[d.name]}));
+
+          const seededEmployees = mockEmployees.map(emp => {
+             const docRef = doc(collection(db, 'employees'));
+             const newEmp = { ...emp, id: docRef.id };
+             batch.set(docRef, {
+                ...emp, 
+                currentWeekWage: emp.dailyWage, // Ensure this is set
+             });
+             return newEmp;
+          });
+          
           await batch.commit();
-          await fetchData(); // refetch after seeding
-          return;
+          console.log("Mock data seeded.");
+
+          setDepartments(seededDepartments);
+          setEmployees(seededEmployees);
+          setArchives([]); // No archives initially
+
+        } else {
+            const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
+            const employeesSnapshot = await getDocs(collection(db, 'employees'));
+            const employeesData = employeesSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return { 
+                    id: doc.id, 
+                    ...data,
+                    // Ensure currentWeekWage has a fallback
+                    currentWeekWage: data.currentWeekWage || data.dailyWage 
+                } as Employee;
+            });
+            const archivesSnapshot = await getDocs(collection(db, 'archives'));
+            const archivesData = archivesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ArchivedPayroll));
+
+            setDepartments(departmentsData);
+            setEmployees(employeesData);
+            setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
         }
-
-        const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department & {id:string}));
-        const employeesSnapshot = await getDocs(collection(db, 'employees'));
-        const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-        const archivesSnapshot = await getDocs(collection(db, 'archives'));
-        const archivesData = archivesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ArchivedPayroll & {id: string}));
-
-        setDepartments(departmentsData);
-        setEmployees(employeesData);
-        setArchives(archivesData.sort((a,b) => b.period.localeCompare(a.period)));
 
       } catch (error) {
         console.error("Failed to fetch data from Firestore", error);
-        // Fallback or error handling
       } finally {
         setLoading(false);
       }
@@ -90,9 +114,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
   const updateEmployee = async (employeeId: string, data: EmployeeUpdatePayload) => {
     const employeeRef = doc(db, 'employees', employeeId);
-    await updateDoc(employeeRef, data as any); // Firestore will ignore extra fields
+    await updateDoc(employeeRef, data as any); 
     setEmployees(prev => prev.map(emp =>
-      emp.id === employeeId ? { ...emp, ...data } : emp
+      emp.id === employeeId ? { ...emp, ...data, currentWeekWage: emp.currentWeekWage || data.dailyWage } : emp
     ));
   };
 
@@ -151,21 +175,18 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
 
     await runTransaction(db, async (transaction) => {
-        // 1. Update department
         transaction.update(deptDoc.ref, updatedDepartment as any);
 
-        // 2. Find employees to update
         const employeesQuery = query(collection(db, 'employees'), where('domain', '==', originalName));
         const employeesSnapshot = await getDocs(employeesQuery);
 
-        // 3. Update employees
         employeesSnapshot.forEach(empDoc => {
             transaction.update(empDoc.ref, { domain: updatedDepartment.name });
         });
     });
 
     setDepartments(prev =>
-      prev.map(d => (d.name === originalName ? { ...d, ...updatedDepartment } : d))
+      prev.map(d => (d.name === originalName ? { ...d, ...updatedDepartment, id: d.id } : d))
     );
     setEmployees(prev => 
       prev.map(emp => emp.domain === originalName ? { ...emp, domain: updatedDepartment.name } : emp)
@@ -217,9 +238,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     };
     
     const archiveDocRef = await addDoc(collection(db, 'archives'), newArchive);
-    setArchives(prev => [{...newArchive, id: archiveDocRef.id}, ...prev].sort((a,b) => b.period.localeCompare(a.period)));
+    setArchives(prev => [{...newArchive, id: archiveDocRef.id}, ...prev].sort((a,b) => (b.period || "").localeCompare(a.period || "")));
 
-    // 2. Reset attendance and update wages for the new week in a batch write
     const batch = writeBatch(db);
     const updatedEmployees = employees.map(emp => {
         const empRef = doc(db, 'employees', emp.id);
