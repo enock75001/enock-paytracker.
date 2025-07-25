@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Menu, WalletCards } from 'lucide-react';
+import { Menu, WalletCards, LogOut } from 'lucide-react';
 
 const navLinks = [
   { href: '/dashboard', label: 'Tableau de Bord' },
@@ -34,8 +34,8 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-6">
           <Link
-            href={isAdminView ? "/dashboard" : "/"}
-            className="flex items-center gap-2 font-bold text-lg"
+            href={isAdminView ? "/dashboard" : "#"}
+            className={cn("flex items-center gap-2 font-bold text-lg", !isAdminView && "pointer-events-none")}
           >
             <WalletCards className="h-6 w-6 text-primary" />
             <span className="font-headline">PayTracker</span>
@@ -72,25 +72,37 @@ export function Header() {
                     alt="User avatar"
                     data-ai-hint="user avatar"
                   />
-                  <AvatarFallback>A</AvatarFallback>
+                  <AvatarFallback>{isAdminView ? 'A' : 'M'}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Admin</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    admin@paytracker.com
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Link href="/" className="w-full">
-                  Log out
-                </Link>
-              </DropdownMenuItem>
+               {isAdminView ? (
+                 <>
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">Admin</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                            admin@paytracker.com
+                        </p>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <Link href="/" className="w-full">
+                            Log out
+                        </Link>
+                    </DropdownMenuItem>
+                 </>
+               ) : (
+                 <DropdownMenuItem>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <Link href="/" className="w-full">
+                        Déconnexion
+                    </Link>
+                </DropdownMenuItem>
+               )}
             </DropdownMenuContent>
           </DropdownMenu>
           <Sheet>
@@ -103,9 +115,9 @@ export function Header() {
             <SheetContent side="left">
               <nav className="grid gap-6 text-lg font-medium mt-8">
                 <SheetClose asChild>
-                  <Link
-                    href={isAdminView ? "/dashboard" : "/"}
-                    className="flex items-center gap-2 text-lg font-semibold"
+                   <Link
+                    href={isAdminView ? "/dashboard" : "#"}
+                    className={cn("flex items-center gap-2 text-lg font-semibold", !isAdminView && "pointer-events-none")}
                   >
                     <WalletCards className="h-6 w-6 text-primary" />
                     <span>PayTracker</span>

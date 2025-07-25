@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, ArrowLeft } from 'lucide-react';
+import { Eye, LogOut } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -238,9 +238,9 @@ export default function DepartmentPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour au tableau de bord
+            <Button variant="outline" onClick={() => router.push('/')}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Déconnexion
             </Button>
         </div>
         <div className="mb-4">
