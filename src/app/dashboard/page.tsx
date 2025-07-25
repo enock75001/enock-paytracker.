@@ -381,7 +381,7 @@ function RecapTab() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <Badge className="bg-accent/80 text-accent-foreground hover:bg-accent">{summary.daysPresent}</Badge>
+                                        <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">{summary.daysPresent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Badge variant="secondary">{summary.daysAbsent}</Badge>
@@ -472,7 +472,7 @@ function RegisterTab() {
         toast({
             title: "Employé Enregistré",
             description: `${values.firstName} ${values.lastName} a été ajouté avec succès au département ${values.domain}.`,
-            className: 'bg-accent text-accent-foreground'
+            className: 'bg-green-600'
         });
         form.reset();
     }

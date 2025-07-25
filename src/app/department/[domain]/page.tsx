@@ -81,7 +81,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
         toast({
             title: "Employé Enregistré",
             description: `${values.firstName} ${values.lastName} a été ajouté avec succès au département ${values.domain}.`,
-            className: 'bg-accent text-accent-foreground'
+            className: 'bg-green-600'
         });
         form.reset();
         form.setValue('domain', domain);
@@ -207,7 +207,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                 updateAttendance(employee.id, day, !!checked)
                             }
                             aria-label={`Attendance for ${day}`}
-                            className="data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground border-accent"
+                            className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                             />
                         </TableCell>
                         ))}
@@ -253,9 +253,9 @@ export default function DepartmentPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.back()}>
+            <Button variant="outline" onClick={() => router.push('/dashboard')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour
+                Retour au tableau de bord
             </Button>
         </div>
         <div className="mb-4">
