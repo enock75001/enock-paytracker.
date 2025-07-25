@@ -8,8 +8,10 @@ interface EmployeeContextType {
   departments: Department[];
   addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => void;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => void;
+  deleteEmployee: (employeeId: string) => void;
+  transferEmployee: (employeeId: string, newDomain: string, newSubgroup: string) => void;
   days: string[];
-  addDepartment: (department: Department) => void;
+  addDepartment: (department: Omit<Department, 'subgroups'> & { subgroups: { name: string, leader: string }[] }) => void;
   updateDepartment: (originalName: string, updatedDepartment: Department) => void;
   deleteDepartment: (departmentName: string) => void;
 }
@@ -46,8 +48,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // This effect runs only on the client, after the initial state has been set.
-    // It saves data to localStorage whenever it changes.
     if (isClient) {
         try {
             localStorage.setItem('employees', JSON.stringify(employees));
@@ -79,6 +79,16 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       )
     );
   };
+  
+  const deleteEmployee = (employeeId: string) => {
+    setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+  };
+  
+  const transferEmployee = (employeeId: string, newDomain: string, newSubgroup: string) => {
+     setEmployees(prev => prev.map(emp =>
+      emp.id === employeeId ? { ...emp, domain: newDomain, subgroup: newSubgroup } : emp
+    ));
+  }
 
   const addDepartment = (department: Department) => {
     if (departments.some(d => d.name.toLowerCase() === department.name.toLowerCase())) {
@@ -88,7 +98,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateDepartment = (originalName: string, updatedDepartment: Department) => {
-    // If the name is being changed, check for conflicts
     if (originalName.toLowerCase() !== updatedDepartment.name.toLowerCase()) {
       if (departments.some(d => d.name.toLowerCase() === updatedDepartment.name.toLowerCase())) {
         throw new Error("Un autre département avec ce nouveau nom existe déjà.");
@@ -99,25 +108,20 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       prev.map(d => (d.name === originalName ? updatedDepartment : d))
     );
 
-    // Also update the domain for all employees in that department
     setEmployees(prev => 
       prev.map(emp => emp.domain === originalName ? { ...emp, domain: updatedDepartment.name } : emp)
     )
   };
 
   const deleteDepartment = (departmentName: string) => {
-    // Prevent deletion if employees are still in the department
     if (employees.some(emp => emp.domain === departmentName)) {
       throw new Error("Impossible de supprimer. Veuillez d'abord réaffecter les employés de ce département.");
     }
     setDepartments(prev => prev.filter(d => d.name !== departmentName));
   };
 
-  const value = { employees, departments, addEmployee, updateAttendance, days, addDepartment, updateDepartment, deleteDepartment };
+  const value = { employees, departments, addEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment };
   
-  // Render children only on the client after the initial state has been set.
-  // This prevents hydration errors by ensuring the server-rendered output (nothing)
-  // matches the first client-render (nothing), before the data is loaded client-side.
   return (
     <EmployeeContext.Provider value={value}>
       {isClient ? children : null}

@@ -1,6 +1,7 @@
 import { type Employee, type Department, type ArchivedPayroll } from './types';
 
-export const initialDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// Use French day names for consistency
+export const initialDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 // Consistent initial attendance data to avoid hydration mismatch
 const createInitialAttendance = (employeeId: string) => {

@@ -3,19 +3,154 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEmployees } from '@/context/employee-provider';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2 } from 'lucide-react';
 import { differenceInWeeks, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import type { Department } from '@/lib/types';
+
+
+function TransferEmployeeDialog({ employee, departments, transferEmployee }: { employee: any, departments: Department[], transferEmployee: Function }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedSubgroup, setSelectedSubgroup] = useState('');
+  const { toast } = useToast();
+
+  const handleTransfer = () => {
+    if (!selectedDepartment || !selectedSubgroup) {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Veuillez sélectionner un nouveau département et un sous-groupe.",
+        });
+        return;
+    }
+    transferEmployee(employee.id, selectedDepartment, selectedSubgroup);
+    toast({
+        title: "Succès",
+        description: `${employee.firstName} ${employee.lastName} a été transféré.`,
+    });
+    setIsOpen(false);
+    setSelectedDepartment('');
+    setSelectedSubgroup('');
+  }
+
+  const availableDepartments = departments.filter(d => d.name !== employee.domain);
+  const subgroupsForSelectedDept = departments.find(d => d.name === selectedDepartment)?.subgroups || [];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline"><MoveRight className="mr-2"/>Transférer</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Transférer l'employé</DialogTitle>
+          <DialogDescription>
+            Transférer {employee.firstName} {employee.lastName} vers un autre département.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="new-department" className="text-right">Département</Label>
+            <Select onValueChange={setSelectedDepartment}>
+                <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Choisir un département" />
+                </SelectTrigger>
+                <SelectContent>
+                    {availableDepartments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="new-subgroup" className="text-right">Sous-groupe</Label>
+            <Select onValueChange={setSelectedSubgroup} disabled={!selectedDepartment}>
+                <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Choisir un sous-groupe" />
+                </SelectTrigger>
+                <SelectContent>
+                    {subgroupsForSelectedDept.map(sg => <SelectItem key={sg.name} value={sg.name}>{sg.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
+          <Button onClick={handleTransfer}>Confirmer le transfert</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteEmployeeDialog({ employee, deleteEmployee }: { employee: any, deleteEmployee: Function }) {
+    const router = useRouter();
+    const { toast } = useToast();
+
+    const handleDelete = () => {
+        deleteEmployee(employee.id);
+        toast({
+            title: "Employé Supprimé",
+            description: `${employee.firstName} ${employee.lastName} a été supprimé du système.`,
+        });
+        router.push(`/department/${encodeURIComponent(employee.domain)}`);
+    }
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive"><Trash2 className="mr-2"/>Supprimer</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Cette action est irréversible. L'employé {employee.firstName} {employee.lastName} sera définitivement supprimé.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )
+}
 
 export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { employees, days } = useEmployees();
+  const { employees, days, departments, transferEmployee, deleteEmployee } = useEmployees();
 
   const employee = employees.find(emp => emp.id === id);
 
@@ -36,8 +171,7 @@ export default function EmployeeRecapPage() {
   
   const registrationDate = parseISO(employee.registrationDate);
   const weeksSinceRegistration = differenceInWeeks(new Date(), registrationDate);
-  // This is an estimation. For a real app, you'd pull payment history from a database.
-  const estimatedTotalEarnings = weeksSinceRegistration * (5 * employee.dailyWage); // Assuming 5 workdays a week
+  const estimatedTotalEarnings = weeksSinceRegistration * (5 * employee.dailyWage); 
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -56,9 +190,9 @@ export default function EmployeeRecapPage() {
             </Avatar>
             <div className="flex-1">
                 <CardTitle className="text-4xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
-                <CardDescription className="text-lg text-muted-foreground">{employee.domain}</CardDescription>
+                <CardDescription className="text-lg text-muted-foreground">{employee.domain} / {employee.subgroup}</CardDescription>
                 <div className="text-sm text-muted-foreground mt-2">
-                    Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR')}
+                    Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR', { locale: fr })}
                 </div>
             </div>
              <Button asChild variant="outline">
@@ -73,7 +207,7 @@ export default function EmployeeRecapPage() {
                 <h3 className="text-xl font-semibold mb-4 border-b pb-2">Informations Personnelles</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /> <strong>Nom Complet:</strong> {employee.firstName} {employee.lastName}</div>
-                    <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Date de Naissance:</strong> {new Date(employee.birthDate).toLocaleDateString('fr-FR')}</div>
+                    <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Date de Naissance:</strong> {new Date(employee.birthDate).toLocaleDateString('fr-FR', { locale: fr })}</div>
                     <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                     <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                     <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
@@ -118,6 +252,10 @@ export default function EmployeeRecapPage() {
                 </Card>
             </div>
         </CardContent>
+        <CardFooter className="justify-end gap-2 border-t pt-6">
+            <TransferEmployeeDialog employee={employee} departments={departments} transferEmployee={transferEmployee} />
+            <DeleteEmployeeDialog employee={employee} deleteEmployee={deleteEmployee} />
+        </CardFooter>
       </Card>
     </div>
   );

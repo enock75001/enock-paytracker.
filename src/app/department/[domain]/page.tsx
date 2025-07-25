@@ -16,11 +16,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, ArrowLeft } from 'lucide-react';
+import { Eye, ArrowLeft, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from "date-fns"
+import { fr } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
@@ -41,12 +42,22 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { useState } from 'react';
+import type { Subgroup } from '@/lib/types';
 
 
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
   lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
   domain: z.string(),
+  subgroup: z.string({ required_error: 'Le sous-groupe est requis.'}),
   birthDate: z.date({ required_error: 'Une date de naissance est requise.' }),
   address: z.string().min(5, { message: "L'adresse est requise." }),
   dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
@@ -57,8 +68,10 @@ const registerSchema = z.object({
 
 // Component for Registering an employee in a specific department
 function RegisterInDepartment({ domain }: { domain: string }) {
-    const { addEmployee } = useEmployees();
-    const { toast } = useToast()
+    const { addEmployee, departments } = useEmployees();
+    const { toast } = useToast();
+    
+    const departmentSubgroups = departments.find(d => d.name === domain)?.subgroups || [];
 
     const form = useForm<z.infer<typeof registerSchema>>({
         resolver: zodResolver(registerSchema),
@@ -66,6 +79,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
             firstName: '',
             lastName: '',
             domain: domain,
+            subgroup: '',
             address: '',
             dailyWage: 5000,
             phone: '',
@@ -104,16 +118,33 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                         <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
-                
-                 <FormField control={form.control} name="domain" render={({ field }) => (
-                     <FormItem>
-                        <FormLabel>Département</FormLabel>
-                        <FormControl>
-                            <Input {...field} readOnly disabled />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="domain" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Département</FormLabel>
+                            <FormControl>
+                                <Input {...field} readOnly disabled />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                     <FormField control={form.control} name="subgroup" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Sous-groupe</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sélectionnez un sous-groupe" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {departmentSubgroups.map(sg => <SelectItem key={sg.name} value={sg.name}>{sg.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                 </div>
 
               <FormField control={form.control} name="birthDate" render={({ field }) => (
                 <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
@@ -121,7 +152,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                          {field.value ? (format(field.value, "PPP")) : (<span>Choisissez une date</span>)}
+                          {field.value ? (format(field.value, "PPP", { locale: fr })) : (<span>Choisissez une date</span>)}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
@@ -157,73 +188,87 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
-  const { employees, updateAttendance, days } = useEmployees();
+  const { employees, updateAttendance, days, departments } = useEmployees();
+  const department = departments.find(d => d.name === domain);
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
+
+  const employeesBySubgroup = department?.subgroups.reduce((acc, subgroup) => {
+    acc[subgroup.name] = employeesInDomain.filter(emp => emp.subgroup === subgroup.name);
+    return acc;
+  }, {} as Record<string, typeof employeesInDomain>) || {};
+
+  const currentMonthYear = format(new Date(), 'MMMM yyyy', { locale: fr });
+
 
   return (
     <Card className="mt-6">
         <CardHeader>
-            <CardTitle className="text-2xl font-bold font-headline">Feuille de Présence</CardTitle>
+            <CardTitle className="text-2xl font-bold font-headline capitalize">Feuille de Présence - {currentMonthYear}</CardTitle>
             <CardDescription>
             Cochez les jours de présence pour les employés du département : <span className="font-semibold">{domain}</span>.
             </CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="overflow-x-auto">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead className="w-[250px]">Employé</TableHead>
-                    <TableHead>Salaire Journalier</TableHead>
-                    {days.map(day => (
-                        <TableHead key={day} className="text-center">{day}</TableHead>
-                    ))}
-                    <TableHead className="text-right">Détails</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {employeesInDomain.map(employee => (
-                    <TableRow key={employee.id}>
-                        <TableCell>
-                        <div className="flex items-center gap-3">
-                            <Avatar>
-                            <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
-                            <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                            <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{employee.phone}</div>
-                            </div>
-                        </div>
-                        </TableCell>
-                        <TableCell>
-                            {new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA
-                        </TableCell>
-                        {days.map(day => (
-                        <TableCell key={day} className="text-center">
-                            <Checkbox
-                            checked={employee.attendance[day]}
-                            onCheckedChange={(checked) =>
-                                updateAttendance(employee.id, day, !!checked)
-                            }
-                            aria-label={`Attendance for ${day}`}
-                            className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                            />
-                        </TableCell>
-                        ))}
-                        <TableCell className="text-right">
-                            <Link href={`/employee/${employee.id}`} passHref>
-                                <Button variant="ghost" size="icon">
-                                    <Eye className="h-4 w-4" />
-                                    <span className="sr-only">Voir les détails</span>
-                                </Button>
-                            </Link>
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-            </div>
+           {department?.subgroups.map(subgroup => (
+             employeesBySubgroup[subgroup.name]?.length > 0 && (
+                <div key={subgroup.name} className="mb-8">
+                    <div className="flex items-center mb-4">
+                        <Users className="h-5 w-5 mr-3 text-primary" />
+                        <h3 className="text-lg font-semibold">{subgroup.name} - <span className="text-muted-foreground font-normal">Chef: {subgroup.leader}</span></h3>
+                    </div>
+                     <div className="overflow-x-auto border rounded-lg">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="w-[250px]">Employé</TableHead>
+                            {days.map(day => (
+                                <TableHead key={day} className="text-center">{day}</TableHead>
+                            ))}
+                            <TableHead className="text-right">Détails</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {employeesBySubgroup[subgroup.name].map(employee => (
+                            <TableRow key={employee.id}>
+                                <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <Avatar>
+                                    <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
+                                    <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                    <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                                    <div className="text-sm text-muted-foreground">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA/jour</div>
+                                    </div>
+                                </div>
+                                </TableCell>
+                                {days.map(day => (
+                                <TableCell key={day} className="text-center">
+                                    <Checkbox
+                                    checked={employee.attendance[day]}
+                                    onCheckedChange={(checked) =>
+                                        updateAttendance(employee.id, day, !!checked)
+                                    }
+                                    aria-label={`Attendance for ${day}`}
+                                    />
+                                </TableCell>
+                                ))}
+                                <TableCell className="text-right">
+                                    <Link href={`/employee/${employee.id}`} passHref>
+                                        <Button variant="ghost" size="icon">
+                                            <Eye className="h-4 w-4" />
+                                            <span className="sr-only">Voir les détails</span>
+                                        </Button>
+                                    </Link>
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
+                </div>
+             )
+           ))}
       </CardContent>
     </Card>
   )
@@ -253,9 +298,9 @@ export default function DepartmentPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            <Button variant="outline" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour au tableau de bord
+                Retour
             </Button>
         </div>
         <div className="mb-4">
