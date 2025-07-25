@@ -22,8 +22,6 @@ import { Menu, WalletCards } from 'lucide-react';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/register', label: 'Register Employee' },
-  { href: '/recap', label: 'Weekly Recap' },
 ];
 
 export function Header() {
@@ -47,7 +45,7 @@ export function Header() {
                 href={link.href}
                 className={cn(
                   'transition-colors hover:text-primary',
-                  pathname === link.href
+                  pathname.startsWith(link.href) // Use startsWith to handle /employee/[id]
                     ? 'text-primary'
                     : 'text-muted-foreground'
                 )}
@@ -115,7 +113,7 @@ export function Header() {
                       href={link.href}
                       className={cn(
                         'transition-colors hover:text-primary',
-                        pathname === link.href
+                        pathname.startsWith(link.href)
                           ? 'text-primary'
                           : 'text-muted-foreground'
                       )}
