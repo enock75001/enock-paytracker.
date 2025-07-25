@@ -2,10 +2,10 @@
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
-import type { Department } from '@/lib/types';
+import type { Department, Employee } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, UserCog, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Users, UserCog, PlusCircle, Edit, Trash2, Eye } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -42,6 +42,9 @@ import {
 } from "@/components/ui/dialog"
 import { useState } from 'react';
 import Link from 'next/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 function groupEmployeesByDomain(employees: any[]): Record<string, any[]> {
   return employees.reduce((acc, employee) => {
@@ -65,7 +68,9 @@ export default function DepartmentsPage() {
   const { employees, departments, addDepartment, updateDepartment, deleteDepartment } = useEmployees();
   const groupedEmployees = groupEmployeesByDomain(employees);
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingDepartment, setViewingDepartment] = useState<Department | null>(null);
   const [defaultValues, setDefaultValues] = useState({ name: '', managerName: '', managerPin: '' });
   const [isEditMode, setIsEditMode] = useState(false);
   const [originalDepartmentName, setOriginalDepartmentName] = useState('');
@@ -75,7 +80,7 @@ export default function DepartmentsPage() {
     defaultValues,
   });
 
-  const openDialog = (department?: Department) => {
+  const openFormDialog = (department?: Department) => {
     if (department) {
       setIsEditMode(true);
       setOriginalDepartmentName(department.name);
@@ -84,7 +89,12 @@ export default function DepartmentsPage() {
       setIsEditMode(false);
       form.reset({ name: '', managerName: '', managerPin: '' });
     }
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
+  };
+  
+  const openViewDialog = (department: Department) => {
+    setViewingDepartment(department);
+    setIsViewDialogOpen(true);
   };
 
   const onSubmit = (values: z.infer<typeof departmentSchema>) => {
@@ -102,7 +112,7 @@ export default function DepartmentsPage() {
         });
         toast({ title: "Succès", description: "Nouveau département ajouté." });
       }
-      setIsDialogOpen(false);
+      setIsFormDialogOpen(false);
     } catch (error: any) {
       toast({ variant: 'destructive', title: "Erreur", description: error.message });
     }
@@ -118,9 +128,9 @@ export default function DepartmentsPage() {
                     Ajoutez, modifiez ou supprimez des départements.
                 </p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={() => openDialog()}>
+                    <Button onClick={() => openFormDialog()}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nouveau Département
                     </Button>
@@ -169,7 +179,8 @@ export default function DepartmentsPage() {
                     </CardContent>
                     <CardFooter className="flex justify-between">
                          <div className="flex gap-2">
-                             <Button variant="outline" size="icon" onClick={() => openDialog(department)}><Edit className="h-4 w-4" /></Button>
+                             <Button variant="outline" size="icon" onClick={() => openViewDialog(department)}><Eye className="h-4 w-4" /></Button>
+                             <Button variant="outline" size="icon" onClick={() => openFormDialog(department)}><Edit className="h-4 w-4" /></Button>
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive" size="icon" disabled={employeesInDomain.length > 0}>
@@ -191,6 +202,54 @@ export default function DepartmentsPage() {
         })}
         </div>
          <p className="text-xs text-muted-foreground mt-4">Pour supprimer un département, vous devez d'abord réaffecter ou supprimer tous ses employés.</p>
+        
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Employés du département : {viewingDepartment?.name}</DialogTitle>
+                    <DialogDescription>
+                        Liste de tous les employés actuellement dans ce département.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Employé</TableHead>
+                                <TableHead>Téléphone</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {(groupedEmployees[viewingDepartment?.name || ''] || []).map((employee: Employee) => (
+                                <TableRow key={employee.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
+                                                <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">
+                                                {employee.firstName} {employee.lastName}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{employee.phone}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Link href={`/employee/${employee.id}`} passHref>
+                                            <Button variant="ghost" size="icon">
+                                                <Eye className="h-4 w-4" />
+                                                <span className="sr-only">Voir le profil</span>
+                                            </Button>
+                                        </Link>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
   )
 }
