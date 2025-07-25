@@ -22,7 +22,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -79,6 +79,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { useState } from 'react';
+import { mockArchives, ArchivedPayroll } from '@/lib/data';
 
 
 function groupEmployeesByDomain(employees: Employee[]): Record<string, Employee[]> {
@@ -550,6 +551,91 @@ function RegisterTab() {
     )
 }
 
+function ArchivesTab() {
+  const [archives] = useState<ArchivedPayroll[]>(mockArchives);
+
+  const groupArchivesByYear = (archives: ArchivedPayroll[]): Record<string, ArchivedPayroll[]> => {
+    return archives.reduce((acc, archive) => {
+      const year = archive.period.split('-')[0];
+      if (!acc[year]) {
+        acc[year] = [];
+      }
+      acc[year].push(archive);
+      return acc;
+    }, {} as Record<string, ArchivedPayroll[]>);
+  };
+  
+  const groupedArchives = groupArchivesByYear(archives);
+  const years = Object.keys(groupedArchives).sort((a, b) => b.localeCompare(a));
+
+  const monthNames: Record<string, string> = {
+    "01": "Janvier", "02": "Février", "03": "Mars", "04": "Avril",
+    "05": "Mai", "06": "Juin", "07": "Juillet", "08": "Août",
+    "09": "Septembre", "10": "Octobre", "11": "Novembre", "12": "Décembre"
+  };
+
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Archives des Fiches de Paie</CardTitle>
+        <CardDescription>Consultez l'historique des paiements passés.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {years.length === 0 ? (
+          <p>Aucune archive disponible pour le moment.</p>
+        ) : (
+          <Accordion type="multiple" defaultValue={years} className="w-full space-y-4">
+            {years.map(year => (
+              <Card key={year} className="overflow-hidden">
+                <AccordionItem value={year} className="border-b-0">
+                  <AccordionTrigger className="p-6 bg-card hover:bg-secondary/50 [&[data-state=open]]:border-b">
+                    <h2 className="text-xl font-semibold font-headline">Année {year}</h2>
+                  </AccordionTrigger>
+                  <AccordionContent className="p-0">
+                    {groupedArchives[year]
+                        .sort((a,b) => b.period.localeCompare(a.period))
+                        .map(archive => {
+                            const month = archive.period.split('-')[1];
+                            const monthName = monthNames[month] || "Mois Inconnu";
+                            return (
+                                <div key={archive.period} className="border-t p-4">
+                                    <h3 className="font-semibold text-lg">{monthName} {year}</h3>
+                                    <p className="text-muted-foreground mb-2">
+                                      Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
+                                    </p>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Département</TableHead>
+                                                <TableHead>Employés</TableHead>
+                                                <TableHead className="text-right">Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {archive.departments.map(dept => (
+                                                <TableRow key={dept.name}>
+                                                    <TableCell>{dept.name}</TableCell>
+                                                    <TableCell>{dept.employeeCount}</TableCell>
+                                                    <TableCell className="text-right">{new Intl.NumberFormat('fr-FR').format(dept.total)} FCFA</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )
+                        })
+                    }
+                  </AccordionContent>
+                </AccordionItem>
+              </Card>
+            ))}
+          </Accordion>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
 
 // Main Page Component
 export default function DashboardPage() {
@@ -562,10 +648,14 @@ export default function DashboardPage() {
             </p>
         </div>
        <Tabs defaultValue="departments" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="departments">Gestion des Départements</TabsTrigger>
                 <TabsTrigger value="register">Enregistrer un Employé</TabsTrigger>
                 <TabsTrigger value="recap">Récapitulatif de Paie</TabsTrigger>
+                <TabsTrigger value="archives">
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archives
+                </TabsTrigger>
             </TabsList>
             <TabsContent value="departments" className="mt-6">
                 <DepartmentsTab />
@@ -576,9 +666,10 @@ export default function DashboardPage() {
             <TabsContent value="recap" className="mt-6">
                 <RecapTab />
             </TabsContent>
+             <TabsContent value="archives" className="mt-6">
+                <ArchivesTab />
+            </TabsContent>
         </Tabs>
     </div>
   );
 }
-
-    

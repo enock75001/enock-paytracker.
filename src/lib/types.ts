@@ -23,3 +23,13 @@ export interface Department {
     pin: string;
   };
 }
+
+export interface ArchivedPayroll {
+  period: string; // e.g., "2024-05"
+  totalPayroll: number;
+  departments: {
+    name: string;
+    total: number;
+    employeeCount: number;
+  }[];
+}

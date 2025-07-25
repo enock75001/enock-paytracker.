@@ -1,4 +1,4 @@
-import { type Employee, type Department } from './types';
+import { type Employee, type Department, type ArchivedPayroll } from './types';
 
 export const initialDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -96,4 +96,35 @@ export const mockEmployees: Employee[] = [
     photoUrl: 'https://placehold.co/100x100.png',
     attendance: createInitialAttendance('5'),
   },
+];
+
+
+export const mockArchives: ArchivedPayroll[] = [
+  {
+    period: "2024-06",
+    totalPayroll: 1250000,
+    departments: [
+      { name: "Peinture Intérieure", total: 500000, employeeCount: 2 },
+      { name: "Peinture Extérieure", total: 650000, employeeCount: 2 },
+      { name: "Finitions Spéciales", total: 100000, employeeCount: 1 },
+    ],
+  },
+  {
+    period: "2024-05",
+    totalPayroll: 1235000,
+    departments: [
+      { name: "Peinture Intérieure", total: 480000, employeeCount: 2 },
+      { name: "Peinture Extérieure", total: 655000, employeeCount: 2 },
+      { name: "Finitions Spéciales", total: 100000, employeeCount: 1 },
+    ],
+  },
+  {
+    period: "2023-12",
+    totalPayroll: 1100000,
+    departments: [
+        { name: "Peinture Intérieure", total: 450000, employeeCount: 2 },
+        { name: "Peinture Extérieure", total: 550000, employeeCount: 2 },
+        { name: "Finitions Spéciales", total: 100000, employeeCount: 1 },
+    ]
+  }
 ];
