@@ -39,6 +39,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface WeeklySummary {
   employee: Employee;
@@ -76,6 +78,12 @@ export default function RecapPage() {
   const groupedSummaries = groupSummariesByDomain(weeklySummaries);
   const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
   const { toast } = useToast();
+  
+  const today = new Date();
+  const firstDayOfWeek = startOfWeek(today, { weekStartsOn: 1 });
+  const lastDayOfWeek = endOfWeek(today, { weekStartsOn: 1 });
+  const weekPeriod = `Semaine du ${format(firstDayOfWeek, 'dd MMMM', { locale: fr })} au ${format(lastDayOfWeek, 'dd MMMM yyyy', { locale: fr })}`;
+
 
   const handleStartNewWeek = () => {
     startNewWeek();
@@ -88,44 +96,52 @@ export default function RecapPage() {
 
   const downloadPdf = () => {
     const doc = new jsPDF();
-    const pageTitle = "Récapitulatif de Paie Hebdomadaire";
-    const titleWidth = doc.getTextWidth(pageTitle);
     const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFontSize(18);
-    doc.text(pageTitle, (pageWidth - titleWidth) / 2, 20);
 
-    let finalY = 0;
+    // Titre
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Récapitulatif de Paie Hebdomadaire", pageWidth / 2, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
 
-    Object.entries(groupedSummaries).forEach(([domain, summaries], index) => {
+    let finalY = 35;
+
+    Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
+        const domainTotal = summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0);
+
         (doc as any).autoTable({
-            startY: index === 0 ? 30 : finalY + 15,
-            head: [[{ content: domain, colSpan: 6, styles: { fillColor: [22, 163, 74], textColor: 255 } }]],
-            body: summaries.map(s => [
-                `${s.employee.firstName} ${s.employee.lastName}`,
-                s.daysPresent,
-                s.daysAbsent,
-                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage || 0),
-                new Intl.NumberFormat('fr-FR').format(s.totalPay || 0),
-                ''
-            ]),
-            headStyles: { halign: 'center'},
-            foot: [[
-                { content: 'Total Département', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
-                { content: new Intl.NumberFormat('fr-FR').format(summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0)), styles: { halign: 'right', fontStyle: 'bold' } },
-                ''
-            ]],
-            footStyles: { fillColor: [240, 240, 240] },
+            startY: finalY + 5,
+            head: [[{ content: domain, colSpan: 5, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold' } }]],
             columns: [
-                { header: 'Employé' },
-                { header: 'Présents', styles: { halign: 'center' } },
-                { header: 'Absents', styles: { halign: 'center' } },
-                { header: 'Salaire Journalier', styles: { halign: 'right' } },
-                { header: 'Paie Totale', styles: { halign: 'right' } },
-                { header: 'Actions', styles: { halign: 'center'} }
+                { header: 'Employé', dataKey: 'name' },
+                { header: 'Présents', dataKey: 'present' },
+                { header: 'Absents', dataKey: 'absent' },
+                { header: 'Salaire/Jour (FCFA)', dataKey: 'daily' },
+                { header: 'Paie Totale (FCFA)', dataKey: 'total' },
             ],
+            body: summaries.map(s => ({
+                name: `${s.employee.firstName} ${s.employee.lastName}`,
+                present: s.daysPresent,
+                absent: s.daysAbsent,
+                daily: new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage || 0),
+                total: new Intl.NumberFormat('fr-FR').format(s.totalPay || 0),
+            })),
+            foot: [[
+                { content: 'Total Département', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
+                { content: new Intl.NumberFormat('fr-FR').format(domainTotal), styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
+            ]],
             theme: 'striped',
+            headStyles: { halign: 'center', fillColor: [44, 62, 80] },
+            footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80] },
+            columnStyles: {
+                present: { halign: 'center' },
+                absent: { halign: 'center' },
+                daily: { halign: 'right' },
+                total: { halign: 'right' },
+            },
             didDrawPage: function (data: any) {
-                // Footer
                 const pageHeight = doc.internal.pageSize.getHeight();
                 doc.setFontSize(10);
                 doc.setTextColor(150);
@@ -135,7 +151,7 @@ export default function RecapPage() {
                 const siteTitle = 'Enock PayTracker';
                 const siteTitleWidth = doc.getTextWidth(siteTitle);
                 doc.text(siteTitle, pageWidth - data.settings.margin.right - siteTitleWidth, pageHeight - 10);
-                doc.setTextColor(0); // Reset color
+                doc.setTextColor(0); 
             }
         });
         finalY = (doc as any).autoTable.previous.finalY;
@@ -143,7 +159,7 @@ export default function RecapPage() {
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll || 0)} FCFA`, 14, finalY + 20);
+    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll || 0)} FCFA`, 14, finalY + 15);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -154,7 +170,7 @@ export default function RecapPage() {
         <div>
             <h2 className="text-3xl font-bold tracking-tight">Récapitulatif Hebdomadaire</h2>
             <p className="text-muted-foreground">
-              Résumé de la présence et des paiements des employés pour la semaine.
+              {weekPeriod}.
             </p>
         </div>
         <div className="flex gap-2">
@@ -285,3 +301,4 @@ export default function RecapPage() {
   );
 
     
+

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle } from 'lucide-react';
-import { differenceInWeeks, parseISO } from 'date-fns';
+import { differenceInWeeks, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -258,6 +258,12 @@ export default function EmployeeRecapPage() {
         </div>
     );
   }
+  
+  const today = new Date();
+  const firstDayOfWeek = startOfWeek(today, { weekStartsOn: 1 });
+  const lastDayOfWeek = endOfWeek(today, { weekStartsOn: 1 });
+  const weekPeriod = `Semaine du ${format(firstDayOfWeek, 'dd MMMM', { locale: fr })} au ${format(lastDayOfWeek, 'dd MMMM yyyy', { locale: fr })}`;
+
 
   const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
   const daysPresent = days.filter(day => employee.attendance[day]).length;
@@ -275,10 +281,10 @@ export default function EmployeeRecapPage() {
     // Titre
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text("Récapitulatif de Paie Hebdomadaire", pageWidth / 2, 20, { align: 'center' });
+    doc.text("Fiche de Paie Hebdomadaire", pageWidth / 2, 20, { align: 'center' });
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Période: Semaine du ${format(new Date(), 'dd MMMM yyyy', { locale: fr })}`, pageWidth / 2, 28, { align: 'center' });
+    doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
 
     // Informations de l'employé
     (doc as any).autoTable({
@@ -286,36 +292,44 @@ export default function EmployeeRecapPage() {
         body: [
             ['Nom Complet', `${employee.firstName} ${employee.lastName}`],
             ['Département', employee.domain],
-            ['Salaire Journalier (Semaine)', `${new Intl.NumberFormat('fr-FR').format(currentWage || 0)} FCFA`],
+            ['Salaire/Jour (cette semaine)', `${new Intl.NumberFormat('fr-FR').format(currentWage || 0)} FCFA`],
         ],
         theme: 'plain',
         styles: { fontSize: 11, cellPadding: 2 },
     });
+    
+    let finalY = (doc as any).autoTable.previous.finalY;
 
     // Tableau de présence
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Détail de la Présence", 14, finalY + 10);
+    
     const attendanceData = days.map(day => [
         day, 
         employee.attendance[day] ? 'Présent' : 'Absent'
     ]);
     (doc as any).autoTable({
+        startY: finalY + 15,
         head: [['Jour', 'Statut']],
         body: attendanceData,
         theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [44, 62, 80], textColor: 255, fontStyle: 'bold' },
         didParseCell: function(data: any) {
             if (data.section === 'body' && data.column.index === 1) {
                 if (data.cell.raw === 'Présent') {
-                    data.cell.styles.textColor = [39, 174, 96];
+                    data.cell.styles.textColor = [39, 174, 96]; // Vert
                     data.cell.styles.fontStyle = 'bold';
                 } else {
-                    data.cell.styles.textColor = [192, 57, 43];
+                    data.cell.styles.textColor = [192, 57, 43]; // Rouge
                 }
             }
         }
     });
 
+    finalY = (doc as any).autoTable.previous.finalY;
+
     // Résumé financier
-    let finalY = (doc as any).autoTable.previous.finalY;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text("Résumé Financier", 14, finalY + 15);
@@ -324,10 +338,11 @@ export default function EmployeeRecapPage() {
         body: [
             ['Jours Présents', `${daysPresent} jour(s)`],
             ['Jours Absents', `${days.length - daysPresent} jour(s)`],
-            ['Total Paie Hebdomadaire', `${new Intl.NumberFormat('fr-FR').format(weeklyPay || 0)} FCFA`],
+            [{ content: 'Total Paie Hebdomadaire', styles: { fontStyle: 'bold', fontSize: 12 } },
+             { content: `${new Intl.NumberFormat('fr-FR').format(weeklyPay || 0)} FCFA`, styles: { fontStyle: 'bold', fontSize: 12 } }],
         ],
         theme: 'grid',
-        styles: { fontSize: 12, cellPadding: 3 },
+        styles: { fontSize: 11, cellPadding: 3 },
         columnStyles: { 0: { fontStyle: 'bold' } },
     });
     finalY = (doc as any).autoTable.previous.finalY;
@@ -343,7 +358,7 @@ export default function EmployeeRecapPage() {
     doc.text(siteTitle, pageWidth - 14 - siteTitleWidth, pageHeight - 10);
     doc.setTextColor(0); // Reset color
 
-    doc.save(`recap_hebdo_${employee.lastName}_${employee.firstName}.pdf`);
+    doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
   };
 
   return (
@@ -392,12 +407,12 @@ export default function EmployeeRecapPage() {
                     <Card className="bg-secondary/50">
                         <CardHeader>
                             <CardTitle>Récapitulatif de la Semaine</CardTitle>
-                             <CardDescription>Détail des présences et de la paie pour la semaine en cours.</CardDescription>
+                             <CardDescription>{weekPeriod}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                              <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Salaire pour cette semaine:</span>
-                                <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(currentWage)} FCFA / jour</span>
+                                <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(currentWage || 0)} FCFA / jour</span>
                             </div>
                             <Table>
                                 <TableHeader>
@@ -422,7 +437,7 @@ export default function EmployeeRecapPage() {
                             </Table>
                             <div className="flex justify-between items-center pt-4 border-t">
                                 <span className="font-semibold text-lg">Paie de la semaine:</span>
-                                <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA</span>
+                                <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay || 0)} FCFA</span>
                             </div>
                         </CardContent>
                     </Card>
