@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit } from 'lucide-react';
 import { differenceInWeeks, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -32,11 +32,112 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Department } from '@/lib/types';
+import type { Department, Employee } from '@/lib/types';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { ImagePicker } from '@/components/image-picker';
+
+
+const employeeSchema = z.object({
+  firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
+  lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
+  domain: z.string({ required_error: 'Le département est requis.' }),
+  birthDate: z.date({ required_error: 'Une date de naissance est requise.' }),
+  address: z.string().min(5, { message: "L'adresse est requise." }),
+  dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
+  phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
+  photoUrl: z.string().optional(),
+});
+
+function EditEmployeeDialog({ employee, departments, updateEmployee }: { employee: Employee, departments: Department[], updateEmployee: Function }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { toast } = useToast();
+    const domains = departments.map(d => d.name);
+
+    const form = useForm<z.infer<typeof employeeSchema>>({
+        resolver: zodResolver(employeeSchema),
+    });
+
+    useEffect(() => {
+        if (employee) {
+            form.reset({
+                ...employee,
+                birthDate: parseISO(employee.birthDate),
+            });
+        }
+    }, [employee, form]);
+    
+    const watchedFirstName = form.watch('firstName');
+    const watchedLastName = form.watch('lastName');
+
+    function onSubmit(values: z.infer<typeof employeeSchema>) {
+        updateEmployee(employee.id, {
+            ...values,
+            birthDate: values.birthDate.toISOString().split('T')[0],
+        });
+        toast({
+            title: "Succès",
+            description: "Les informations de l'employé ont été mises à jour.",
+        });
+        setIsOpen(false);
+    }
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button><Edit className="mr-2"/>Modifier</Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Modifier les informations de l'employé</DialogTitle>
+                    <DialogDescription>
+                        Mettez à jour les détails de {employee.firstName} {employee.lastName}.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <FormField control={form.control} name="photoUrl" render={({ field }) => (
+                            <FormItem><FormLabel>Photo de l'employé</FormLabel><FormControl><ImagePicker value={field.value ?? ''} onChange={field.onChange} name={`${watchedFirstName} ${watchedLastName}`} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
+                        <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="birthDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? (format(field.value, "PPP")) : (<span>Choisissez une date</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Adresse</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="dailyWage" render={({ field }) => (<FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
+                            <Button type="submit">Sauvegarder les modifications</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 
 function TransferEmployeeDialog({ employee, departments, transferEmployee }: { employee: any, departments: Department[], transferEmployee: Function }) {
@@ -136,7 +237,7 @@ export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { employees, days, departments, transferEmployee, deleteEmployee } = useEmployees();
+  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee } = useEmployees();
 
   const employee = employees.find(emp => emp.id === id);
 
@@ -239,6 +340,7 @@ export default function EmployeeRecapPage() {
             </div>
         </CardContent>
         <CardFooter className="justify-end gap-2 border-t pt-6">
+            <EditEmployeeDialog employee={employee} departments={departments} updateEmployee={updateEmployee} />
             <TransferEmployeeDialog employee={employee} departments={departments} transferEmployee={transferEmployee} />
             <DeleteEmployeeDialog employee={employee} deleteEmployee={deleteEmployee} />
         </CardFooter>

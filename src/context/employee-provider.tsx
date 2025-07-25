@@ -1,12 +1,17 @@
+
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { type Employee, type Department } from '@/lib/types';
 import { mockEmployees, initialDays, mockDepartments } from '@/lib/data';
 
+type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate'>;
+
+
 interface EmployeeContextType {
   employees: Employee[];
   departments: Department[];
   addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => void;
+  updateEmployee: (employeeId: string, data: EmployeeUpdatePayload) => void;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => void;
   deleteEmployee: (employeeId: string) => void;
   transferEmployee: (employeeId: string, newDomain: string) => void;
@@ -70,6 +75,24 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setEmployees(prev => [...prev, newEmployee]);
   };
 
+  const updateEmployee = (employeeId: string, data: EmployeeUpdatePayload) => {
+    setEmployees(prev => prev.map(emp =>
+      emp.id === employeeId
+        ? {
+            ...emp,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            domain: data.domain,
+            birthDate: data.birthDate,
+            address: data.address,
+            dailyWage: data.dailyWage,
+            phone: data.phone,
+            photoUrl: data.photoUrl,
+          }
+        : emp
+    ));
+  };
+
   const updateAttendance = (employeeId: string, day: string, isPresent: boolean) => {
     setEmployees(prev =>
       prev.map(emp =>
@@ -120,7 +143,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setDepartments(prev => prev.filter(d => d.name !== departmentName));
   };
 
-  const value = { employees, departments, addEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment };
+  const value = { employees, departments, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment };
   
   return (
     <EmployeeContext.Provider value={value}>
