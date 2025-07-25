@@ -44,6 +44,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { ImagePicker } from '@/components/image-picker';
+import { Header } from '@/components/header';
 
 
 const registerSchema = z.object({
@@ -269,31 +270,34 @@ export default function DepartmentPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
-       <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour au tableau de bord
-            </Button>
-        </div>
-        <div className="mb-4">
-            <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
-            <p className="text-muted-foreground">
-                Interface de présence et d'enregistrement pour le responsable {department.manager.name}.
-            </p>
-        </div>
-        <Tabs defaultValue="attendance" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="attendance">Feuille de Présence</TabsTrigger>
-                <TabsTrigger value="register">Enregistrer un employé</TabsTrigger>
-            </TabsList>
-            <TabsContent value="attendance">
-                <AttendanceTab domain={domain} />
-            </TabsContent>
-            <TabsContent value="register">
-                <RegisterInDepartment domain={domain} />
-            </TabsContent>
-        </Tabs>
+    <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 container mx-auto p-4 md:p-8">
+            <div className="mb-6">
+                <Button variant="outline" onClick={() => router.push('/dashboard/departments')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Retour aux départements
+                </Button>
+            </div>
+            <div className="mb-4">
+                <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
+                <p className="text-muted-foreground">
+                    Interface de présence et d'enregistrement pour le responsable {department.manager.name}.
+                </p>
+            </div>
+            <Tabs defaultValue="attendance" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="attendance">Feuille de Présence</TabsTrigger>
+                    <TabsTrigger value="register">Enregistrer un employé</TabsTrigger>
+                </TabsList>
+                <TabsContent value="attendance">
+                    <AttendanceTab domain={domain} />
+                </TabsContent>
+                <TabsContent value="register">
+                    <RegisterInDepartment domain={domain} />
+                </TabsContent>
+            </Tabs>
+        </main>
     </div>
   );
 }

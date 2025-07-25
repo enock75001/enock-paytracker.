@@ -3,7 +3,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { EmployeeProvider } from '@/context/employee-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { Header } from '@/components/header';
+
 
 export const metadata: Metadata = {
   title: 'Enock PayTracker',
@@ -27,10 +27,7 @@ export default function RootLayout({
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <EmployeeProvider>
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1">{children}</main>
-          </div>
+          {children}
           <Toaster />
         </EmployeeProvider>
       </body>

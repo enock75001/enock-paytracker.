@@ -19,14 +19,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Menu, WalletCards, LogOut, User, Shield } from 'lucide-react';
+import { Menu, WalletCards, LogOut, User, Shield, PanelLeft } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
+import { useSidebar } from './ui/sidebar';
 
-const adminNavLinks = [
-  { href: '/dashboard', label: 'Tableau de Bord' },
-];
-
-export function Header() {
+export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const pathname = usePathname();
   const { departments } = useEmployees();
   
@@ -39,43 +36,6 @@ export function Header() {
   const domain = isManagerPath ? decodeURIComponent(pathname.split('/')[2]) : null;
   const managerName = domain ? departments.find(d => d.name === domain)?.manager.name : null;
 
-
-  const renderNavLinks = (isMobileSheet: boolean = false) => {
-    if (!isAdminPath) {
-      return null;
-    }
-  
-    const links = adminNavLinks.map((link) => {
-      const linkContent = (
-        <Link
-          href={link.href}
-          className={cn(
-            'transition-colors hover:text-primary',
-            pathname === link.href ? 'text-primary' : 'text-muted-foreground',
-            isMobileSheet ? 'block py-2' : ''
-          )}
-        >
-          {link.label}
-        </Link>
-      );
-  
-      if (isMobileSheet) {
-        return (
-          <SheetClose asChild key={link.href}>
-            {linkContent}
-          </SheetClose>
-        );
-      }
-  
-      return (
-        <div key={link.href}>
-            {linkContent}
-        </div>
-      );
-    });
-  
-    return <>{links}</>;
-  };
 
   const renderHomeLink = () => {
     let href = "/";
@@ -100,13 +60,11 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
-      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-        <div className="flex items-center gap-6">
-          {renderHomeLink()}
-          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-            {renderNavLinks()}
-          </nav>
+    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-14 items-center justify-between px-4 md:px-6">
+        <div className="flex items-center gap-4">
+            {variant === 'sidebar' && <SidebarToggle />}
+            {!isManagerPath && !isAdminPath && renderHomeLink()}
         </div>
 
         {!isLoginPage && (
@@ -154,29 +112,20 @@ export function Header() {
                    )}
                </DropdownMenuContent>
              </DropdownMenu>
-             
-             {/* Mobile Menu */}
-             {!isManagerPath && (
-                <Sheet>
-                    <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" className="md:hidden">
-                        <Menu className="h-5 w-5" />
-                        <span className="sr-only">Toggle navigation menu</span>
-                    </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left">
-                    <nav className="grid gap-6 text-lg font-medium mt-8">
-                        <SheetClose asChild>
-                            {renderHomeLink()}
-                        </SheetClose>
-                        {renderNavLinks(true)}
-                    </nav>
-                    </SheetContent>
-                </Sheet>
-             )}
            </div>
         )}
       </div>
     </header>
   );
+}
+
+
+function SidebarToggle() {
+    const { toggleSidebar } = useSidebar();
+    return (
+        <Button variant="ghost" size="icon" onClick={() => toggleSidebar()} className="md:hidden">
+            <PanelLeft />
+            <span className="sr-only">Toggle Sidebar</span>
+        </Button>
+    )
 }

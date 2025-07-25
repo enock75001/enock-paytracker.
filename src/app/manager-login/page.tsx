@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, User, Lock, ArrowLeft } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
+import { Header } from '@/components/header';
 
 export default function ManagerLoginPage() {
     const [selectedDepartment, setSelectedDepartment] = useState('');
@@ -48,71 +49,74 @@ export default function ManagerLoginPage() {
     };
 
     return (
-        <div className="w-full h-[calc(100vh-4rem)] flex items-center justify-center container mx-auto p-4">
-            <Card className="mx-auto max-w-sm w-full">
-                <CardHeader className="text-center space-y-2">
-                    <CardTitle className="text-2xl font-headline">Connexion Responsable</CardTitle>
-                    <CardDescription>
-                        Sélectionnez votre département et entrez votre code PIN.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="department">Département</Label>
-                             <Select onValueChange={setSelectedDepartment} defaultValue={selectedDepartment}>
-                                <SelectTrigger id="department">
-                                    <SelectValue placeholder="Sélectionnez votre département" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {departments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                         {selectedManagerName && (
+       <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-1 flex items-center justify-center container mx-auto p-4">
+                <Card className="mx-auto max-w-sm w-full">
+                    <CardHeader className="text-center space-y-2">
+                        <CardTitle className="text-2xl font-headline">Connexion Responsable</CardTitle>
+                        <CardDescription>
+                            Sélectionnez votre département et entrez votre code PIN.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleLogin} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="manager-name">Nom du Responsable</Label>
+                                <Label htmlFor="department">Département</Label>
+                                <Select onValueChange={setSelectedDepartment} defaultValue={selectedDepartment}>
+                                    <SelectTrigger id="department">
+                                        <SelectValue placeholder="Sélectionnez votre département" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {departments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {selectedManagerName && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="manager-name">Nom du Responsable</Label>
+                                    <div className="relative">
+                                        <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input id="manager-name" type="text" value={selectedManagerName} readOnly disabled className="pl-8" />
+                                    </div>
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                <Label htmlFor="pin-code">Code PIN</Label>
                                 <div className="relative">
-                                    <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input id="manager-name" type="text" value={selectedManagerName} readOnly disabled className="pl-8" />
+                                    <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="pin-code"
+                                        type="password"
+                                        placeholder="••••"
+                                        value={pin}
+                                        onChange={(e) => setPin(e.target.value)}
+                                        required
+                                        disabled={!selectedDepartment}
+                                        className="pl-8"
+                                    />
                                 </div>
                             </div>
-                        )}
-                        <div className="space-y-2">
-                            <Label htmlFor="pin-code">Code PIN</Label>
-                             <div className="relative">
-                                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="pin-code"
-                                    type="password"
-                                    placeholder="••••"
-                                    value={pin}
-                                    onChange={(e) => setPin(e.target.value)}
-                                    required
-                                    disabled={!selectedDepartment}
-                                    className="pl-8"
-                                />
-                             </div>
-                        </div>
-                        {error && (
-                             <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>Erreur</AlertTitle>
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
-                        <Button type="submit" className="w-full">
-                            Se connecter
-                        </Button>
-                        <Button variant="link" asChild className="w-full">
-                            <Link href="/">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Retour à la page d'accueil
-                            </Link>
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
+                            {error && (
+                                <Alert variant="destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertTitle>Erreur</AlertTitle>
+                                    <AlertDescription>{error}</AlertDescription>
+                                </Alert>
+                            )}
+                            <Button type="submit" className="w-full">
+                                Se connecter
+                            </Button>
+                            <Button variant="link" asChild className="w-full">
+                                <Link href="/">
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Retour à la page d'accueil
+                                </Link>
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+            </main>
         </div>
     );
 }

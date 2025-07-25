@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -54,6 +55,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { ImagePicker } from '@/components/image-picker';
+import { Header } from '@/components/header';
 
 
 const employeeSchema = z.object({
@@ -261,94 +263,97 @@ export default function EmployeeRecapPage() {
   const estimatedTotalEarnings = weeksSinceRegistration * (5 * employee.dailyWage); 
 
   return (
-    <div className="container mx-auto p-4 md:p-8">
-        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.back()}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour
-            </Button>
-        </div>
+    <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 container mx-auto p-4 md:p-8">
+            <div className="mb-6">
+                <Button variant="outline" onClick={() => router.back()}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Retour
+                </Button>
+            </div>
 
-      <Card className="max-w-4xl mx-auto">
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-8">
-            <Avatar className="h-24 w-24 border-2 border-primary">
-                <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
-                <AvatarFallback className="text-3xl">{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-                <CardTitle className="text-4xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
-                <CardDescription className="text-lg text-muted-foreground">{employee.domain}</CardDescription>
-                <div className="text-sm text-muted-foreground mt-2">
-                    Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR', { locale: fr })}
+        <Card className="max-w-4xl mx-auto">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-8">
+                <Avatar className="h-24 w-24 border-2 border-primary">
+                    <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
+                    <AvatarFallback className="text-3xl">{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <CardTitle className="text-4xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
+                    <CardDescription className="text-lg text-muted-foreground">{employee.domain}</CardDescription>
+                    <div className="text-sm text-muted-foreground mt-2">
+                        Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR', { locale: fr })}
+                    </div>
                 </div>
-            </div>
-             <Button asChild variant="outline">
-                <Link href={`/department/${encodeURIComponent(employee.domain)}`}>
-                    <UserCog className="mr-2 h-4 w-4" />
-                    Gérer le Département
-                </Link>
-            </Button>
-        </CardHeader>
-        <CardContent className="grid gap-8 pt-6">
-            <div>
-                <h3 className="text-xl font-semibold mb-4 border-b pb-2">Informations Personnelles</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /> <strong>Nom Complet:</strong> {employee.firstName} {employee.lastName}</div>
-                    <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Date de Naissance:</strong> {new Date(employee.birthDate).toLocaleDateString('fr-FR', { locale: fr })}</div>
-                    <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
-                    <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
-                    <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
-                    <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
+                <Button asChild variant="outline">
+                    <Link href={`/department/${encodeURIComponent(employee.domain)}`}>
+                        <UserCog className="mr-2 h-4 w-4" />
+                        Gérer le Département
+                    </Link>
+                </Button>
+            </CardHeader>
+            <CardContent className="grid gap-8 pt-6">
+                <div>
+                    <h3 className="text-xl font-semibold mb-4 border-b pb-2">Informations Personnelles</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /> <strong>Nom Complet:</strong> {employee.firstName} {employee.lastName}</div>
+                        <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Date de Naissance:</strong> {new Date(employee.birthDate).toLocaleDateString('fr-FR', { locale: fr })}</div>
+                        <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
+                        <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
+                        <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
+                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
+                    </div>
                 </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Card className="bg-secondary/50">
-                    <CardHeader>
-                        <CardTitle>Récapitulatif de la Semaine</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between items-center">
-                           <span className="text-muted-foreground">Salaire pour cette semaine:</span>
-                           <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA / jour</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Jours de présence:</span>
-                            <Badge className="text-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">{daysPresent}</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Jours d'absence:</span>
-                            <Badge className="text-lg" variant="secondary">{days.length - daysPresent}</Badge>
-                        </div>
-                         <div className="flex justify-between items-center pt-4 border-t">
-                            <span className="font-semibold">Salaire de la semaine:</span>
-                            <span className="font-bold text-xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA</span>
-                        </div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Récapitulatif Global</CardTitle>
-                        <CardDescription>Estimation depuis l'inscription</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <div className="flex justify-between items-center">
-                            <span className="font-semibold">Salaire total estimé:</span>
-                            <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings)} FCFA</span>
-                        </div>
-                         <p className="text-xs text-muted-foreground mt-2">
-                            Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-        </CardContent>
-        <CardFooter className="justify-end gap-2 border-t pt-6">
-            <EditEmployeeDialog employee={employee} departments={departments} updateEmployee={updateEmployee} />
-            <TransferEmployeeDialog employee={employee} departments={departments} transferEmployee={transferEmployee} />
-            <DeleteEmployeeDialog employee={employee} deleteEmployee={deleteEmployee} />
-        </CardFooter>
-      </Card>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <Card className="bg-secondary/50">
+                        <CardHeader>
+                            <CardTitle>Récapitulatif de la Semaine</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Salaire pour cette semaine:</span>
+                            <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA / jour</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Jours de présence:</span>
+                                <Badge className="text-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">{daysPresent}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Jours d'absence:</span>
+                                <Badge className="text-lg" variant="secondary">{days.length - daysPresent}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center pt-4 border-t">
+                                <span className="font-semibold">Salaire de la semaine:</span>
+                                <span className="font-bold text-xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Récapitulatif Global</CardTitle>
+                            <CardDescription>Estimation depuis l'inscription</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex justify-between items-center">
+                                <span className="font-semibold">Salaire total estimé:</span>
+                                <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings)} FCFA</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </CardContent>
+            <CardFooter className="justify-end gap-2 border-t pt-6">
+                <EditEmployeeDialog employee={employee} departments={departments} updateEmployee={updateEmployee} />
+                <TransferEmployeeDialog employee={employee} departments={departments} transferEmployee={transferEmployee} />
+                <DeleteEmployeeDialog employee={employee} deleteEmployee={deleteEmployee} />
+            </CardFooter>
+        </Card>
+        </main>
     </div>
   );
 }

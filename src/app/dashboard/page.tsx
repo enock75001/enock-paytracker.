@@ -5,12 +5,6 @@
 import { useEmployees } from '@/context/employee-provider';
 import type { Employee, Department } from '@/lib/types';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import {
   Table,
   TableBody,
   TableCell,
@@ -23,7 +17,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive, RefreshCw, ServerCrash, CalendarCheck } from 'lucide-react';
+import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive, RefreshCw, ServerCrash, CalendarCheck, Home, UserPlus, FileText, Briefcase, DollarSign, BarChart3 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -82,651 +76,113 @@ import {
 import { useState } from 'react';
 import { type ArchivedPayroll } from '@/lib/types';
 import { ImagePicker } from '@/components/image-picker';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
-
-function groupEmployeesByDomain(employees: Employee[]): Record<string, Employee[]> {
-  return employees.reduce((acc, employee) => {
-    const domain = employee.domain;
-    if (!acc[domain]) {
-      acc[domain] = [];
-    }
-    acc[domain].push(employee);
-    return acc;
-  }, {} as Record<string, Employee[]>);
-}
-
-const departmentSchema = z.object({
-  name: z.string().min(3, "Le nom du département est requis."),
-  managerName: z.string().min(3, "Le nom du manager est requis."),
-  managerPin: z.string().length(4, "Le code PIN doit contenir 4 chiffres."),
-});
-
-// Component for Departments Tab
-function DepartmentsTab() {
-  const { employees, departments, addDepartment, updateDepartment, deleteDepartment } = useEmployees();
-  const groupedEmployees = groupEmployeesByDomain(employees);
-  const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [defaultValues, setDefaultValues] = useState({ name: '', managerName: '', managerPin: '' });
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [originalDepartmentName, setOriginalDepartmentName] = useState('');
-
-  const form = useForm({
-    resolver: zodResolver(departmentSchema),
-    defaultValues,
-  });
-
-  const openDialog = (department?: Department) => {
-    if (department) {
-      setIsEditMode(true);
-      setOriginalDepartmentName(department.name);
-      form.reset({ name: department.name, managerName: department.manager.name, managerPin: department.manager.pin });
-    } else {
-      setIsEditMode(false);
-      form.reset({ name: '', managerName: '', managerPin: '' });
-    }
-    setIsDialogOpen(true);
-  };
-
-  const onSubmit = (values: z.infer<typeof departmentSchema>) => {
-    try {
-      if (isEditMode) {
-        updateDepartment(originalDepartmentName, {
-          name: values.name,
-          manager: { name: values.managerName, pin: values.managerPin }
-        });
-        toast({ title: "Succès", description: "Département mis à jour." });
-      } else {
-        addDepartment({
-          name: values.name,
-          manager: { name: values.managerName, pin: values.managerPin }
-        });
-        toast({ title: "Succès", description: "Nouveau département ajouté." });
-      }
-      setIsDialogOpen(false);
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: "Erreur", description: error.message });
-    }
-  };
-
-
-  return (
-    <Card>
-        <CardHeader className='flex-row items-center justify-between'>
-            <div className="space-y-1.5">
-                <CardTitle>Gestion des Départements</CardTitle>
-                <CardDescription>Ajoutez, modifiez ou supprimez des départements.</CardDescription>
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button onClick={() => openDialog()}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Nouveau Département
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{isEditMode ? "Modifier le département" : "Créer un nouveau département"}</DialogTitle>
-                    </DialogHeader>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <FormField name="name" control={form.control} render={({ field }) => (
-                                <FormItem><FormLabel>Nom du département</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField name="managerName" control={form.control} render={({ field }) => (
-                                <FormItem><FormLabel>Nom du Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField name="managerPin" control={form.control} render={({ field }) => (
-                                <FormItem><FormLabel>Code PIN du Manager (4 chiffres)</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <DialogFooter>
-                                <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
-                                <Button type="submit">Sauvegarder</Button>
-                            </DialogFooter>
-                        </form>
-                    </Form>
-                </DialogContent>
-            </Dialog>
-        </CardHeader>
-        <CardContent>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {departments.map((department) => {
-                const employeesInDomain = groupedEmployees[department.name] || [];
-                return (
-                    <Card key={department.name}>
-                        <CardHeader>
-                            <CardTitle className="flex justify-between items-start">
-                                <span>{department.name}</span>
-                                <Users className="h-6 w-6 text-muted-foreground" />
-                            </CardTitle>
-                            <CardDescription className="flex items-center pt-1">
-                                <UserCog className="mr-2 h-4 w-4" />
-                                <span>Manager: {department.manager.name}</span>
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{employeesInDomain.length} employés</div>
-                        </CardContent>
-                        <CardFooter className="flex justify-between">
-                             <div className="flex gap-2">
-                                 <Button variant="outline" size="icon" onClick={() => openDialog(department)}><Edit className="h-4 w-4" /></Button>
-                                 <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="icon" disabled={employeesInDomain.length > 0}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le département sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => deleteDepartment(department.name)}>Supprimer</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                 </AlertDialog>
-                             </div>
-                             <Button asChild>
-                                <Link href={`/department/${encodeURIComponent(department.name)}`}>Gérer</Link>
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                )
-            })}
-            </div>
-             <p className="text-xs text-muted-foreground mt-4">Pour supprimer un département, vous devez d'abord réaffecter ou supprimer tous ses employés.</p>
-        </CardContent>
-    </Card>
-  )
-}
-
-// Logic from recap page
-interface WeeklySummary {
-  employee: Employee;
-  daysPresent: number;
-  daysAbsent: number;
-  totalPay: number;
-}
-const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
-    const daysPresent = days.filter(day => employee.attendance[day]).length;
-    const totalPay = daysPresent * employee.currentWeekWage;
-    return {
-        employee,
-        daysPresent,
-        daysAbsent: days.length - daysPresent,
-        totalPay
-    };
-}
-
-const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, WeeklySummary[]> => {
-    return summaries.reduce((acc, summary) => {
-        const domain = summary.employee.domain;
-        if (!acc[domain]) {
-            acc[domain] = [];
-        }
-        acc[domain].push(summary);
-        return acc;
-    }, {} as Record<string, WeeklySummary[]>);
-};
-
-// Component for Recap Tab
-function RecapTab() {
-  const { employees, days, startNewWeek } = useEmployees();
-  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days));
-  const groupedSummaries = groupSummariesByDomain(weeklySummaries);
-  const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
-  const { toast } = useToast();
-
-  const handleStartNewWeek = () => {
-    startNewWeek();
-    toast({
-        title: "Nouvelle Semaine Initiée",
-        description: "La paie a été archivée, les présences réinitialisées et les salaires mis à jour.",
-        className: 'bg-accent text-accent-foreground'
-    });
-  }
-
-  const downloadPdf = () => {
-    const doc = new jsPDF();
-    const pageTitle = "Récapitulatif de Paie Hebdomadaire";
-    const titleWidth = doc.getTextWidth(pageTitle);
-    const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFontSize(18);
-    doc.text(pageTitle, (pageWidth - titleWidth) / 2, 20);
-
-    Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
-        (doc as any).autoTable({
-            startY: (doc as any).autoTable.previous.finalY + 15 || 30,
-            head: [[{ content: domain, colSpan: 6, styles: { fillColor: [22, 163, 74], textColor: 255 } }]],
-            body: summaries.map(s => [
-                `${s.employee.firstName} ${s.employee.lastName}`,
-                s.daysPresent,
-                s.daysAbsent,
-                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage),
-                new Intl.NumberFormat('fr-FR').format(s.totalPay),
-                ''
-            ]),
-            headStyles: { halign: 'center'},
-            foot: [[
-                { content: 'Total Département', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
-                { content: new Intl.NumberFormat('fr-FR').format(summaries.reduce((acc, curr) => acc + curr.totalPay, 0)), styles: { halign: 'right', fontStyle: 'bold' } },
-                ''
-            ]],
-            footStyles: { fillColor: [240, 240, 240] },
-            columns: [
-                { header: 'Employé' },
-                { header: 'Présents', styles: { halign: 'center' } },
-                { header: 'Absents', styles: { halign: 'center' } },
-                { header: 'Salaire Journalier', styles: { halign: 'right' } },
-                { header: 'Paie Totale', styles: { halign: 'right' } },
-                { header: 'Actions', styles: { halign: 'center'} }
-            ],
-            theme: 'striped',
-            didDrawPage: function (data: any) {
-                // Footer
-                doc.setFontSize(10);
-                doc.text('Enock PayTracker - ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
-            }
-        });
-    });
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll)} FCFA`, 14, (doc as any).autoTable.previous.finalY + 20);
-
-    doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  return (
-    <>
-      <div className="mb-6 mt-6 flex justify-between items-center">
-        <div>
-            <h1 className="text-3xl font-bold font-headline">Récapitulatif Hebdomadaire</h1>
-            <p className="text-muted-foreground">
-              Résumé de la présence et des paiements des employés pour la semaine.
-            </p>
-        </div>
-        <div className="flex gap-2">
-            <Button onClick={downloadPdf}>
-                <Download className="mr-2 h-4 w-4" />
-                Télécharger en PDF
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Commencer une Nouvelle Semaine
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Êtes-vous sûr de vouloir commencer une nouvelle semaine ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action est importante : la paie actuelle sera archivée, les présences de tous les employés seront réinitialisées à zéro, et tout changement de salaire prendra effet.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleStartNewWeek}>Confirmer et Continuer</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-        </div>
-      </div>
-      
-      <Accordion type="multiple" defaultValue={Object.keys(groupedSummaries)} className="w-full space-y-4">
-        {Object.entries(groupedSummaries).map(([domain, summaries]) => {
-          const domainTotal = summaries.reduce((sum, s) => sum + s.totalPay, 0);
-          return (
-            <Card key={domain} className="overflow-hidden">
-                <AccordionItem value={domain} className="border-b-0">
-                    <AccordionTrigger className="p-6 bg-card hover:bg-secondary/50 [&[data-state=open]]:border-b">
-                        <div className='flex items-center justify-between w-full'>
-                            <div className='flex items-center gap-4'>
-                                <h2 className="text-xl font-semibold font-headline">{domain}</h2>
-                                <Badge variant="secondary">{summaries.length} employés</Badge>
-                            </div>
-                            <div className="text-lg font-semibold pr-4">
-                                Total: {new Intl.NumberFormat('fr-FR').format(domainTotal)} FCFA
-                            </div>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-0">
-                        <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Employé</TableHead>
-                                    <TableHead className="text-center">Jours Présents</TableHead>
-                                    <TableHead className="text-center">Jours Absents</TableHead>
-                                    <TableHead className="text-right">Salaire Journalier</TableHead>
-                                    <TableHead className="text-right">Paie Totale</TableHead>
-                                    <TableHead className="text-center">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {summaries.map(summary => (
-                                <TableRow key={summary.employee.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar>
-                                                <AvatarImage src={summary.employee.photoUrl} alt={`${summary.employee.firstName} ${summary.employee.lastName}`} data-ai-hint="person portrait" />
-                                                <AvatarFallback>{summary.employee.firstName.charAt(0)}{summary.employee.lastName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium">
-                                                {summary.employee.firstName} {summary.employee.lastName}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">{summary.daysPresent}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Badge variant="secondary">{summary.daysAbsent}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage)} FCFA
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.totalPay)} FCFA
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Link href={`/employee/${summary.employee.id}`} passHref>
-                                            <Button variant="ghost" size="icon">
-                                                <Eye className="h-4 w-4" />
-                                                <span className="sr-only">Voir les détails</span>
-                                            </Button>
-                                        </Link>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            </TableBody>
-                            <TableFooter>
-                                <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
-                                    <TableCell colSpan={4} className="text-right font-bold text-lg">Total Département</TableCell>
-                                    <TableCell className="text-right font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(domainTotal)} FCFA</TableCell>
-                                    <TableCell />
-                                </TableRow>
-                            </TableFooter>
-                        </Table>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-            </Card>
-          )
-        })}
-      </Accordion>
-
-      <Card className="mt-8">
-        <CardHeader>
-            <CardTitle className="text-2xl">Total Général de la Semaine</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <div className="text-4xl font-bold text-primary">
-                {new Intl.NumberFormat('fr-FR').format(totalPayroll)} FCFA
-            </div>
-             <p className="text-muted-foreground mt-2">
-                Ceci est la somme totale à payer à tous les employés pour la semaine en cours.
-            </p>
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-// Schema from register page
-const registerSchema = z.object({
-  firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
-  lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
-  domain: z.string({ required_error: 'Le département est requis.' }),
-  birthDate: z.date({ required_error: 'Une date de naissance est requise.' }),
-  address: z.string().min(5, { message: "L'adresse est requise." }),
-  dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
-  phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
-  photoUrl: z.string().optional(),
-});
-
-// Component for Register Tab
-function RegisterTab() {
-    const { addEmployee, departments } = useEmployees();
-    const { toast } = useToast()
-    const domains = departments.map(d => d.name);
-
-    const form = useForm<z.infer<typeof registerSchema>>({
-        resolver: zodResolver(registerSchema),
-        defaultValues: {
-            firstName: '',
-            lastName: '',
-            domain: '',
-            address: '',
-            dailyWage: 5000,
-            phone: '',
-            photoUrl: '',
-        },
-    });
-
-    const watchedFirstName = form.watch('firstName');
-    const watchedLastName = form.watch('lastName');
-
-    function onSubmit(values: z.infer<typeof registerSchema>) {
-        addEmployee({
-            ...values,
-            birthDate: values.birthDate.toISOString().split('T')[0],
-            photoUrl: values.photoUrl || '',
-        });
-        toast({
-            title: "Employé Enregistré",
-            description: `${values.firstName} ${values.lastName} a été ajouté avec succès au département ${values.domain}.`,
-            className: 'bg-green-600'
-        });
-        form.reset();
-    }
-    
-    return (
-        <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold font-headline">Enregistrer un Nouvel Employé</CardTitle>
-          <CardDescription>Remplissez le formulaire pour ajouter un employé à un département.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl">
-                 <FormField
-                  control={form.control}
-                  name="photoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Photo de l'employé</FormLabel>
-                      <FormControl>
-                         <ImagePicker 
-                           value={field.value ?? ''} 
-                           onChange={field.onChange}
-                           name={`${watchedFirstName} ${watchedLastName}`}
-                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <FormField control={form.control} name="firstName" render={({ field }) => (
-                        <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="lastName" render={({ field }) => (
-                        <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
-                
-                 <FormField control={form.control} name="domain" render={({ field }) => (
-                     <FormItem>
-                        <FormLabel>Département</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Sélectionnez un département" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {domains.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-
-              <FormField control={form.control} name="birthDate" render={({ field }) => (
-                <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                          {field.value ? (format(field.value, "PPP")) : (<span>Choisissez une date</span>)}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus />
-                    </PopoverContent>
-                  </Popover><FormMessage />
-                </FormItem>
-              )} />
-                <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem><FormLabel>Adresse</FormLabel><FormControl><Input placeholder="123 Rue Principale, Anytown" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="phone" render={({ field }) => (
-                        <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
-              <Button type="submit">Enregistrer l'employé</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    )
-}
-
-function ArchivesTab() {
-  const { archives } = useEmployees();
-
-  const groupArchivesByYear = (archives: ArchivedPayroll[]): Record<string, ArchivedPayroll[]> => {
-    return archives.reduce((acc, archive) => {
-      const year = new Date().getFullYear().toString(); // Simple grouping for now
-      if (!acc[year]) {
-        acc[year] = [];
-      }
-      acc[year].push(archive);
-      return acc;
-    }, {} as Record<string, ArchivedPayroll[]>);
-  };
-  
-  const groupedArchives = groupArchivesByYear(archives);
-  const years = Object.keys(groupedArchives).sort((a, b) => b.localeCompare(a));
-
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Archives des Fiches de Paie</CardTitle>
-        <CardDescription>Consultez l'historique des paiements passés.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {archives.length === 0 ? (
-          <div className="text-center py-12">
-            <ServerCrash className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">Aucune Archive</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Commencez une nouvelle semaine depuis l'onglet "Récapitulatif" pour créer votre première archive.
-            </p>
-          </div>
-        ) : (
-          <Accordion type="multiple" defaultValue={years} className="w-full space-y-4">
-            {years.map(year => (
-              <Card key={year} className="overflow-hidden">
-                <AccordionItem value={year} className="border-b-0">
-                  <AccordionTrigger className="p-6 bg-card hover:bg-secondary/50 [&[data-state=open]]:border-b">
-                     <div className='flex items-center gap-4'>
-                        <CalendarCheck className="h-6 w-6 text-primary"/>
-                        <h2 className="text-xl font-semibold font-headline">Archives de {year}</h2>
-                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="p-0">
-                    {groupedArchives[year]
-                        .map(archive => (
-                            <div key={archive.period} className="border-t p-4">
-                                <h3 className="font-semibold text-lg">{archive.period}</h3>
-                                <p className="text-muted-foreground mb-2">
-                                  Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
-                                </p>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Département</TableHead>
-                                            <TableHead>Employés</TableHead>
-                                            <TableHead className="text-right">Total</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {archive.departments.map(dept => (
-                                            <TableRow key={dept.name}>
-                                                <TableCell>{dept.name}</TableCell>
-                                                <TableCell>{dept.employeeCount}</TableCell>
-                                                <TableCell className="text-right">{new Intl.NumberFormat('fr-FR').format(dept.total)} FCFA</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        ))
-                    }
-                  </AccordionContent>
-                </AccordionItem>
-              </Card>
-            ))}
-          </Accordion>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
 
 // Main Page Component
 export default function DashboardPage() {
+    const { employees, departments, days } = useEmployees();
+    const totalEmployees = employees.length;
+    const weeklyPayroll = employees.reduce((total, emp) => {
+        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        return total + (daysPresent * emp.currentWeekWage);
+    }, 0);
+
+    const employeesByDept = departments.map(dept => ({
+        name: dept.name,
+        total: employees.filter(emp => emp.domain === dept.name).length
+    }));
+
   return (
-    <div className="container mx-auto p-4 md:p-8">
-        <div className="mb-8">
-            <h1 className="text-3xl font-bold font-headline">Tableau de Bord Administrateur</h1>
-            <p className="text-muted-foreground">
-                Gérez les départements, les employés et la paie depuis une interface centralisée.
-            </p>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight">Tableau de Bord</h2>
         </div>
-       <Tabs defaultValue="departments" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="departments">Gestion des Départements</TabsTrigger>
-                <TabsTrigger value="register">Enregistrer un Employé</TabsTrigger>
-                <TabsTrigger value="recap">Récapitulatif de Paie</TabsTrigger>
-                <TabsTrigger value="archives">
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archives
-                </TabsTrigger>
-            </TabsList>
-            <TabsContent value="departments" className="mt-6">
-                <DepartmentsTab />
-            </TabsContent>
-            <TabsContent value="register" className="mt-6">
-                <RegisterTab />
-            </TabsContent>
-            <TabsContent value="recap" className="mt-6">
-                <RecapTab />
-            </TabsContent>
-             <TabsContent value="archives" className="mt-6">
-                <ArchivesTab />
-            </TabsContent>
-        </Tabs>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Masse Salariale (Semaine)</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{new Intl.NumberFormat('fr-FR').format(weeklyPayroll)} FCFA</div>
+                    <p className="text-xs text-muted-foreground">Total à payer pour cette semaine</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Employés Total</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalEmployees}</div>
+                    <p className="text-xs text-muted-foreground">Personnes travaillant dans l'entreprise</p>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Départements</CardTitle>
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{departments.length}</div>
+                    <p className="text-xs text-muted-foreground">Nombre de départements actifs</p>
+                </CardContent>
+            </Card>
+        </div>
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+                <CardHeader>
+                    <CardTitle>Vue d'ensemble des départements</CardTitle>
+                </CardHeader>
+                <CardContent className="pl-2">
+                    <ResponsiveContainer width="100%" height={350}>
+                        <BarChart data={employeesByDept}>
+                            <XAxis
+                                dataKey="name"
+                                stroke="#888888"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <YAxis
+                                stroke="#888888"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => `${value}`}
+                            />
+                            <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+             <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Employés Récents</CardTitle>
+                <CardDescription>
+                  Les {employees.slice(-5).length} derniers employés ajoutés.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-8">
+                    {employees.slice(-5).reverse().map(employee => (
+                         <div key={employee.id} className="flex items-center">
+                            <Avatar className="h-9 w-9">
+                                <AvatarImage src={employee.photoUrl} alt="Avatar" data-ai-hint="person portrait" />
+                                <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="ml-4 space-y-1">
+                                <p className="text-sm font-medium leading-none">{employee.firstName} {employee.lastName}</p>
+                                <p className="text-sm text-muted-foreground">{employee.domain}</p>
+                            </div>
+                            <div className="ml-auto font-medium">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
+                        </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+        </div>
     </div>
   );
 }
