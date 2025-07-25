@@ -27,34 +27,37 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname();
+  const isAdminView = !pathname.startsWith('/department');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-6">
           <Link
-            href="/dashboard"
+            href={isAdminView ? "/dashboard" : "/"}
             className="flex items-center gap-2 font-bold text-lg"
           >
             <WalletCards className="h-6 w-6 text-primary" />
             <span className="font-headline">PayTracker</span>
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'transition-colors hover:text-primary',
-                  pathname.startsWith(link.href)
-                    ? 'text-primary'
-                    : 'text-muted-foreground'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          {isAdminView && (
+            <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'transition-colors hover:text-primary',
+                    pathname.startsWith(link.href)
+                      ? 'text-primary'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <DropdownMenu>
@@ -101,14 +104,14 @@ export function Header() {
               <nav className="grid gap-6 text-lg font-medium mt-8">
                 <SheetClose asChild>
                   <Link
-                    href="/dashboard"
+                    href={isAdminView ? "/dashboard" : "/"}
                     className="flex items-center gap-2 text-lg font-semibold"
                   >
                     <WalletCards className="h-6 w-6 text-primary" />
                     <span>PayTracker</span>
                   </Link>
                 </SheetClose>
-                {navLinks.map((link) => (
+                {isAdminView && navLinks.map((link) => (
                   <SheetClose asChild key={link.href}>
                     <Link
                       href={link.href}
@@ -131,5 +134,3 @@ export function Header() {
     </header>
   );
 }
-
-    
