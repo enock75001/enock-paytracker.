@@ -1,16 +1,16 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { type Employee, type Department } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll } from '@/lib/types';
 import { mockEmployees, initialDays, mockDepartments } from '@/lib/data';
 
-type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate'>;
-
+type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>;
 
 interface EmployeeContextType {
   employees: Employee[];
   departments: Department[];
-  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => void;
+  archives: ArchivedPayroll[];
+  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>) => void;
   updateEmployee: (employeeId: string, data: EmployeeUpdatePayload) => void;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => void;
   deleteEmployee: (employeeId: string) => void;
@@ -19,6 +19,7 @@ interface EmployeeContextType {
   addDepartment: (department: Department) => void;
   updateDepartment: (originalName: string, updatedDepartment: Department) => void;
   deleteDepartment: (departmentName: string) => void;
+  startNewWeek: () => void;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -26,6 +27,7 @@ const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined
 export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [archives, setArchives] = useState<ArchivedPayroll[]>([]);
   const [isClient, setIsClient] = useState(false);
   const days = initialDays;
 
@@ -35,20 +37,24 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     try {
       const storedEmployees = localStorage.getItem('employees');
       const storedDepartments = localStorage.getItem('departments');
+      const storedArchives = localStorage.getItem('archives');
 
       if (storedEmployees && storedDepartments) {
         setEmployees(JSON.parse(storedEmployees));
         setDepartments(JSON.parse(storedDepartments));
+        setArchives(storedArchives ? JSON.parse(storedArchives) : []);
       } else {
         // If no data in localStorage, initialize with mock data
         setEmployees(mockEmployees);
         setDepartments(mockDepartments);
+        setArchives([]);
       }
     } catch (error) {
         console.error("Failed to read from localStorage", error);
         // Fallback to mock data if localStorage is corrupt or inaccessible
         setEmployees(mockEmployees);
         setDepartments(mockDepartments);
+        setArchives([]);
     }
   }, []);
 
@@ -57,20 +63,22 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         try {
             localStorage.setItem('employees', JSON.stringify(employees));
             localStorage.setItem('departments', JSON.stringify(departments));
+            localStorage.setItem('archives', JSON.stringify(archives));
         } catch (error) {
             console.error("Failed to write to localStorage", error);
         }
     }
-  }, [employees, departments, isClient]);
+  }, [employees, departments, archives, isClient]);
 
 
-  const addEmployee = (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => {
+  const addEmployee = (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>) => {
     const newEmployee: Employee = {
       ...employeeData,
-      id: (employees.length + 1).toString(),
+      id: (employees.length > 999 ? Math.random() : employees.length + 1).toString(),
       registrationDate: new Date().toISOString().split('T')[0],
       attendance: days.reduce((acc, day) => ({ ...acc, [day]: false }), {}),
-      photoUrl: employeeData.photoUrl || 'https://placehold.co/100x100.png'
+      photoUrl: employeeData.photoUrl || 'https://placehold.co/100x100.png',
+      currentWeekWage: employeeData.dailyWage, // Initialize currentWeekWage
     };
     setEmployees(prev => [...prev, newEmployee]);
   };
@@ -85,7 +93,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             domain: data.domain,
             birthDate: data.birthDate,
             address: data.address,
-            dailyWage: data.dailyWage,
+            dailyWage: data.dailyWage, // Only update the base daily wage
             phone: data.phone,
             photoUrl: data.photoUrl,
           }
@@ -142,8 +150,42 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     }
     setDepartments(prev => prev.filter(d => d.name !== departmentName));
   };
+  
+  const startNewWeek = () => {
+     // 1. Archive current week's payroll
+    const totalPayroll = employees.reduce((total, emp) => {
+        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        return total + (daysPresent * emp.currentWeekWage);
+    }, 0);
 
-  const value = { employees, departments, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment };
+    const departmentTotals: { [key: string]: { total: number, employeeCount: number } } = {};
+
+    employees.forEach(emp => {
+        if (!departmentTotals[emp.domain]) {
+            departmentTotals[emp.domain] = { total: 0, employeeCount: 0 };
+        }
+        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        departmentTotals[emp.domain].total += (daysPresent * emp.currentWeekWage);
+        departmentTotals[emp.domain].employeeCount += 1;
+    });
+
+    const newArchive: ArchivedPayroll = {
+        period: `Semaine du ${new Date().toLocaleDateString('fr-FR')}`,
+        totalPayroll,
+        departments: Object.entries(departmentTotals).map(([name, data]) => ({ name, ...data })),
+    };
+    
+    setArchives(prev => [newArchive, ...prev]);
+
+    // 2. Reset attendance and update wages for the new week
+    setEmployees(prev => prev.map(emp => ({
+        ...emp,
+        attendance: days.reduce((acc, day) => ({ ...acc, [day]: false }), {}),
+        currentWeekWage: emp.dailyWage, // Update current wage from base wage
+    })));
+  }
+
+  const value = { employees, departments, archives, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment, startNewWeek };
   
   return (
     <EmployeeContext.Provider value={value}>

@@ -30,8 +30,7 @@ export const mockDepartments: Department[] = [
   },
 ];
 
-
-export const mockEmployees: Employee[] = [
+const mockEmployeesData = [
   {
     id: '1',
     firstName: 'Jean',
@@ -43,7 +42,6 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5000,
     phone: '0123456789',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance('1'),
   },
   {
     id: '2',
@@ -56,7 +54,6 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5500,
     phone: '0987654321',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance('2'),
   },
   {
     id: '3',
@@ -69,7 +66,6 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5000,
     phone: '0612345678',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance('3'),
   },
   {
     id: '4',
@@ -82,7 +78,6 @@ export const mockEmployees: Employee[] = [
     dailyWage: 4800,
     phone: '0712345678',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance('4'),
   },
    {
     id: '5',
@@ -95,14 +90,19 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5200,
     phone: '0587654321',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance('5'),
   },
 ];
+
+export const mockEmployees: Employee[] = mockEmployeesData.map(emp => ({
+  ...emp,
+  currentWeekWage: emp.dailyWage,
+  attendance: createInitialAttendance(emp.id),
+}));
 
 
 export const mockArchives: ArchivedPayroll[] = [
   {
-    period: "2024-06",
+    period: "2024-W26",
     totalPayroll: 1250000,
     departments: [
       { name: "Peinture Intérieure", total: 500000, employeeCount: 2 },
@@ -111,7 +111,7 @@ export const mockArchives: ArchivedPayroll[] = [
     ],
   },
   {
-    period: "2024-05",
+    period: "2024-W25",
     totalPayroll: 1235000,
     departments: [
       { name: "Peinture Intérieure", total: 480000, employeeCount: 2 },
@@ -120,7 +120,7 @@ export const mockArchives: ArchivedPayroll[] = [
     ],
   },
   {
-    period: "2023-12",
+    period: "2023-W52",
     totalPayroll: 1100000,
     departments: [
         { name: "Peinture Intérieure", total: 450000, employeeCount: 2 },

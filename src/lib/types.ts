@@ -11,6 +11,7 @@ export interface Employee {
   address: string;
   registrationDate: string;
   dailyWage: number;
+  currentWeekWage: number; // Salaire utilisé pour la paie de la semaine actuelle
   phone: string;
   photoUrl: string;
   attendance: Attendance;
@@ -25,7 +26,7 @@ export interface Department {
 }
 
 export interface ArchivedPayroll {
-  period: string; // e.g., "2024-05"
+  period: string; // e.g., "2024-W25"
   totalPayroll: number;
   departments: {
     name: string;

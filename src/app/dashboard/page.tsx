@@ -23,7 +23,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive } from 'lucide-react';
+import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive, RefreshCw, ServerCrash, CalendarCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -80,7 +80,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { useState } from 'react';
-import { mockArchives, ArchivedPayroll } from '@/lib/data';
+import { type ArchivedPayroll } from '@/lib/types';
 import { ImagePicker } from '@/components/image-picker';
 
 
@@ -248,7 +248,7 @@ interface WeeklySummary {
 }
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
     const daysPresent = days.filter(day => employee.attendance[day]).length;
-    const totalPay = daysPresent * employee.dailyWage;
+    const totalPay = daysPresent * employee.currentWeekWage;
     return {
         employee,
         daysPresent,
@@ -270,10 +270,20 @@ const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, Week
 
 // Component for Recap Tab
 function RecapTab() {
-  const { employees, days } = useEmployees();
+  const { employees, days, startNewWeek } = useEmployees();
   const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days));
   const groupedSummaries = groupSummariesByDomain(weeklySummaries);
   const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
+  const { toast } = useToast();
+
+  const handleStartNewWeek = () => {
+    startNewWeek();
+    toast({
+        title: "Nouvelle Semaine Initiée",
+        description: "La paie a été archivée, les présences réinitialisées et les salaires mis à jour.",
+        className: 'bg-accent text-accent-foreground'
+    });
+  }
 
   const downloadPdf = () => {
     const doc = new jsPDF();
@@ -333,10 +343,32 @@ function RecapTab() {
               Résumé de la présence et des paiements des employés pour la semaine.
             </p>
         </div>
-        <Button onClick={downloadPdf}>
-            <Download className="mr-2 h-4 w-4" />
-            Télécharger en PDF
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={downloadPdf}>
+                <Download className="mr-2 h-4 w-4" />
+                Télécharger en PDF
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Commencer une Nouvelle Semaine
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Êtes-vous sûr de vouloir commencer une nouvelle semaine ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est importante : la paie actuelle sera archivée, les présences de tous les employés seront réinitialisées à zéro, et tout changement de salaire prendra effet.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleStartNewWeek}>Confirmer et Continuer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </div>
       
       <Accordion type="multiple" defaultValue={Object.keys(groupedSummaries)} className="w-full space-y-4">
@@ -573,11 +605,11 @@ function RegisterTab() {
 }
 
 function ArchivesTab() {
-  const [archives] = useState<ArchivedPayroll[]>(mockArchives);
+  const { archives } = useEmployees();
 
   const groupArchivesByYear = (archives: ArchivedPayroll[]): Record<string, ArchivedPayroll[]> => {
     return archives.reduce((acc, archive) => {
-      const year = archive.period.split('-')[0];
+      const year = new Date().getFullYear().toString(); // Simple grouping for now
       if (!acc[year]) {
         acc[year] = [];
       }
@@ -589,12 +621,6 @@ function ArchivesTab() {
   const groupedArchives = groupArchivesByYear(archives);
   const years = Object.keys(groupedArchives).sort((a, b) => b.localeCompare(a));
 
-  const monthNames: Record<string, string> = {
-    "01": "Janvier", "02": "Février", "03": "Mars", "04": "Avril",
-    "05": "Mai", "06": "Juin", "07": "Juillet", "08": "Août",
-    "09": "Septembre", "10": "Octobre", "11": "Novembre", "12": "Décembre"
-  };
-
 
   return (
     <Card>
@@ -603,49 +629,53 @@ function ArchivesTab() {
         <CardDescription>Consultez l'historique des paiements passés.</CardDescription>
       </CardHeader>
       <CardContent>
-        {years.length === 0 ? (
-          <p>Aucune archive disponible pour le moment.</p>
+        {archives.length === 0 ? (
+          <div className="text-center py-12">
+            <ServerCrash className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-semibold">Aucune Archive</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Commencez une nouvelle semaine depuis l'onglet "Récapitulatif" pour créer votre première archive.
+            </p>
+          </div>
         ) : (
           <Accordion type="multiple" defaultValue={years} className="w-full space-y-4">
             {years.map(year => (
               <Card key={year} className="overflow-hidden">
                 <AccordionItem value={year} className="border-b-0">
                   <AccordionTrigger className="p-6 bg-card hover:bg-secondary/50 [&[data-state=open]]:border-b">
-                    <h2 className="text-xl font-semibold font-headline">Année {year}</h2>
+                     <div className='flex items-center gap-4'>
+                        <CalendarCheck className="h-6 w-6 text-primary"/>
+                        <h2 className="text-xl font-semibold font-headline">Archives de {year}</h2>
+                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="p-0">
                     {groupedArchives[year]
-                        .sort((a,b) => b.period.localeCompare(a.period))
-                        .map(archive => {
-                            const month = archive.period.split('-')[1];
-                            const monthName = monthNames[month] || "Mois Inconnu";
-                            return (
-                                <div key={archive.period} className="border-t p-4">
-                                    <h3 className="font-semibold text-lg">{monthName} {year}</h3>
-                                    <p className="text-muted-foreground mb-2">
-                                      Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
-                                    </p>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Département</TableHead>
-                                                <TableHead>Employés</TableHead>
-                                                <TableHead className="text-right">Total</TableHead>
+                        .map(archive => (
+                            <div key={archive.period} className="border-t p-4">
+                                <h3 className="font-semibold text-lg">{archive.period}</h3>
+                                <p className="text-muted-foreground mb-2">
+                                  Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
+                                </p>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Département</TableHead>
+                                            <TableHead>Employés</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {archive.departments.map(dept => (
+                                            <TableRow key={dept.name}>
+                                                <TableCell>{dept.name}</TableCell>
+                                                <TableCell>{dept.employeeCount}</TableCell>
+                                                <TableCell className="text-right">{new Intl.NumberFormat('fr-FR').format(dept.total)} FCFA</TableCell>
                                             </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {archive.departments.map(dept => (
-                                                <TableRow key={dept.name}>
-                                                    <TableCell>{dept.name}</TableCell>
-                                                    <TableCell>{dept.employeeCount}</TableCell>
-                                                    <TableCell className="text-right">{new Intl.NumberFormat('fr-FR').format(dept.total)} FCFA</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )
-                        })
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        ))
                     }
                   </AccordionContent>
                 </AccordionItem>

@@ -83,7 +83,7 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
                 birthDate: parseISO(employee.birthDate),
             });
         }
-    }, [employee, form]);
+    }, [employee, form, isOpen]);
     
     const watchedFirstName = form.watch('firstName');
     const watchedLastName = form.watch('lastName');
@@ -95,7 +95,7 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
         });
         toast({
             title: "Succès",
-            description: "Les informations de l'employé ont été mises à jour.",
+            description: "Les informations de l'employé ont été mises à jour. Le nouveau salaire prendra effet la semaine prochaine.",
         });
         setIsOpen(false);
     }
@@ -122,10 +122,10 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
                             <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
                         <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="birthDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? (format(field.value, "PPP")) : (<span>Choisissez une date</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="birthDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? (format(field.value, "PPP", { locale: fr })) : (<span>Choisissez une date</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Adresse</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="dailyWage" render={({ field }) => (<FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="dailyWage" render={({ field }) => (<FormItem><FormLabel>Salaire Journalier de Base (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
                         <DialogFooter>
@@ -254,7 +254,7 @@ export default function EmployeeRecapPage() {
   }
 
   const daysPresent = days.filter(day => employee.attendance[day]).length;
-  const weeklyPay = daysPresent * employee.dailyWage;
+  const weeklyPay = daysPresent * employee.currentWeekWage;
   
   const registrationDate = parseISO(employee.registrationDate);
   const weeksSinceRegistration = differenceInWeeks(new Date(), registrationDate);
@@ -298,7 +298,7 @@ export default function EmployeeRecapPage() {
                     <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                     <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                     <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
-                    <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
+                    <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
                 </div>
             </div>
             
@@ -308,6 +308,10 @@ export default function EmployeeRecapPage() {
                         <CardTitle>Récapitulatif de la Semaine</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="flex justify-between items-center">
+                           <span className="text-muted-foreground">Salaire pour cette semaine:</span>
+                           <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA / jour</span>
+                        </div>
                         <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Jours de présence:</span>
                             <Badge className="text-lg bg-accent/80 text-accent-foreground hover:bg-accent">{daysPresent}</Badge>
