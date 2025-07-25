@@ -17,6 +17,135 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Eye, ArrowLeft } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useToast } from "@/hooks/use-toast";
+
+const registerSchema = z.object({
+  firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
+  lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
+  domain: z.string(),
+  birthDate: z.date({ required_error: 'Une date de naissance est requise.' }),
+  address: z.string().min(5, { message: "L'adresse est requise." }),
+  dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
+  phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
+  photoUrl: z.string().url({ message: 'Veuillez entrer une URL valide.' }).optional().or(z.literal('')),
+});
+
+
+// Component for Registering an employee in a specific department
+function RegisterInDepartment({ domain }: { domain: string }) {
+    const { addEmployee } = useEmployees();
+    const { toast } = useToast()
+
+    const form = useForm<z.infer<typeof registerSchema>>({
+        resolver: zodResolver(registerSchema),
+        defaultValues: {
+            firstName: '',
+            lastName: '',
+            domain: domain,
+            address: '',
+            dailyWage: 5000,
+            phone: '',
+            photoUrl: '',
+        },
+    });
+
+    function onSubmit(values: z.infer<typeof registerSchema>) {
+        addEmployee({
+            ...values,
+            birthDate: values.birthDate.toISOString().split('T')[0],
+        });
+        toast({
+            title: "Employé Enregistré",
+            description: `${values.firstName} ${values.lastName} a été ajouté avec succès au département ${values.domain}.`,
+            className: 'bg-accent text-accent-foreground'
+        });
+        form.reset();
+        form.setValue('domain', domain);
+    }
+    
+    return (
+        <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold font-headline">Enregistrer un Nouvel Employé</CardTitle>
+          <CardDescription>Remplissez le formulaire pour ajouter un employé au département <span className="font-semibold">{domain}</span>.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="firstName" render={({ field }) => (
+                        <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="lastName" render={({ field }) => (
+                        <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
+                
+                 <FormField control={form.control} name="domain" render={({ field }) => (
+                     <FormItem>
+                        <FormLabel>Département</FormLabel>
+                        <FormControl>
+                            <Input {...field} readOnly disabled />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+
+              <FormField control={form.control} name="birthDate" render={({ field }) => (
+                <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                          {field.value ? (format(field.value, "PPP")) : (<span>Choisissez une date</span>)}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus />
+                    </PopoverContent>
+                  </Popover><FormMessage />
+                </FormItem>
+              )} />
+                <FormField control={form.control} name="address" render={({ field }) => (
+                    <FormItem><FormLabel>Adresse</FormLabel><FormControl><Input placeholder="123 Rue Principale, Anytown" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="dailyWage" render={({ field }) => (
+                        <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="phone" render={({ field }) => (
+                        <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
+                <FormField control={form.control} name="photoUrl" render={({ field }) => (
+                    <FormItem><FormLabel>URL de la Photo</FormLabel><FormControl><Input placeholder="https://example.com/photo.jpg" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              <Button type="submit">Enregistrer l'employé</Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    )
+}
 
 
 // Component for Attendance Tab
@@ -110,12 +239,11 @@ export default function DepartmentPage() {
         <div className="mb-4">
             <h1 className="text-4xl font-bold font-headline">Gestion du Département : {domain}</h1>
             <p className="text-muted-foreground">
-                Interface de présence pour le responsable du département.
+                Interface de présence et d'enregistrement pour le responsable du département.
             </p>
         </div>
         <AttendanceTab domain={domain} />
+        <RegisterInDepartment domain={domain} />
     </div>
   );
 }
-
-    
