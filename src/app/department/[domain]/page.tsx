@@ -238,9 +238,9 @@ export default function DepartmentPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/manager-login')}>
+            <Button variant="outline" onClick={() => router.push('/dashboard')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Changer de département
+                Retour au tableau de bord
             </Button>
         </div>
         <div className="mb-4">
