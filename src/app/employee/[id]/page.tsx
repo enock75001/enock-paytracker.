@@ -42,30 +42,27 @@ import type { Department } from '@/lib/types';
 function TransferEmployeeDialog({ employee, departments, transferEmployee }: { employee: any, departments: Department[], transferEmployee: Function }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedSubgroup, setSelectedSubgroup] = useState('');
   const { toast } = useToast();
 
   const handleTransfer = () => {
-    if (!selectedDepartment || !selectedSubgroup) {
+    if (!selectedDepartment) {
         toast({
             variant: "destructive",
             title: "Erreur",
-            description: "Veuillez sélectionner un nouveau département et un sous-groupe.",
+            description: "Veuillez sélectionner un nouveau département.",
         });
         return;
     }
-    transferEmployee(employee.id, selectedDepartment, selectedSubgroup);
+    transferEmployee(employee.id, selectedDepartment);
     toast({
         title: "Succès",
         description: `${employee.firstName} ${employee.lastName} a été transféré.`,
     });
     setIsOpen(false);
     setSelectedDepartment('');
-    setSelectedSubgroup('');
   }
 
   const availableDepartments = departments.filter(d => d.name !== employee.domain);
-  const subgroupsForSelectedDept = departments.find(d => d.name === selectedDepartment)?.subgroups || [];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -88,17 +85,6 @@ function TransferEmployeeDialog({ employee, departments, transferEmployee }: { e
                 </SelectTrigger>
                 <SelectContent>
                     {availableDepartments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
-                </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="new-subgroup" className="text-right">Sous-groupe</Label>
-            <Select onValueChange={setSelectedSubgroup} disabled={!selectedDepartment}>
-                <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Choisir un sous-groupe" />
-                </SelectTrigger>
-                <SelectContent>
-                    {subgroupsForSelectedDept.map(sg => <SelectItem key={sg.name} value={sg.name}>{sg.name}</SelectItem>)}
                 </SelectContent>
             </Select>
           </div>
@@ -190,7 +176,7 @@ export default function EmployeeRecapPage() {
             </Avatar>
             <div className="flex-1">
                 <CardTitle className="text-4xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
-                <CardDescription className="text-lg text-muted-foreground">{employee.domain} / {employee.subgroup}</CardDescription>
+                <CardDescription className="text-lg text-muted-foreground">{employee.domain}</CardDescription>
                 <div className="text-sm text-muted-foreground mt-2">
                     Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR', { locale: fr })}
                 </div>
@@ -260,5 +246,3 @@ export default function EmployeeRecapPage() {
     </div>
   );
 }
-
-    

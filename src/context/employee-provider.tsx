@@ -9,9 +9,9 @@ interface EmployeeContextType {
   addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => void;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => void;
   deleteEmployee: (employeeId: string) => void;
-  transferEmployee: (employeeId: string, newDomain: string, newSubgroup: string) => void;
+  transferEmployee: (employeeId: string, newDomain: string) => void;
   days: string[];
-  addDepartment: (department: Omit<Department, 'subgroups'> & { subgroups: { name: string, leader: string }[] }) => void;
+  addDepartment: (department: Department) => void;
   updateDepartment: (originalName: string, updatedDepartment: Department) => void;
   deleteDepartment: (departmentName: string) => void;
 }
@@ -84,9 +84,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
   };
   
-  const transferEmployee = (employeeId: string, newDomain: string, newSubgroup: string) => {
+  const transferEmployee = (employeeId: string, newDomain: string) => {
      setEmployees(prev => prev.map(emp =>
-      emp.id === employeeId ? { ...emp, domain: newDomain, subgroup: newSubgroup } : emp
+      emp.id === employeeId ? { ...emp, domain: newDomain } : emp
     ));
   }
 
