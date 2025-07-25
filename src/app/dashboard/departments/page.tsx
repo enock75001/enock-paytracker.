@@ -185,9 +185,6 @@ export default function DepartmentsPage() {
                                 </AlertDialogContent>
                              </AlertDialog>
                          </div>
-                         <Button asChild>
-                            <Link href={`/department/${encodeURIComponent(department.name)}`}>Gérer</Link>
-                        </Button>
                     </CardFooter>
                 </Card>
             )

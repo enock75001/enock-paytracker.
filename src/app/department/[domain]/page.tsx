@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -17,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, ArrowLeft } from 'lucide-react';
+import { Eye, ArrowLeft, LogOut } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -163,7 +162,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                 )} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} defaultValue={5000} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
@@ -280,7 +279,7 @@ export default function DepartmentPage() {
       return (
         <div className="container mx-auto p-4 md:p-8 text-center">
             <h1 className="text-2xl font-bold">Département non trouvé</h1>
-            <p className="text-muted-foreground">Ce département n'existe pas.</p>
+            <p className="text-muted-foreground">Ce département n'existe pas ou vous n'avez pas la permission de le voir.</p>
             <Button asChild className="mt-4">
                 <Link href="/manager-login">Retour à la connexion</Link>
             </Button>
@@ -292,16 +291,16 @@ export default function DepartmentPage() {
     <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 container mx-auto p-4 md:p-8">
-            <div className="mb-6">
-                <Button variant="outline" onClick={() => router.push('/dashboard/departments')}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Retour aux départements
+            <div className="mb-6 flex justify-end">
+                <Button variant="outline" onClick={() => router.push('/manager-login')}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Déconnexion
                 </Button>
             </div>
             <div className="mb-4">
                 <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
                 <p className="text-muted-foreground">
-                    Interface de présence et d'enregistrement pour le responsable {department.manager.name}.
+                    Interface de présence pour le responsable {department.manager.name}.
                 </p>
             </div>
             <Tabs defaultValue="attendance" className="w-full">
