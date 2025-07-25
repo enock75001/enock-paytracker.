@@ -35,6 +35,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+
 
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
@@ -231,9 +238,9 @@ export default function DepartmentPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            <Button variant="outline" onClick={() => router.push('/manager-login')}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour au tableau de bord
+                Changer de département
             </Button>
         </div>
         <div className="mb-4">
@@ -242,8 +249,18 @@ export default function DepartmentPage() {
                 Interface de présence et d'enregistrement pour le responsable du département.
             </p>
         </div>
-        <AttendanceTab domain={domain} />
-        <RegisterInDepartment domain={domain} />
+        <Tabs defaultValue="attendance" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="attendance">Feuille de Présence</TabsTrigger>
+                <TabsTrigger value="register">Enregistrer un employé</TabsTrigger>
+            </TabsList>
+            <TabsContent value="attendance">
+                <AttendanceTab domain={domain} />
+            </TabsContent>
+            <TabsContent value="register">
+                <RegisterInDepartment domain={domain} />
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }

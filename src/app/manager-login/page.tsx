@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { useEmployees } from '@/context/employee-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, User, Lock } from 'lucide-react';
+import { AlertCircle, User, Lock, ArrowLeft } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 
 export default function ManagerLoginPage() {
     const [selectedDepartment, setSelectedDepartment] = useState('');
@@ -102,6 +103,12 @@ export default function ManagerLoginPage() {
                         )}
                         <Button type="submit" className="w-full">
                             Se connecter
+                        </Button>
+                        <Button variant="link" asChild className="w-full">
+                            <Link href="/">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Retour à la page d'accueil
+                            </Link>
                         </Button>
                     </form>
                 </CardContent>
