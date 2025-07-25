@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -269,6 +270,7 @@ export default function EmployeeRecapPage() {
   const downloadWeeklySummary = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
 
     // Titre
     doc.setFontSize(20);
@@ -313,7 +315,7 @@ export default function EmployeeRecapPage() {
     });
 
     // Résumé financier
-    const finalY = (doc as any).autoTable.previous.finalY;
+    let finalY = (doc as any).autoTable.previous.finalY;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text("Résumé Financier", 14, finalY + 15);
@@ -328,6 +330,18 @@ export default function EmployeeRecapPage() {
         styles: { fontSize: 12, cellPadding: 3 },
         columnStyles: { 0: { fontStyle: 'bold' } },
     });
+    finalY = (doc as any).autoTable.previous.finalY;
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 14, pageHeight - 10);
+    
+    doc.setTextColor(30, 109, 235); // Primary color
+    const siteTitle = 'Enock PayTracker';
+    const siteTitleWidth = doc.getTextWidth(siteTitle);
+    doc.text(siteTitle, pageWidth - 14 - siteTitleWidth, pageHeight - 10);
+    doc.setTextColor(0); // Reset color
 
     doc.save(`recap_hebdo_${employee.lastName}_${employee.firstName}.pdf`);
   };
@@ -447,5 +461,3 @@ export default function EmployeeRecapPage() {
     </div>
   );
 }
-
-    

@@ -49,7 +49,7 @@ interface WeeklySummary {
 
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
     const daysPresent = days.filter(day => employee.attendance[day]).length;
-    const totalPay = daysPresent * employee.currentWeekWage;
+    const totalPay = daysPresent * (employee.currentWeekWage || employee.dailyWage);
     return {
         employee,
         daysPresent,
@@ -93,15 +93,17 @@ export default function RecapPage() {
     doc.setFontSize(18);
     doc.text(pageTitle, (pageWidth - titleWidth) / 2, 20);
 
-    Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
+    let finalY = 0;
+
+    Object.entries(groupedSummaries).forEach(([domain, summaries], index) => {
         (doc as any).autoTable({
-            startY: (doc as any).autoTable.previous.finalY + 15 || 30,
+            startY: index === 0 ? 30 : finalY + 15,
             head: [[{ content: domain, colSpan: 6, styles: { fillColor: [22, 163, 74], textColor: 255 } }]],
             body: summaries.map(s => [
                 `${s.employee.firstName} ${s.employee.lastName}`,
                 s.daysPresent,
                 s.daysAbsent,
-                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage),
+                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage),
                 new Intl.NumberFormat('fr-FR').format(s.totalPay),
                 ''
             ]),
@@ -123,15 +125,24 @@ export default function RecapPage() {
             theme: 'striped',
             didDrawPage: function (data: any) {
                 // Footer
+                const pageHeight = doc.internal.pageSize.getHeight();
                 doc.setFontSize(10);
-                doc.text('Enock PayTracker - ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
+                doc.setTextColor(150);
+                doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, pageHeight - 10);
+                
+                doc.setTextColor(30, 109, 235); // Primary color
+                const siteTitle = 'Enock PayTracker';
+                const siteTitleWidth = doc.getTextWidth(siteTitle);
+                doc.text(siteTitle, pageWidth - data.settings.margin.right - siteTitleWidth, pageHeight - 10);
+                doc.setTextColor(0); // Reset color
             }
         });
+        finalY = (doc as any).autoTable.previous.finalY;
     });
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll)} FCFA`, 14, (doc as any).autoTable.previous.finalY + 20);
+    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll)} FCFA`, 14, finalY + 20);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -224,7 +235,7 @@ export default function RecapPage() {
                                         <Badge variant="secondary">{summary.daysAbsent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage)} FCFA
+                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage || summary.employee.dailyWage)} FCFA
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">
                                         {new Intl.NumberFormat('fr-FR').format(summary.totalPay)} FCFA
