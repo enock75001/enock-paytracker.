@@ -33,7 +33,7 @@ export function Header() {
   // Determine view type based on URL
   const isAdminPath = pathname.startsWith('/dashboard') || pathname.startsWith('/employee');
   const isManagerPath = pathname.startsWith('/department');
-  const isLoginPage = pathname === '/' || pathname.startsWith('/manager-login');
+  const isLoginPage = pathname === '/' || pathname.startsWith('/manager-login') || pathname.startsWith('/admin-login');
   
   // Get manager name if on a manager page
   const domain = isManagerPath ? decodeURIComponent(pathname.split('/')[2]) : null;
@@ -135,7 +135,7 @@ export function Header() {
                        </DropdownMenuLabel>
                        <DropdownMenuSeparator />
                        <DropdownMenuItem asChild>
-                           <Link href="/" className="w-full flex items-center"><LogOut className="mr-2 h-4 w-4" />Se Déconnecter</Link>
+                           <Link href="/admin-login" className="w-full flex items-center"><LogOut className="mr-2 h-4 w-4" />Se Déconnecter</Link>
                        </DropdownMenuItem>
                      </>
                    ) : (

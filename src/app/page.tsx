@@ -18,7 +18,7 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="grid gap-6">
           <Button asChild className="w-full h-12 text-lg">
-            <Link href="/dashboard">Connexion Administrateur</Link>
+            <Link href="/admin-login">Connexion Administrateur</Link>
           </Button>
           
           <div className="relative">
