@@ -35,33 +35,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
    useEffect(() => {
     const fetchAndSetData = async () => {
-        const departmentsSnapshot = await getDocs(collection(db, 'departments'));
-        const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-        
-        const employeesSnapshot = await getDocs(collection(db, 'employees'));
-        const employeesData = employeesSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return { 
-                id: doc.id, 
-                ...data,
-                currentWeekWage: data.currentWeekWage || data.dailyWage 
-            } as Employee;
-        });
-
-        const archivesSnapshot = await getDocs(collection(db, 'archives'));
-        const archivesData = archivesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ArchivedPayroll));
-
-        setDepartments(departmentsData);
-        setEmployees(employeesData);
-        setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
-        setLoading(false);
-    };
-
-    const initializeData = async () => {
         setLoading(true);
         try {
-            const departmentsSnapshot = await getDocs(collection(db, 'departments'));
-            if (departmentsSnapshot.empty) {
+            // First check if departments are present. If not, we seed the DB.
+            const deptsQuerySnapshot = await getDocs(collection(db, 'departments'));
+            if (deptsQuerySnapshot.empty) {
                 console.log("Database is empty, seeding with mock data...");
                 const batch = writeBatch(db);
                 
@@ -74,8 +52,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                 // Seed employees
                 mockEmployees.forEach(emp => {
                     const docRef = doc(collection(db, 'employees'));
-                    // Create a version of the employee without id for Firestore
-                    const { id, ...empData } = emp;
+                    const { id, ...empData } = emp; // Create a version of the employee without id
                     batch.set(docRef, {
                         ...empData,
                         currentWeekWage: emp.dailyWage, // Ensure this is set
@@ -84,17 +61,38 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                 
                 await batch.commit();
                 console.log("Mock data seeded. Refetching data...");
-                await fetchAndSetData(); // Now fetch the data we just seeded
-            } else {
-                await fetchAndSetData(); // If not empty, just fetch
             }
+
+            // Fetch all data now that we know it exists.
+            const departmentsSnapshot = await getDocs(collection(db, 'departments'));
+            const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
+            
+            const employeesSnapshot = await getDocs(collection(db, 'employees'));
+            const employeesData = employeesSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return { 
+                    id: doc.id, 
+                    ...data,
+                    // THIS IS THE KEY FIX: Ensure currentWeekWage always has a fallback.
+                    currentWeekWage: data.currentWeekWage || data.dailyWage 
+                } as Employee;
+            });
+
+            const archivesSnapshot = await getDocs(collection(db, 'archives'));
+            const archivesData = archivesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ArchivedPayroll));
+
+            setDepartments(departmentsData);
+            setEmployees(employeesData);
+            setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
+
         } catch (error) {
             console.error("Failed to initialize or fetch data from Firestore", error);
-            setLoading(false); // Stop loading even on error
+        } finally {
+            setLoading(false); // This will now always be called
         }
     };
 
-    initializeData();
+    fetchAndSetData();
   }, []);
 
 
@@ -276,3 +274,5 @@ export const useEmployees = () => {
   }
   return context;
 };
+
+    
