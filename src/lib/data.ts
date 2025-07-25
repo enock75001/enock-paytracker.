@@ -2,13 +2,17 @@ import { type Employee, type Department } from './types';
 
 export const initialDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const createInitialAttendance = () => {
+// Consistent initial attendance data to avoid hydration mismatch
+const createInitialAttendance = (employeeId: string) => {
   const attendance: { [key: string]: boolean } = {};
-  initialDays.forEach(day => {
-    attendance[day] = Math.random() > 0.3; // Randomly set some initial attendance for demo
+  initialDays.forEach((day, index) => {
+    // Create a predictable but varied pattern based on employee ID and day index
+    const seed = parseInt(employeeId, 10) + index;
+    attendance[day] = seed % 3 !== 0; // e.g., present 2/3 of the time
   });
   return attendance;
 };
+
 
 export const mockDepartments: Department[] = [
   {
@@ -38,7 +42,7 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5000,
     phone: '0123456789',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance(),
+    attendance: createInitialAttendance('1'),
   },
   {
     id: '2',
@@ -51,7 +55,7 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5500,
     phone: '0987654321',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance(),
+    attendance: createInitialAttendance('2'),
   },
   {
     id: '3',
@@ -64,7 +68,7 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5000,
     phone: '0612345678',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance(),
+    attendance: createInitialAttendance('3'),
   },
   {
     id: '4',
@@ -77,7 +81,7 @@ export const mockEmployees: Employee[] = [
     dailyWage: 4800,
     phone: '0712345678',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance(),
+    attendance: createInitialAttendance('4'),
   },
    {
     id: '5',
@@ -90,6 +94,6 @@ export const mockEmployees: Employee[] = [
     dailyWage: 5200,
     phone: '0587654321',
     photoUrl: 'https://placehold.co/100x100.png',
-    attendance: createInitialAttendance(),
+    attendance: createInitialAttendance('5'),
   },
 ];
