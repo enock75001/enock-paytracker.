@@ -18,7 +18,7 @@ import {
   TableRow,
   TableFooter
 } from '@/components/ui/table';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -128,9 +128,6 @@ function RecapTab() {
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(18);
     doc.text(pageTitle, (pageWidth - titleWidth) / 2, 20);
-
-    const tableData: (string|number)[][] = [];
-    const tableColumns = ["Employé", "Jours Présents", "Jours Absents", "Salaire (FCFA)"];
 
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
         (doc as any).autoTable({
