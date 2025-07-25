@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -21,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { Menu, WalletCards } from 'lucide-react';
 
 const navLinks = [
-  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/dashboard', label: 'Tableau de Bord' },
 ];
 
 export function Header() {
@@ -45,7 +46,7 @@ export function Header() {
                 href={link.href}
                 className={cn(
                   'transition-colors hover:text-primary',
-                  pathname.startsWith(link.href) // Use startsWith to handle /employee/[id]
+                  pathname.startsWith(link.href)
                     ? 'text-primary'
                     : 'text-muted-foreground'
                 )}
@@ -130,3 +131,5 @@ export function Header() {
     </header>
   );
 }
+
+    

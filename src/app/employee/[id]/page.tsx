@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEmployees } from '@/context/employee-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +13,7 @@ import { differenceInWeeks, parseISO } from 'date-fns';
 
 export default function EmployeeRecapPage() {
   const params = useParams();
+  const router = useRouter();
   const { id } = params;
   const { employees, days } = useEmployees();
 
@@ -40,11 +42,9 @@ export default function EmployeeRecapPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
         <div className="mb-6">
-            <Button variant="outline" asChild>
-                <Link href="/dashboard">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Retour au tableau de bord
-                </Link>
+            <Button variant="outline" onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Retour
             </Button>
         </div>
 
@@ -116,3 +116,5 @@ export default function EmployeeRecapPage() {
     </div>
   );
 }
+
+    
