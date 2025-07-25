@@ -259,7 +259,7 @@ export default function EmployeeRecapPage() {
     );
   }
 
-  const currentWage = employee.currentWeekWage || employee.dailyWage;
+  const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
   const daysPresent = days.filter(day => employee.attendance[day]).length;
   const weeklyPay = daysPresent * currentWage;
   
@@ -286,7 +286,7 @@ export default function EmployeeRecapPage() {
         body: [
             ['Nom Complet', `${employee.firstName} ${employee.lastName}`],
             ['Département', employee.domain],
-            ['Salaire Journalier (Semaine)', `${new Intl.NumberFormat('fr-FR').format(currentWage)} FCFA`],
+            ['Salaire Journalier (Semaine)', `${new Intl.NumberFormat('fr-FR').format(currentWage || 0)} FCFA`],
         ],
         theme: 'plain',
         styles: { fontSize: 11, cellPadding: 2 },
@@ -324,7 +324,7 @@ export default function EmployeeRecapPage() {
         body: [
             ['Jours Présents', `${daysPresent} jour(s)`],
             ['Jours Absents', `${days.length - daysPresent} jour(s)`],
-            ['Total Paie Hebdomadaire', `${new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA`],
+            ['Total Paie Hebdomadaire', `${new Intl.NumberFormat('fr-FR').format(weeklyPay || 0)} FCFA`],
         ],
         theme: 'grid',
         styles: { fontSize: 12, cellPadding: 3 },
@@ -384,7 +384,7 @@ export default function EmployeeRecapPage() {
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                         <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
-                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
+                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage || 0)} FCFA</div>
                     </div>
                 </div>
                 
@@ -435,7 +435,7 @@ export default function EmployeeRecapPage() {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <span className="font-semibold">Salaire total estimé:</span>
-                                    <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings)} FCFA</span>
+                                    <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings || 0)} FCFA</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
                                     Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.

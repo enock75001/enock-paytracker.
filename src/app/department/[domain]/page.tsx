@@ -227,7 +227,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </Avatar>
                             <div>
                             <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage || 0)} FCFA/jour</div>
+                            <div className="text-sm text-muted-foreground">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage || employee.dailyWage || 0)} FCFA/jour</div>
                             </div>
                         </div>
                         </TableCell>
@@ -317,5 +317,3 @@ export default function DepartmentPage() {
     </div>
   );
 }
-
-    

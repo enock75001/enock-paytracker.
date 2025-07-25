@@ -85,7 +85,8 @@ export default function DashboardPage() {
     const totalEmployees = employees.length;
     const weeklyPayroll = employees.reduce((total, emp) => {
         const daysPresent = days.filter(day => emp.attendance[day]).length;
-        return total + (daysPresent * emp.currentWeekWage);
+        const weeklyWage = emp.currentWeekWage || emp.dailyWage;
+        return total + (daysPresent * weeklyWage);
     }, 0);
 
     const employeesByDept = departments.map(dept => ({
@@ -105,7 +106,7 @@ export default function DashboardPage() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{new Intl.NumberFormat('fr-FR').format(weeklyPayroll)} FCFA</div>
+                    <div className="text-2xl font-bold">{new Intl.NumberFormat('fr-FR').format(weeklyPayroll || 0)} FCFA</div>
                     <p className="text-xs text-muted-foreground">Total à payer pour cette semaine</p>
                 </CardContent>
             </Card>
@@ -176,7 +177,7 @@ export default function DashboardPage() {
                                 <p className="text-sm font-medium leading-none">{employee.firstName} {employee.lastName}</p>
                                 <p className="text-sm text-muted-foreground">{employee.domain}</p>
                             </div>
-                            <div className="ml-auto font-medium">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage)} FCFA</div>
+                            <div className="ml-auto font-medium">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage || 0)} FCFA</div>
                         </div>
                     ))}
                 </div>

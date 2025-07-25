@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
@@ -47,7 +48,7 @@ interface WeeklySummary {
 }
 
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
-    const currentWage = employee.currentWeekWage || employee.dailyWage;
+    const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
     const daysPresent = days.filter(day => employee.attendance[day]).length;
     const totalPay = daysPresent * currentWage;
     return {
@@ -104,13 +105,13 @@ export default function RecapPage() {
                 s.daysPresent,
                 s.daysAbsent,
                 new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage || 0),
-                new Intl.NumberFormat('fr-FR').format(s.totalPay),
+                new Intl.NumberFormat('fr-FR').format(s.totalPay || 0),
                 ''
             ]),
             headStyles: { halign: 'center'},
             foot: [[
                 { content: 'Total Département', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
-                { content: new Intl.NumberFormat('fr-FR').format(summaries.reduce((acc, curr) => acc + curr.totalPay, 0)), styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: new Intl.NumberFormat('fr-FR').format(summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0)), styles: { halign: 'right', fontStyle: 'bold' } },
                 ''
             ]],
             footStyles: { fillColor: [240, 240, 240] },
@@ -142,7 +143,7 @@ export default function RecapPage() {
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll)} FCFA`, 14, finalY + 20);
+    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll || 0)} FCFA`, 14, finalY + 20);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -197,7 +198,7 @@ export default function RecapPage() {
                                 <Badge variant="secondary">{summaries.length} employés</Badge>
                             </div>
                             <div className="text-lg font-semibold pr-4">
-                                Total: {new Intl.NumberFormat('fr-FR').format(domainTotal)} FCFA
+                                Total: {new Intl.NumberFormat('fr-FR').format(domainTotal || 0)} FCFA
                             </div>
                         </div>
                     </AccordionTrigger>
@@ -235,10 +236,10 @@ export default function RecapPage() {
                                         <Badge variant="secondary">{summary.daysAbsent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage || summary.employee.dailyWage)} FCFA
+                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage || summary.employee.dailyWage || 0)} FCFA
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.totalPay)} FCFA
+                                        {new Intl.NumberFormat('fr-FR').format(summary.totalPay || 0)} FCFA
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Link href={`/employee/${summary.employee.id}`} passHref>
@@ -254,7 +255,7 @@ export default function RecapPage() {
                             <TableFooter>
                                 <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
                                     <TableCell colSpan={4} className="text-right font-bold text-lg">Total Département</TableCell>
-                                    <TableCell className="text-right font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(domainTotal)} FCFA</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(domainTotal || 0)} FCFA</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableFooter>
@@ -273,7 +274,7 @@ export default function RecapPage() {
         </CardHeader>
         <CardContent>
             <div className="text-4xl font-bold text-primary">
-                {new Intl.NumberFormat('fr-FR').format(totalPayroll)} FCFA
+                {new Intl.NumberFormat('fr-FR').format(totalPayroll || 0)} FCFA
             </div>
              <p className="text-muted-foreground mt-2">
                 Ceci est la somme totale à payer à tous les employés pour la semaine en cours.

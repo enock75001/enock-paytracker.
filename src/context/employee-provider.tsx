@@ -155,7 +155,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
      // 1. Archive current week's payroll
     const totalPayroll = employees.reduce((total, emp) => {
         const daysPresent = days.filter(day => emp.attendance[day]).length;
-        return total + (daysPresent * emp.currentWeekWage);
+        const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
+        return total + (daysPresent * weeklyWage);
     }, 0);
 
     const departmentTotals: { [key: string]: { total: number, employeeCount: number } } = {};
@@ -165,7 +166,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             departmentTotals[emp.domain] = { total: 0, employeeCount: 0 };
         }
         const daysPresent = days.filter(day => emp.attendance[day]).length;
-        departmentTotals[emp.domain].total += (daysPresent * emp.currentWeekWage);
+        const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
+        departmentTotals[emp.domain].total += (daysPresent * weeklyWage);
         departmentTotals[emp.domain].employeeCount += 1;
     });
 
