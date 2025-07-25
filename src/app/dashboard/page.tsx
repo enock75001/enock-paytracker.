@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
@@ -80,6 +81,7 @@ import {
 } from "@/components/ui/dialog"
 import { useState } from 'react';
 import { mockArchives, ArchivedPayroll } from '@/lib/data';
+import { ImagePicker } from '@/components/image-picker';
 
 
 function groupEmployeesByDomain(employees: Employee[]): Record<string, Employee[]> {
@@ -442,7 +444,7 @@ const registerSchema = z.object({
   address: z.string().min(5, { message: "L'adresse est requise." }),
   dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
   phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
-  photoUrl: z.string().url({ message: 'Veuillez entrer une URL valide.' }).optional().or(z.literal('')),
+  photoUrl: z.string().optional(),
 });
 
 // Component for Register Tab
@@ -464,10 +466,14 @@ function RegisterTab() {
         },
     });
 
+    const watchedFirstName = form.watch('firstName');
+    const watchedLastName = form.watch('lastName');
+
     function onSubmit(values: z.infer<typeof registerSchema>) {
         addEmployee({
             ...values,
             birthDate: values.birthDate.toISOString().split('T')[0],
+            photoUrl: values.photoUrl || '',
         });
         toast({
             title: "Employé Enregistré",
@@ -486,6 +492,24 @@ function RegisterTab() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl">
+                 <FormField
+                  control={form.control}
+                  name="photoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Photo de l'employé</FormLabel>
+                      <FormControl>
+                         <ImagePicker 
+                           value={field.value ?? ''} 
+                           onChange={field.onChange}
+                           name={`${watchedFirstName} ${watchedLastName}`}
+                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <FormField control={form.control} name="firstName" render={({ field }) => (
                         <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
@@ -540,9 +564,6 @@ function RegisterTab() {
                         <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
-                <FormField control={form.control} name="photoUrl" render={({ field }) => (
-                    <FormItem><FormLabel>URL de la Photo</FormLabel><FormControl><Input placeholder="https://placehold.co/photo.jpg" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
               <Button type="submit">Enregistrer l'employé</Button>
             </form>
           </Form>
