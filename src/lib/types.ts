@@ -18,6 +18,7 @@ export interface Employee {
 }
 
 export interface Department {
+  id: string;
   name: string;
   manager: {
     name: string;
@@ -26,6 +27,7 @@ export interface Department {
 }
 
 export interface ArchivedPayroll {
+  id: string;
   period: string; // e.g., "2024-W25"
   totalPayroll: number;
   departments: {

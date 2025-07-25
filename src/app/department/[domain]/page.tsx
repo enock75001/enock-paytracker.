@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -75,8 +76,8 @@ function RegisterInDepartment({ domain }: { domain: string }) {
     const watchedFirstName = form.watch('firstName');
     const watchedLastName = form.watch('lastName');
 
-    function onSubmit(values: z.infer<typeof registerSchema>) {
-        addEmployee({
+    async function onSubmit(values: z.infer<typeof registerSchema>) {
+        await addEmployee({
             ...values,
             birthDate: values.birthDate.toISOString().split('T')[0],
             photoUrl: values.photoUrl || '',

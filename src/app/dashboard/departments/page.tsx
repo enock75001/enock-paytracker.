@@ -97,16 +97,16 @@ export default function DepartmentsPage() {
     setIsViewDialogOpen(true);
   };
 
-  const onSubmit = (values: z.infer<typeof departmentSchema>) => {
+  const onSubmit = async (values: z.infer<typeof departmentSchema>) => {
     try {
       if (isEditMode) {
-        updateDepartment(originalDepartmentName, {
+        await updateDepartment(originalDepartmentName, {
           name: values.name,
           manager: { name: values.managerName, pin: values.managerPin }
         });
         toast({ title: "Succès", description: "Département mis à jour." });
       } else {
-        addDepartment({
+        await addDepartment({
           name: values.name,
           manager: { name: values.managerName, pin: values.managerPin }
         });
@@ -163,7 +163,7 @@ export default function DepartmentsPage() {
         {departments.map((department) => {
             const employeesInDomain = groupedEmployees[department.name] || [];
             return (
-                <Card key={department.name}>
+                <Card key={department.id}>
                     <CardHeader>
                         <CardTitle className="flex justify-between items-start">
                             <span>{department.name}</span>

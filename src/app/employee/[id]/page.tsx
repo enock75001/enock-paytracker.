@@ -91,8 +91,8 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
     const watchedFirstName = form.watch('firstName');
     const watchedLastName = form.watch('lastName');
 
-    function onSubmit(values: z.infer<typeof employeeSchema>) {
-        updateEmployee(employee.id, {
+    async function onSubmit(values: z.infer<typeof employeeSchema>) {
+        await updateEmployee(employee.id, {
             ...values,
             birthDate: values.birthDate.toISOString().split('T')[0],
         });
@@ -124,7 +124,7 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
                             <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
-                        <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="birthDate" render={({ field }) => (<FormItem><FormLabel>Date de naissance</FormLabel><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Adresse</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -148,7 +148,7 @@ function TransferEmployeeDialog({ employee, departments, transferEmployee }: { e
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const { toast } = useToast();
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     if (!selectedDepartment) {
         toast({
             variant: "destructive",
@@ -157,7 +157,7 @@ function TransferEmployeeDialog({ employee, departments, transferEmployee }: { e
         });
         return;
     }
-    transferEmployee(employee.id, selectedDepartment);
+    await transferEmployee(employee.id, selectedDepartment);
     toast({
         title: "Succès",
         description: `${employee.firstName} ${employee.lastName} a été transféré.`,
@@ -188,7 +188,7 @@ function TransferEmployeeDialog({ employee, departments, transferEmployee }: { e
                     <SelectValue placeholder="Choisir un département" />
                 </SelectTrigger>
                 <SelectContent>
-                    {availableDepartments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
+                    {availableDepartments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                 </SelectContent>
             </Select>
           </div>
@@ -206,8 +206,8 @@ function DeleteEmployeeDialog({ employee, deleteEmployee }: { employee: any, del
     const router = useRouter();
     const { toast } = useToast();
 
-    const handleDelete = () => {
-        deleteEmployee(employee.id);
+    const handleDelete = async () => {
+        await deleteEmployee(employee.id);
         toast({
             title: "Employé Supprimé",
             description: `${employee.firstName} ${employee.lastName} a été supprimé du système.`,
@@ -349,9 +349,9 @@ export default function EmployeeRecapPage() {
     doc.setTextColor(150);
     doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 14, pageHeight - 10);
     
-    doc.setTextColor(30, 109, 235); // Primary color
     const siteTitle = 'Enock PayTracker';
     const siteTitleWidth = doc.getTextWidth(siteTitle);
+    doc.setTextColor(30, 109, 235);
     doc.text(siteTitle, pageWidth - 14 - siteTitleWidth, pageHeight - 10);
     doc.setTextColor(0); // Reset color
 
