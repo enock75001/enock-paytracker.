@@ -21,7 +21,7 @@ import { Eye, ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format } from "date-fns"
+import { format, startOfWeek, addDays, getDate } from "date-fns"
 import { fr } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -182,7 +182,15 @@ function AttendanceTab({ domain }: { domain: string }) {
   const { employees, updateAttendance, days } = useEmployees();
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
   const currentMonthYear = format(new Date(), 'MMMM yyyy', { locale: fr });
-
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
+  
+  const weekDates = days.map((_, index) => {
+    // Assuming the week starts on Monday as per locale `fr`
+    const firstDayOfWeek = startOfWeek(today, { weekStartsOn: 1 });
+    return addDays(firstDayOfWeek, index);
+  });
 
   return (
     <Card className="mt-6">
@@ -197,9 +205,12 @@ function AttendanceTab({ domain }: { domain: string }) {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead className="w-[250px]">Employé</TableHead>
-                    {days.map(day => (
-                        <TableHead key={day} className="text-center">{day}</TableHead>
+                    <TableHead className="w-[250px] min-w-[250px]">Employé</TableHead>
+                    {days.map((day, index) => (
+                        <TableHead key={day} className="text-center min-w-[80px]">
+                            <div>{day}</div>
+                            <div className="font-normal text-xs">{format(weekDates[index], 'dd')}</div>
+                        </TableHead>
                     ))}
                     <TableHead className="text-right">Détails</TableHead>
                     </TableRow>
@@ -219,17 +230,21 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </div>
                         </div>
                         </TableCell>
-                        {days.map(day => (
-                        <TableCell key={day} className="text-center">
-                            <Checkbox
-                            checked={employee.attendance[day]}
-                            onCheckedChange={(checked) =>
-                                updateAttendance(employee.id, day, !!checked)
-                            }
-                            aria-label={`Attendance for ${day}`}
-                            />
-                        </TableCell>
-                        ))}
+                        {days.map((day, index) => {
+                            const isPastDay = weekDates[index] < today;
+                            return (
+                                <TableCell key={day} className="text-center">
+                                    <Checkbox
+                                    checked={employee.attendance[day]}
+                                    onCheckedChange={(checked) =>
+                                        updateAttendance(employee.id, day, !!checked)
+                                    }
+                                    aria-label={`Attendance for ${day}`}
+                                    disabled={isPastDay}
+                                    />
+                                </TableCell>
+                            )
+                        })}
                         <TableCell className="text-right">
                             <Link href={`/employee/${employee.id}`} passHref>
                                 <Button variant="ghost" size="icon">

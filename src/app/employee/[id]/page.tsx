@@ -215,7 +215,7 @@ function DeleteEmployeeDialog({ employee, deleteEmployee }: { employee: any, del
             title: "Employé Supprimé",
             description: `${employee.firstName} ${employee.lastName} a été supprimé du système.`,
         });
-        router.push(`/department/${encodeURIComponent(employee.domain)}`);
+        router.push(`/dashboard/departments`);
     }
 
     return (
@@ -353,7 +353,7 @@ export default function EmployeeRecapPage() {
                     <CardTitle className="text-4xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
                     <CardDescription className="text-lg text-muted-foreground">{employee.domain}</CardDescription>
                     <div className="text-sm text-muted-foreground mt-2">
-                        Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR', { locale: fr })}
+                        Inscrit le : {format(parseISO(employee.registrationDate), 'dd MMMM yyyy', { locale: fr })}
                     </div>
                 </div>
                 <Button onClick={downloadWeeklySummary} variant="outline">
@@ -366,7 +366,7 @@ export default function EmployeeRecapPage() {
                     <h3 className="text-xl font-semibold mb-4 border-b pb-2">Informations Personnelles</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground" /> <strong>Nom Complet:</strong> {employee.firstName} {employee.lastName}</div>
-                        <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Date de Naissance:</strong> {new Date(employee.birthDate).toLocaleDateString('fr-FR', { locale: fr })}</div>
+                        <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Date de Naissance:</strong> {format(parseISO(employee.birthDate), 'dd MMMM yyyy', { locale: fr })}</div>
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                         <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
