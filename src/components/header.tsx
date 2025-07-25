@@ -41,23 +41,40 @@ export function Header() {
 
 
   const renderNavLinks = (isMobileSheet: boolean = false) => {
-    if (isAdminPath) {
-      return adminNavLinks.map((link) => (
-        <SheetClose asChild={isMobileSheet} key={link.href}>
-          <Link
-            href={link.href}
-            className={cn(
-              'transition-colors hover:text-primary',
-               pathname === link.href ? 'text-primary' : 'text-muted-foreground',
-               isMobileSheet ? 'block py-2' : ''
-            )}
-          >
-            {link.label}
-          </Link>
-        </SheetClose>
-      ));
+    if (!isAdminPath) {
+      return null;
     }
-    return null;
+  
+    const links = adminNavLinks.map((link) => {
+      const linkContent = (
+        <Link
+          href={link.href}
+          className={cn(
+            'transition-colors hover:text-primary',
+            pathname === link.href ? 'text-primary' : 'text-muted-foreground',
+            isMobileSheet ? 'block py-2' : ''
+          )}
+        >
+          {link.label}
+        </Link>
+      );
+  
+      if (isMobileSheet) {
+        return (
+          <SheetClose asChild key={link.href}>
+            {linkContent}
+          </SheetClose>
+        );
+      }
+  
+      return (
+        <div key={link.href}>
+            {linkContent}
+        </div>
+      );
+    });
+  
+    return <>{links}</>;
   };
 
   const renderHomeLink = () => {
@@ -163,5 +180,3 @@ export function Header() {
     </header>
   );
 }
-
-    
