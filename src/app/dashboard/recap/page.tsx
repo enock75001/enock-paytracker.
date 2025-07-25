@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
@@ -48,8 +47,9 @@ interface WeeklySummary {
 }
 
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
+    const currentWage = employee.currentWeekWage || employee.dailyWage;
     const daysPresent = days.filter(day => employee.attendance[day]).length;
-    const totalPay = daysPresent * (employee.currentWeekWage || employee.dailyWage);
+    const totalPay = daysPresent * currentWage;
     return {
         employee,
         daysPresent,
@@ -103,7 +103,7 @@ export default function RecapPage() {
                 `${s.employee.firstName} ${s.employee.lastName}`,
                 s.daysPresent,
                 s.daysAbsent,
-                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage),
+                new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage || 0),
                 new Intl.NumberFormat('fr-FR').format(s.totalPay),
                 ''
             ]),
@@ -282,4 +282,5 @@ export default function RecapPage() {
       </Card>
     </div>
   );
-}
+
+    
