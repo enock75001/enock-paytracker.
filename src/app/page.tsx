@@ -11,7 +11,7 @@ export default function LoginPage() {
     <div className="w-full h-[calc(100vh-4rem)] flex items-center justify-center container mx-auto p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline">PayTracker</CardTitle>
+          <CardTitle className="text-3xl font-headline">Enock PayTracker</CardTitle>
           <CardDescription>
             Veuillez sélectionner votre type de connexion.
           </CardDescription>

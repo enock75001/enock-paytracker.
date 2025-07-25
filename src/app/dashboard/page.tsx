@@ -310,7 +310,7 @@ function RecapTab() {
             didDrawPage: function (data: any) {
                 // Footer
                 doc.setFontSize(10);
-                doc.text('PayTracker - ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
+                doc.text('Enock PayTracker - ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
             }
         });
     });

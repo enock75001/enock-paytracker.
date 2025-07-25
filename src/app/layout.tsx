@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Header } from '@/components/header';
 
 export const metadata: Metadata = {
-  title: 'PayTracker',
+  title: 'Enock PayTracker',
   description: 'Employee management and payroll application.',
 };
 

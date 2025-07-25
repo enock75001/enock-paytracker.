@@ -94,7 +94,7 @@ export function Header() {
           className={cn("flex items-center gap-2 font-bold text-lg", !isClickable && "pointer-events-none")}
         >
           <WalletCards className="h-6 w-6 text-primary" />
-          <span className="font-headline">PayTracker</span>
+          <span className="font-headline">Enock PayTracker</span>
         </Link>
     )
   }
