@@ -2,11 +2,17 @@ export type Attendance = {
   [day: string]: boolean;
 };
 
+export interface Subgroup {
+  name: string;
+  leader: string;
+}
+
 export interface Employee {
   id: string;
   firstName: string;
   lastName:string;
   domain: string;
+  subgroup: string;
   birthDate: string;
   address: string;
   registrationDate: string;
@@ -22,6 +28,7 @@ export interface Department {
     name: string;
     pin: string;
   };
+  subgroups: Subgroup[];
 }
 
 export interface ArchivedPayroll {
