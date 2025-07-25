@@ -22,14 +22,41 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [isClient, setIsClient] = useState(false);
   const days = initialDays;
 
-  useEffect(() => {
-    // On the first client-side render, load the mock data.
-    // This ensures server and client have a consistent starting point (empty)
-    // and then the client loads the data, avoiding mismatch.
-    setEmployees(mockEmployees);
-    setDepartments(mockDepartments);
+   useEffect(() => {
     setIsClient(true);
+    
+    try {
+      const storedEmployees = localStorage.getItem('employees');
+      const storedDepartments = localStorage.getItem('departments');
+
+      if (storedEmployees && storedDepartments) {
+        setEmployees(JSON.parse(storedEmployees));
+        setDepartments(JSON.parse(storedDepartments));
+      } else {
+        // If no data in localStorage, initialize with mock data
+        setEmployees(mockEmployees);
+        setDepartments(mockDepartments);
+      }
+    } catch (error) {
+        console.error("Failed to read from localStorage", error);
+        // Fallback to mock data if localStorage is corrupt or inaccessible
+        setEmployees(mockEmployees);
+        setDepartments(mockDepartments);
+    }
   }, []);
+
+  useEffect(() => {
+    // This effect runs only on the client, after the initial state has been set.
+    // It saves data to localStorage whenever it changes.
+    if (isClient) {
+        try {
+            localStorage.setItem('employees', JSON.stringify(employees));
+            localStorage.setItem('departments', JSON.stringify(departments));
+        } catch (error) {
+            console.error("Failed to write to localStorage", error);
+        }
+    }
+  }, [employees, departments, isClient]);
 
 
   const addEmployee = (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => {
