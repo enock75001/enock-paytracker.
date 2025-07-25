@@ -17,25 +17,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Eye, ArrowLeft } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { format } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useToast } from "@/hooks/use-toast"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
@@ -47,7 +29,7 @@ function AttendanceTab({ domain }: { domain: string }) {
         <CardHeader>
             <CardTitle className="text-2xl font-bold font-headline">Feuille de Présence</CardTitle>
             <CardDescription>
-            Gérez la présence journalière des employés du département : <span className="font-semibold">{domain}</span>.
+            Cochez les jours de présence pour les employés du département : <span className="font-semibold">{domain}</span>.
             </CardDescription>
         </CardHeader>
         <CardContent>
@@ -60,7 +42,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                     {days.map(day => (
                         <TableHead key={day} className="text-center">{day}</TableHead>
                     ))}
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right">Détails</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -111,110 +93,6 @@ function AttendanceTab({ domain }: { domain: string }) {
   )
 }
 
-// Schema from register page
-const registerSchema = z.object({
-  firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
-  lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
-  domain: z.string(),
-  birthDate: z.date({ required_error: 'Une date de naissance est requise.' }),
-  address: z.string().min(5, { message: "L'adresse est requise." }),
-  dailyWage: z.coerce.number().min(1, { message: 'Le salaire journalier doit être un nombre positif.' }),
-  phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
-  photoUrl: z.string().url({ message: 'Veuillez entrer une URL valide.' }).optional().or(z.literal('')),
-});
-
-// Component for Register Tab
-function RegisterTab({ domain }: { domain: string }) {
-    const { addEmployee } = useEmployees();
-    const { toast } = useToast()
-
-    const form = useForm<z.infer<typeof registerSchema>>({
-        resolver: zodResolver(registerSchema),
-        defaultValues: {
-            firstName: '',
-            lastName: '',
-            domain: domain,
-            address: '',
-            dailyWage: 5000,
-            phone: '',
-            photoUrl: '',
-        },
-    });
-
-    function onSubmit(values: z.infer<typeof registerSchema>) {
-        addEmployee({
-            ...values,
-            birthDate: values.birthDate.toISOString().split('T')[0],
-        });
-        toast({
-            title: "Employé Enregistré",
-            description: `${values.firstName} ${values.lastName} a été ajouté avec succès au département ${domain}.`,
-            className: 'bg-accent text-accent-foreground'
-        });
-        form.reset();
-    }
-    
-    return (
-        <Card className="max-w-3xl mx-auto mt-6">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold font-headline">Enregistrer un Nouvel Employé</CardTitle>
-          <CardDescription>Remplissez le formulaire pour ajouter un employé au département <span className='font-bold'>{domain}</span>.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <FormField control={form.control} name="firstName" render={({ field }) => (
-                        <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="lastName" render={({ field }) => (
-                        <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
-                
-                 <FormField control={form.control} name="domain" render={({ field }) => (
-                    <FormItem><FormLabel>Département</FormLabel><FormControl><Input readOnly disabled {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-
-              <FormField control={form.control} name="birthDate" render={({ field }) => (
-                <FormItem className="flex flex-col"><FormLabel>Date de naissance</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant={"outline"} className={cn("w-[240px] pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                          {field.value ? (format(field.value, "PPP")) : (<span>Choisissez une date</span>)}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus />
-                    </PopoverContent>
-                  </Popover><FormMessage />
-                </FormItem>
-              )} />
-                <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem><FormLabel>Adresse</FormLabel><FormControl><Input placeholder="123 Rue Principale, Anytown" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="phone" render={({ field }) => (
-                        <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </div>
-                <FormField control={form.control} name="photoUrl" render={({ field }) => (
-                    <FormItem><FormLabel>URL de la Photo</FormLabel><FormControl><Input placeholder="https://example.com/photo.jpg" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-              <Button type="submit">Enregistrer l'employé</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    )
-}
-
 // Main Page Component
 export default function DepartmentPage() {
   const params = useParams();
@@ -230,23 +108,12 @@ export default function DepartmentPage() {
             </Button>
         </div>
         <div className="mb-4">
-            <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
+            <h1 className="text-4xl font-bold font-headline">Gestion du Département : {domain}</h1>
             <p className="text-muted-foreground">
-                Interface de gestion pour le responsable du département.
+                Interface de présence pour le responsable du département.
             </p>
         </div>
-       <Tabs defaultValue="attendance" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="attendance">Présence</TabsTrigger>
-                <TabsTrigger value="register">Enregistrer un employé</TabsTrigger>
-            </TabsList>
-            <TabsContent value="attendance">
-                <AttendanceTab domain={domain} />
-            </TabsContent>
-            <TabsContent value="register">
-                <RegisterTab domain={domain} />
-            </TabsContent>
-        </Tabs>
+        <AttendanceTab domain={domain} />
     </div>
   );
 }
