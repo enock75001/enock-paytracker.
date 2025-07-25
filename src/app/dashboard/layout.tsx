@@ -48,17 +48,18 @@ export default function DashboardLayout({
             <SidebarMenu>
                 {menuItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
-                         <Link href={item.href} passHref legacyBehavior>
-                            <SidebarMenuButton
-                                isActive={pathname === item.href}
-                                tooltip={item.label}
-                                size="lg"
-                                className="justify-start gap-4"
-                            >
+                         <SidebarMenuButton
+                            asChild
+                            isActive={pathname === item.href}
+                            tooltip={item.label}
+                            size="lg"
+                            className="justify-start gap-4"
+                        >
+                            <Link href={item.href}>
                                 <item.icon className="size-5" />
                                 <span>{item.label}</span>
-                            </SidebarMenuButton>
-                        </Link>
+                            </Link>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 ))}
             </SidebarMenu>
