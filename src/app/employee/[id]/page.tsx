@@ -9,9 +9,11 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle } from 'lucide-react';
 import { differenceInWeeks, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,7 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { ImagePicker } from '@/components/image-picker';
 import { Header } from '@/components/header';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 const employeeSchema = z.object({
@@ -262,6 +265,72 @@ export default function EmployeeRecapPage() {
   const weeksSinceRegistration = differenceInWeeks(new Date(), registrationDate);
   const estimatedTotalEarnings = weeksSinceRegistration * (5 * employee.dailyWage); 
 
+  const downloadWeeklySummary = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Titre
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Récapitulatif de Paie Hebdomadaire", pageWidth / 2, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Période: Semaine du ${format(new Date(), 'dd MMMM yyyy', { locale: fr })}`, pageWidth / 2, 28, { align: 'center' });
+
+    // Informations de l'employé
+    (doc as any).autoTable({
+        startY: 40,
+        body: [
+            ['Nom Complet', `${employee.firstName} ${employee.lastName}`],
+            ['Département', employee.domain],
+            ['Salaire Journalier (Semaine)', `${new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA`],
+        ],
+        theme: 'plain',
+        styles: { fontSize: 11, cellPadding: 2 },
+    });
+
+    // Tableau de présence
+    const attendanceData = days.map(day => [
+        day, 
+        employee.attendance[day] ? 'Présent' : 'Absent'
+    ]);
+    (doc as any).autoTable({
+        head: [['Jour', 'Statut']],
+        body: attendanceData,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+        didParseCell: function(data: any) {
+            if (data.section === 'body' && data.column.index === 1) {
+                if (data.cell.raw === 'Présent') {
+                    data.cell.styles.textColor = [39, 174, 96];
+                    data.cell.styles.fontStyle = 'bold';
+                } else {
+                    data.cell.styles.textColor = [192, 57, 43];
+                }
+            }
+        }
+    });
+
+    // Résumé financier
+    const finalY = (doc as any).autoTable.previous.finalY;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Résumé Financier", 14, finalY + 15);
+    (doc as any).autoTable({
+        startY: finalY + 20,
+        body: [
+            ['Jours Présents', `${daysPresent} jour(s)`],
+            ['Jours Absents', `${days.length - daysPresent} jour(s)`],
+            ['Total Paie Hebdomadaire', `${new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA`],
+        ],
+        theme: 'grid',
+        styles: { fontSize: 12, cellPadding: 3 },
+        columnStyles: { 0: { fontStyle: 'bold' } },
+    });
+
+    doc.save(`recap_hebdo_${employee.lastName}_${employee.firstName}.pdf`);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
         <Header />
@@ -286,11 +355,9 @@ export default function EmployeeRecapPage() {
                         Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR', { locale: fr })}
                     </div>
                 </div>
-                <Button asChild variant="outline">
-                    <Link href={`/department/${encodeURIComponent(employee.domain)}`}>
-                        <UserCog className="mr-2 h-4 w-4" />
-                        Gérer le Département
-                    </Link>
+                <Button onClick={downloadWeeklySummary} variant="outline">
+                    <Download className="mr-2 h-4 w-4"/>
+                    PDF de la Semaine
                 </Button>
             </CardHeader>
             <CardContent className="grid gap-8 pt-6">
@@ -310,23 +377,37 @@ export default function EmployeeRecapPage() {
                     <Card className="bg-secondary/50">
                         <CardHeader>
                             <CardTitle>Récapitulatif de la Semaine</CardTitle>
+                             <CardDescription>Détail des présences et de la paie pour la semaine en cours.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Salaire pour cette semaine:</span>
-                            <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA / jour</span>
+                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Salaire pour cette semaine:</span>
+                                <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA / jour</span>
                             </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Jours de présence:</span>
-                                <Badge className="text-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">{daysPresent}</Badge>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Jours d'absence:</span>
-                                <Badge className="text-lg" variant="secondary">{days.length - daysPresent}</Badge>
-                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Jour</TableHead>
+                                        <TableHead className="text-right">Statut</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {days.map(day => (
+                                        <TableRow key={day}>
+                                            <TableCell>{day}</TableCell>
+                                            <TableCell className="text-right">
+                                                {employee.attendance[day] ? 
+                                                    <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
+                                                    <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
+                                                }
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                             <div className="flex justify-between items-center pt-4 border-t">
-                                <span className="font-semibold">Salaire de la semaine:</span>
-                                <span className="font-bold text-xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA</span>
+                                <span className="font-semibold text-lg">Paie de la semaine:</span>
+                                <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay)} FCFA</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -336,13 +417,21 @@ export default function EmployeeRecapPage() {
                             <CardDescription>Estimation depuis l'inscription</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold">Salaire total estimé:</span>
-                                <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings)} FCFA</span>
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold">Salaire total estimé:</span>
+                                    <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings)} FCFA</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.
+                                </p>
+                                <Alert>
+                                    <AlertTitle>Note sur l'estimation</AlertTitle>
+                                    <AlertDescription>
+                                        Ce montant est une estimation et ne prend pas en compte l'historique détaillé des présences ou les changements de salaire passés.
+                                    </AlertDescription>
+                                </Alert>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.
-                            </p>
                         </CardContent>
                     </Card>
                 </div>
