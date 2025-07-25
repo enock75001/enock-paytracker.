@@ -34,69 +34,67 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const days = initialDays;
 
    useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
+    const fetchAndSetData = async () => {
         const departmentsSnapshot = await getDocs(collection(db, 'departments'));
+        const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
         
-        if (departmentsSnapshot.empty) {
-          console.log("Database is empty, seeding with mock data...");
-          const batch = writeBatch(db);
-          
-          const departmentRefs: { [key: string]: string } = {};
-          mockDepartments.forEach(dept => {
-            const docRef = doc(collection(db, 'departments'));
-            departmentRefs[dept.name] = docRef.id;
-            batch.set(docRef, {name: dept.name, manager: dept.manager});
-          });
+        const employeesSnapshot = await getDocs(collection(db, 'employees'));
+        const employeesData = employeesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return { 
+                id: doc.id, 
+                ...data,
+                currentWeekWage: data.currentWeekWage || data.dailyWage 
+            } as Employee;
+        });
 
-          const seededDepartments = mockDepartments.map(d => ({...d, id: departmentRefs[d.name]}));
+        const archivesSnapshot = await getDocs(collection(db, 'archives'));
+        const archivesData = archivesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ArchivedPayroll));
 
-          const seededEmployees = mockEmployees.map(emp => {
-             const docRef = doc(collection(db, 'employees'));
-             const newEmp = { ...emp, id: docRef.id };
-             batch.set(docRef, {
-                ...emp, 
-                currentWeekWage: emp.dailyWage, // Ensure this is set
-             });
-             return newEmp;
-          });
-          
-          await batch.commit();
-          console.log("Mock data seeded.");
-
-          setDepartments(seededDepartments);
-          setEmployees(seededEmployees);
-          setArchives([]); // No archives initially
-
-        } else {
-            const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
-            const employeesSnapshot = await getDocs(collection(db, 'employees'));
-            const employeesData = employeesSnapshot.docs.map(doc => {
-                const data = doc.data();
-                return { 
-                    id: doc.id, 
-                    ...data,
-                    // Ensure currentWeekWage has a fallback
-                    currentWeekWage: data.currentWeekWage || data.dailyWage 
-                } as Employee;
-            });
-            const archivesSnapshot = await getDocs(collection(db, 'archives'));
-            const archivesData = archivesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ArchivedPayroll));
-
-            setDepartments(departmentsData);
-            setEmployees(employeesData);
-            setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
-        }
-
-      } catch (error) {
-        console.error("Failed to fetch data from Firestore", error);
-      } finally {
+        setDepartments(departmentsData);
+        setEmployees(employeesData);
+        setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
         setLoading(false);
-      }
     };
 
-    fetchData();
+    const initializeData = async () => {
+        setLoading(true);
+        try {
+            const departmentsSnapshot = await getDocs(collection(db, 'departments'));
+            if (departmentsSnapshot.empty) {
+                console.log("Database is empty, seeding with mock data...");
+                const batch = writeBatch(db);
+                
+                // Seed departments
+                mockDepartments.forEach(dept => {
+                    const docRef = doc(collection(db, 'departments'));
+                    batch.set(docRef, { name: dept.name, manager: dept.manager });
+                });
+
+                // Seed employees
+                mockEmployees.forEach(emp => {
+                    const docRef = doc(collection(db, 'employees'));
+                    // Create a version of the employee without id for Firestore
+                    const { id, ...empData } = emp;
+                    batch.set(docRef, {
+                        ...empData,
+                        currentWeekWage: emp.dailyWage, // Ensure this is set
+                    });
+                });
+                
+                await batch.commit();
+                console.log("Mock data seeded. Refetching data...");
+                await fetchAndSetData(); // Now fetch the data we just seeded
+            } else {
+                await fetchAndSetData(); // If not empty, just fetch
+            }
+        } catch (error) {
+            console.error("Failed to initialize or fetch data from Firestore", error);
+            setLoading(false); // Stop loading even on error
+        }
+    };
+
+    initializeData();
   }, []);
 
 
