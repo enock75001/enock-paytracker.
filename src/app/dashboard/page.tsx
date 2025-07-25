@@ -148,104 +148,91 @@ function DepartmentsTab() {
 
 
   return (
-    <>
-        <div className="mb-6 mt-6">
-            <h1 className="text-3xl font-bold font-headline">Vue d'ensemble des Départements</h1>
-            <p className="text-muted-foreground">
-            Gérez les départements, ajoutez-en de nouveaux ou enregistrez un employé.
-            </p>
-        </div>
-        
-        {/* Department Management Section */}
-        <Card className="mb-8">
-            <CardHeader className='flex-row items-center justify-between'>
-                <div className="space-y-1.5">
-                    <CardTitle>Gestion des Départements</CardTitle>
-                    <CardDescription>Ajoutez, modifiez ou supprimez des départements.</CardDescription>
-                </div>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button onClick={() => openDialog()}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Nouveau Département
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{isEditMode ? "Modifier le département" : "Créer un nouveau département"}</DialogTitle>
-                        </DialogHeader>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                                <FormField name="name" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Nom du département</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField name="managerName" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Nom du Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField name="managerPin" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Code PIN du Manager (4 chiffres)</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <DialogFooter>
-                                    <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
-                                    <Button type="submit">Sauvegarder</Button>
-                                </DialogFooter>
-                            </form>
-                        </Form>
-                    </DialogContent>
-                </Dialog>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {departments.map((department) => {
-                    const employeesInDomain = groupedEmployees[department.name] || [];
-                    return (
-                        <Card key={department.name}>
-                            <CardHeader>
-                                <CardTitle className="flex justify-between items-start">
-                                    <span>{department.name}</span>
-                                    <Users className="h-6 w-6 text-muted-foreground" />
-                                </CardTitle>
-                                <CardDescription className="flex items-center pt-1">
-                                    <UserCog className="mr-2 h-4 w-4" />
-                                    <span>Manager: {department.manager.name}</span>
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{employeesInDomain.length} employés</div>
-                            </CardContent>
-                            <CardFooter className="flex justify-between">
-                                 <div className="flex gap-2">
-                                     <Button variant="outline" size="icon" onClick={() => openDialog(department)}><Edit className="h-4 w-4" /></Button>
-                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="icon" disabled={employeesInDomain.length > 0}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader><AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le département sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => deleteDepartment(department.name)}>Supprimer</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                     </AlertDialog>
-                                 </div>
-                                 <Button asChild>
-                                    <Link href={`/department/${encodeURIComponent(department.name)}`}>Gérer</Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    )
-                })}
-                </div>
-                 <p className="text-xs text-muted-foreground mt-4">Pour supprimer un département, vous devez d'abord réaffecter ou supprimer tous ses employés.</p>
-            </CardContent>
-        </Card>
-
-        {/* Register Employee Section */}
-        <RegisterTab />
-    </>
+    <Card>
+        <CardHeader className='flex-row items-center justify-between'>
+            <div className="space-y-1.5">
+                <CardTitle>Gestion des Départements</CardTitle>
+                <CardDescription>Ajoutez, modifiez ou supprimez des départements.</CardDescription>
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button onClick={() => openDialog()}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nouveau Département
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{isEditMode ? "Modifier le département" : "Créer un nouveau département"}</DialogTitle>
+                    </DialogHeader>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <FormField name="name" control={form.control} render={({ field }) => (
+                                <FormItem><FormLabel>Nom du département</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField name="managerName" control={form.control} render={({ field }) => (
+                                <FormItem><FormLabel>Nom du Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField name="managerPin" control={form.control} render={({ field }) => (
+                                <FormItem><FormLabel>Code PIN du Manager (4 chiffres)</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
+                                <Button type="submit">Sauvegarder</Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+        </CardHeader>
+        <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {departments.map((department) => {
+                const employeesInDomain = groupedEmployees[department.name] || [];
+                return (
+                    <Card key={department.name}>
+                        <CardHeader>
+                            <CardTitle className="flex justify-between items-start">
+                                <span>{department.name}</span>
+                                <Users className="h-6 w-6 text-muted-foreground" />
+                            </CardTitle>
+                            <CardDescription className="flex items-center pt-1">
+                                <UserCog className="mr-2 h-4 w-4" />
+                                <span>Manager: {department.manager.name}</span>
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{employeesInDomain.length} employés</div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between">
+                             <div className="flex gap-2">
+                                 <Button variant="outline" size="icon" onClick={() => openDialog(department)}><Edit className="h-4 w-4" /></Button>
+                                 <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="icon" disabled={employeesInDomain.length > 0}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le département sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => deleteDepartment(department.name)}>Supprimer</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                 </AlertDialog>
+                             </div>
+                             <Button asChild>
+                                <Link href={`/department/${encodeURIComponent(department.name)}`}>Gérer</Link>
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                )
+            })}
+            </div>
+             <p className="text-xs text-muted-foreground mt-4">Pour supprimer un département, vous devez d'abord réaffecter ou supprimer tous ses employés.</p>
+        </CardContent>
+    </Card>
   )
 }
 
@@ -490,14 +477,14 @@ function RegisterTab() {
     }
     
     return (
-        <Card className="max-w-3xl mx-auto mt-12">
+        <Card>
         <CardHeader>
           <CardTitle className="text-3xl font-bold font-headline">Enregistrer un Nouvel Employé</CardTitle>
-          <CardDescription>Remplissez le formulaire pour ajouter un employé.</CardDescription>
+          <CardDescription>Remplissez le formulaire pour ajouter un employé à un département.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <FormField control={form.control} name="firstName" render={({ field }) => (
                         <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
@@ -553,7 +540,7 @@ function RegisterTab() {
                     )} />
                 </div>
                 <FormField control={form.control} name="photoUrl" render={({ field }) => (
-                    <FormItem><FormLabel>URL de la Photo</FormLabel><FormControl><Input placeholder="https://example.com/photo.jpg" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>URL de la Photo</FormLabel><FormControl><Input placeholder="https://placehold.co/photo.jpg" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               <Button type="submit">Enregistrer l'employé</Button>
             </form>
@@ -568,18 +555,30 @@ function RegisterTab() {
 export default function DashboardPage() {
   return (
     <div className="container mx-auto p-4 md:p-8">
+        <div className="mb-8">
+            <h1 className="text-3xl font-bold font-headline">Tableau de Bord Administrateur</h1>
+            <p className="text-muted-foreground">
+                Gérez les départements, les employés et la paie depuis une interface centralisée.
+            </p>
+        </div>
        <Tabs defaultValue="departments" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="departments">Départements & Employés</TabsTrigger>
-                <TabsTrigger value="recap">Récapitulatif Global</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="departments">Gestion des Départements</TabsTrigger>
+                <TabsTrigger value="register">Enregistrer un Employé</TabsTrigger>
+                <TabsTrigger value="recap">Récapitulatif de Paie</TabsTrigger>
             </TabsList>
-            <TabsContent value="departments">
+            <TabsContent value="departments" className="mt-6">
                 <DepartmentsTab />
             </TabsContent>
-            <TabsContent value="recap">
+            <TabsContent value="register" className="mt-6">
+                <RegisterTab />
+            </TabsContent>
+            <TabsContent value="recap" className="mt-6">
                 <RecapTab />
             </TabsContent>
         </Tabs>
     </div>
   );
 }
+
+    

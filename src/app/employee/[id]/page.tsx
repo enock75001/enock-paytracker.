@@ -61,6 +61,12 @@ export default function EmployeeRecapPage() {
                     Inscrit le : {new Date(employee.registrationDate).toLocaleDateString('fr-FR')}
                 </div>
             </div>
+             <Button asChild variant="outline">
+                <Link href={`/department/${encodeURIComponent(employee.domain)}`}>
+                    <UserCog className="mr-2 h-4 w-4" />
+                    Gérer le Département
+                </Link>
+            </Button>
         </CardHeader>
         <CardContent className="grid gap-8 pt-6">
             <div>

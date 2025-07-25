@@ -234,19 +234,34 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
+  const { departments } = useEmployees();
+  
+  const department = departments.find(d => d.name === domain);
+
+  if (!department) {
+      return (
+        <div className="container mx-auto p-4 md:p-8 text-center">
+            <h1 className="text-2xl font-bold">Département non trouvé</h1>
+            <p className="text-muted-foreground">Ce département n'existe pas.</p>
+            <Button asChild className="mt-4">
+                <Link href="/manager-login">Retour à la connexion</Link>
+            </Button>
+        </div>
+      )
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
        <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            <Button variant="outline" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour au tableau de bord
+                Retour
             </Button>
         </div>
         <div className="mb-4">
-            <h1 className="text-4xl font-bold font-headline">Gestion du Département : {domain}</h1>
+            <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
             <p className="text-muted-foreground">
-                Interface de présence et d'enregistrement pour le responsable du département.
+                Interface de présence et d'enregistrement pour le responsable {department.manager.name}.
             </p>
         </div>
         <Tabs defaultValue="attendance" className="w-full">
@@ -264,3 +279,5 @@ export default function DepartmentPage() {
     </div>
   );
 }
+
+    
