@@ -1,10 +1,11 @@
 'use client';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { type Employee } from '@/lib/types';
-import { mockEmployees, initialDays } from '@/lib/data';
+import { type Employee, type Department } from '@/lib/types';
+import { mockEmployees, initialDays, mockDepartments } from '@/lib/data';
 
 interface EmployeeContextType {
   employees: Employee[];
+  departments: Department[];
   addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => void;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => void;
   days: string[];
@@ -14,6 +15,7 @@ const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined
 
 export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
+  const [departments, setDepartments] = useState<Department[]>(mockDepartments);
   const days = initialDays;
 
   const addEmployee = (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate'>) => {
@@ -38,7 +40,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <EmployeeContext.Provider value={{ employees, addEmployee, updateAttendance, days }}>
+    <EmployeeContext.Provider value={{ employees, departments, addEmployee, updateAttendance, days }}>
       {children}
     </EmployeeContext.Provider>
   );

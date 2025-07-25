@@ -1,4 +1,4 @@
-import { type Employee } from './types';
+import { type Employee, type Department } from './types';
 
 export const initialDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -9,6 +9,22 @@ const createInitialAttendance = () => {
   });
   return attendance;
 };
+
+export const mockDepartments: Department[] = [
+  {
+    name: 'Peinture Intérieure',
+    manager: { name: 'Mr. Bernard', pin: '1234' },
+  },
+  {
+    name: 'Peinture Extérieure',
+    manager: { name: 'Mme. Cissé', pin: '5678' },
+  },
+  {
+    name: 'Finitions Spéciales',
+    manager: { name: 'Mr. Konan', pin: '4321' },
+  },
+];
+
 
 export const mockEmployees: Employee[] = [
   {

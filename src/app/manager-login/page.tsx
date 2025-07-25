@@ -10,36 +10,39 @@ import { Label } from "@/components/ui/label";
 import { useEmployees } from '@/context/employee-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, User, Lock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ManagerLoginPage() {
-    const [code, setCode] = useState('');
+    const [selectedDepartment, setSelectedDepartment] = useState('');
+    const [pin, setPin] = useState('');
     const [error, setError] = useState('');
     const router = useRouter();
-    const { employees } = useEmployees();
+    const { departments } = useEmployees();
     const { toast } = useToast();
+
+    const selectedManagerName = departments.find(d => d.name === selectedDepartment)?.manager.name;
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (!code) {
-            setError("Veuillez entrer un code de département.");
+        if (!selectedDepartment || !pin) {
+            setError("Veuillez sélectionner un département et entrer votre code PIN.");
             return;
         }
+        
+        const department = departments.find(d => d.name === selectedDepartment);
 
-        const domains = [...new Set(employees.map(e => e.domain))];
-        const matchedDomain = domains.find(d => d.toLowerCase().replace(/\s+/g, '') === code.toLowerCase().replace(/\s+/g, ''));
-
-        if (matchedDomain) {
+        if (department && department.manager.pin === pin) {
             toast({
                 title: "Connexion réussie",
-                description: `Bienvenue dans le département ${matchedDomain}.`,
+                description: `Bienvenue, ${department.manager.name}.`,
                 className: 'bg-accent text-accent-foreground'
             });
-            router.push(`/department/${encodeURIComponent(matchedDomain)}`);
+            router.push(`/department/${encodeURIComponent(department.name)}`);
         } else {
-            setError("Code de département invalide. Veuillez réessayer.");
+            setError("Code PIN incorrect. Veuillez réessayer.");
         }
     };
 
@@ -49,21 +52,46 @@ export default function ManagerLoginPage() {
                 <CardHeader className="text-center space-y-2">
                     <CardTitle className="text-2xl font-headline">Connexion Responsable</CardTitle>
                     <CardDescription>
-                        Entrez le code d'accès de votre département pour continuer.
+                        Sélectionnez votre département et entrez votre code PIN.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="department-code">Code du département</Label>
-                            <Input
-                                id="department-code"
-                                type="text"
-                                placeholder="ex: peintureinterieure"
-                                value={code}
-                                onChange={(e) => setCode(e.target.value)}
-                                required
-                            />
+                            <Label htmlFor="department">Département</Label>
+                             <Select onValueChange={setSelectedDepartment} defaultValue={selectedDepartment}>
+                                <SelectTrigger id="department">
+                                    <SelectValue placeholder="Sélectionnez votre département" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {departments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         {selectedManagerName && (
+                            <div className="space-y-2">
+                                <Label htmlFor="manager-name">Nom du Responsable</Label>
+                                <div className="relative">
+                                    <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="manager-name" type="text" value={selectedManagerName} readOnly disabled className="pl-8" />
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="pin-code">Code PIN</Label>
+                             <div className="relative">
+                                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    id="pin-code"
+                                    type="password"
+                                    placeholder="••••"
+                                    value={pin}
+                                    onChange={(e) => setPin(e.target.value)}
+                                    required
+                                    disabled={!selectedDepartment}
+                                    className="pl-8"
+                                />
+                             </div>
                         </div>
                         {error && (
                              <Alert variant="destructive">

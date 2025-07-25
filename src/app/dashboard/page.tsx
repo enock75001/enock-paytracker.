@@ -22,7 +22,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Users, Eye } from 'lucide-react';
+import { Download, Users, Eye, UserCog } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -72,7 +72,7 @@ function groupEmployeesByDomain(employees: Employee[]): Record<string, Employee[
 
 // Component for Departments Tab
 function DepartmentsTab() {
-  const { employees } = useEmployees();
+  const { employees, departments } = useEmployees();
   const groupedEmployees = groupEmployeesByDomain(employees);
 
   return (
@@ -84,27 +84,36 @@ function DepartmentsTab() {
             </p>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {Object.entries(groupedEmployees).map(([domain, employeesInDomain]) => (
-            <Card key={domain}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-xl font-headline font-medium">
-                        {domain}
-                    </CardTitle>
-                    <Users className="h-6 w-6 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{employeesInDomain.length} employés</div>
-                    <p className="text-xs text-muted-foreground">
-                        Total des employés dans ce département.
-                    </p>
-                </CardContent>
-                <CardFooter>
-                     <Button asChild className="w-full">
-                        <Link href={`/department/${encodeURIComponent(domain)}`}>Gérer la présence</Link>
-                    </Button>
-                </CardFooter>
-            </Card>
-        ))}
+        {departments.map((department) => {
+            const employeesInDomain = groupedEmployees[department.name] || [];
+            return (
+                <Card key={department.name}>
+                    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                        <div>
+                            <CardTitle className="text-xl font-headline font-medium">
+                                {department.name}
+                            </CardTitle>
+                             <div className="flex items-center text-sm text-muted-foreground mt-1">
+                                <UserCog className="mr-2 h-4 w-4" />
+                                <span>Manager: {department.manager.name}</span>
+                            </div>
+                        </div>
+                        <Users className="h-6 w-6 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{employeesInDomain.length} employés</div>
+                        <p className="text-xs text-muted-foreground">
+                            Total des employés dans ce département.
+                        </p>
+                    </CardContent>
+                    <CardFooter>
+                         <Button asChild className="w-full">
+                            <Link href={`/department/${encodeURIComponent(department.name)}`}>Gérer la présence</Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )
+        })}
         </div>
         <RegisterTab />
     </>
@@ -321,9 +330,9 @@ const registerSchema = z.object({
 
 // Component for Register Tab
 function RegisterTab() {
-    const { addEmployee, employees } = useEmployees();
+    const { addEmployee, departments } = useEmployees();
     const { toast } = useToast()
-    const domains = [...new Set(employees.map(e => e.domain))];
+    const domains = departments.map(d => d.name);
 
     const form = useForm<z.infer<typeof registerSchema>>({
         resolver: zodResolver(registerSchema),
@@ -445,5 +454,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

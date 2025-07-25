@@ -15,3 +15,11 @@ export interface Employee {
   photoUrl: string;
   attendance: Attendance;
 }
+
+export interface Department {
+  name: string;
+  manager: {
+    name: string;
+    pin: string;
+  };
+}
