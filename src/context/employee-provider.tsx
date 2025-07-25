@@ -37,33 +37,31 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const fetchAndSetData = async () => {
         setLoading(true);
         try {
-            // First check if departments are present. If not, we seed the DB.
+            // Check if database needs to be seeded
             const deptsQuerySnapshot = await getDocs(collection(db, 'departments'));
             if (deptsQuerySnapshot.empty) {
                 console.log("Database is empty, seeding with mock data...");
                 const batch = writeBatch(db);
                 
-                // Seed departments
                 mockDepartments.forEach(dept => {
                     const docRef = doc(collection(db, 'departments'));
                     batch.set(docRef, { name: dept.name, manager: dept.manager });
                 });
 
-                // Seed employees
                 mockEmployees.forEach(emp => {
                     const docRef = doc(collection(db, 'employees'));
-                    const { id, ...empData } = emp; // Create a version of the employee without id
+                    const { id, ...empData } = emp;
                     batch.set(docRef, {
                         ...empData,
-                        currentWeekWage: emp.dailyWage, // Ensure this is set
+                        currentWeekWage: emp.dailyWage,
                     });
                 });
                 
                 await batch.commit();
-                console.log("Mock data seeded. Refetching data...");
+                console.log("Mock data seeded.");
             }
 
-            // Fetch all data now that we know it exists.
+            // Fetch all data
             const departmentsSnapshot = await getDocs(collection(db, 'departments'));
             const departmentsData = departmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Department));
             
@@ -73,7 +71,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                 return { 
                     id: doc.id, 
                     ...data,
-                    // THIS IS THE KEY FIX: Ensure currentWeekWage always has a fallback.
+                    // Ensure currentWeekWage has a fallback to prevent NaN errors.
                     currentWeekWage: data.currentWeekWage || data.dailyWage 
                 } as Employee;
             });
@@ -88,7 +86,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
             console.error("Failed to initialize or fetch data from Firestore", error);
         } finally {
-            setLoading(false); // This will now always be called
+            // This will always be called, ensuring the loading screen is removed.
+            setLoading(false);
         }
     };
 
