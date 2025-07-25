@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -259,8 +258,9 @@ export default function EmployeeRecapPage() {
     );
   }
 
+  const currentWage = employee.currentWeekWage || employee.dailyWage;
   const daysPresent = days.filter(day => employee.attendance[day]).length;
-  const weeklyPay = daysPresent * employee.currentWeekWage;
+  const weeklyPay = daysPresent * currentWage;
   
   const registrationDate = parseISO(employee.registrationDate);
   const weeksSinceRegistration = differenceInWeeks(new Date(), registrationDate);
@@ -284,7 +284,7 @@ export default function EmployeeRecapPage() {
         body: [
             ['Nom Complet', `${employee.firstName} ${employee.lastName}`],
             ['Département', employee.domain],
-            ['Salaire Journalier (Semaine)', `${new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA`],
+            ['Salaire Journalier (Semaine)', `${new Intl.NumberFormat('fr-FR').format(currentWage)} FCFA`],
         ],
         theme: 'plain',
         styles: { fontSize: 11, cellPadding: 2 },
@@ -383,7 +383,7 @@ export default function EmployeeRecapPage() {
                         <CardContent className="space-y-4">
                              <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Salaire pour cette semaine:</span>
-                                <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage)} FCFA / jour</span>
+                                <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(currentWage)} FCFA / jour</span>
                             </div>
                             <Table>
                                 <TableHeader>
@@ -447,3 +447,5 @@ export default function EmployeeRecapPage() {
     </div>
   );
 }
+
+    
