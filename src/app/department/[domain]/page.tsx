@@ -21,7 +21,7 @@ import { Eye, ArrowLeft } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, startOfWeek, addDays, getDate } from "date-fns"
+import { format, startOfWeek, addDays, endOfWeek } from "date-fns"
 import { fr } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -182,23 +182,26 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 function AttendanceTab({ domain }: { domain: string }) {
   const { employees, updateAttendance, days } = useEmployees();
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
-  const currentMonthYear = format(new Date(), 'MMMM yyyy', { locale: fr });
   
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
   
+  const firstDayOfWeek = startOfWeek(today, { weekStartsOn: 1 });
+  const lastDayOfWeek = endOfWeek(today, { weekStartsOn: 1 });
+
   const weekDates = days.map((_, index) => {
-    // Assuming the week starts on Monday as per locale `fr`
-    const firstDayOfWeek = startOfWeek(today, { weekStartsOn: 1 });
     return addDays(firstDayOfWeek, index);
   });
+
+  const weekPeriod = `Semaine du ${format(firstDayOfWeek, 'dd MMM', { locale: fr })} au ${format(lastDayOfWeek, 'dd MMM yyyy', { locale: fr })}`;
+
 
   return (
     <Card className="mt-6">
         <CardHeader>
-            <CardTitle className="text-2xl font-bold font-headline capitalize">Feuille de Présence - {currentMonthYear}</CardTitle>
+            <CardTitle className="text-2xl font-bold font-headline capitalize">Feuille de Présence</CardTitle>
             <CardDescription>
-            Cochez les jours de présence pour les employés du département : <span className="font-semibold">{domain}</span>.
+                {weekPeriod}. Cochez les jours de présence pour les employés du département : <span className="font-semibold">{domain}</span>.
             </CardDescription>
         </CardHeader>
         <CardContent>
