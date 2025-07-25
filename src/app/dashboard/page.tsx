@@ -20,6 +20,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
 
 function groupEmployeesByDomain(employees: Employee[]): Record<string, Employee[]> {
   return employees.reduce((acc, employee) => {
@@ -65,6 +68,7 @@ export default function DashboardPage() {
                         {days.map(day => (
                             <TableHead key={day} className="text-center">{day}</TableHead>
                         ))}
+                        <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -97,6 +101,14 @@ export default function DashboardPage() {
                                 />
                             </TableCell>
                             ))}
+                            <TableCell className="text-right">
+                                <Link href={`/employee/${employee.id}`} passHref>
+                                    <Button variant="ghost" size="icon">
+                                        <Eye className="h-4 w-4" />
+                                        <span className="sr-only">View Details</span>
+                                    </Button>
+                                </Link>
+                            </TableCell>
                         </TableRow>
                         ))}
                     </TableBody>
