@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -45,6 +46,9 @@ import 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 import { ChatWidget } from '@/components/chat-widget';
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+};
 
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
@@ -170,7 +174,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
-  const { employees, updateAttendance, days, weekPeriod, weekDates } = useEmployees();
+  const { employees, updateAttendance, days, weekPeriod, weekDates, company } = useEmployees();
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
   
   const today = new Date();
@@ -179,18 +183,49 @@ function AttendanceTab({ domain }: { domain: string }) {
   const downloadAttendancePdf = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    let cursorY = 15;
 
-    // Title
-    doc.setFontSize(18);
+    // Header
+    if (company?.logoUrl) {
+        try {
+            doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
+        } catch(e) {
+             console.error("Erreur d'ajout de l'image:", e);
+        }
+    }
+    
+    doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
-    doc.text(`Feuille de Présence & Paie - ${domain}`, pageWidth / 2, 20, { align: 'center' });
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(128, 128, 128);
-    doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
+    doc.text(company?.name || "Entreprise", pageWidth / 2, cursorY + 7, { align: 'center' });
+    cursorY += 10;
     
-    const head = [['Employé', ...days.map(d => d.substring(0,3)), 'Présents', 'Paie (FCFA)']];
+    if (company?.description) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(128, 128, 128);
+        doc.text(company.description, pageWidth / 2, cursorY + 5, { align: 'center' });
+        cursorY += 5;
+    }
+    cursorY += 5;
+
+    doc.setDrawColor(221, 221, 221);
+    doc.line(14, cursorY, pageWidth - 14, cursorY);
+    cursorY += 10;
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 58, 90);
+    doc.text(`Feuille de Présence & Paie - ${domain}`, pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 5;
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(weekPeriod, pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 10;
+    
+    const head = [['Employé', ...days.map(d => d.substring(0,3)), 'Présents', 'Paie']];
 
     let departmentTotalPay = 0;
 
@@ -204,17 +239,17 @@ function AttendanceTab({ domain }: { domain: string }) {
             `${employee.firstName} ${employee.lastName}`,
             ...attendanceStatus,
             daysPresent.toString(),
-            `${weeklyPay.toLocaleString('fr-FR')} FCFA`
+            formatCurrency(weeklyPay)
         ];
     });
 
     (doc as any).autoTable({
-        startY: 35,
+        startY: cursorY,
         head: head,
         body: body,
         foot: [[
             { content: 'Total Département', colSpan: days.length + 1, styles: { halign: 'right', fontStyle: 'bold' } },
-            { content: `${departmentTotalPay.toLocaleString('fr-FR')} FCFA`, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: `${formatCurrency(departmentTotalPay)}`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
         headStyles: { fillColor: [44, 62, 80], halign: 'center', fontStyle: 'bold' },
@@ -238,7 +273,7 @@ function AttendanceTab({ domain }: { domain: string }) {
             const pageHeight = doc.internal.pageSize.getHeight();
             doc.setFontSize(9);
             doc.setTextColor(150);
-            doc.text('Généré par Enock PayTracker le ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, pageHeight - 10);
+            doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, data.settings.margin.left, pageHeight - 10);
         }
     });
 
@@ -287,7 +322,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </Avatar>
                             <div>
                             <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{(employee.currentWeekWage || employee.dailyWage || 0).toLocaleString('fr-FR')} FCFA/jour</div>
+                            <div className="text-sm text-muted-foreground">{formatCurrency(employee.currentWeekWage || employee.dailyWage || 0)}/jour</div>
                             </div>
                         </div>
                         </TableCell>

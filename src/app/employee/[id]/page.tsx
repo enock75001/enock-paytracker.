@@ -61,6 +61,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+};
 
 const employeeSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
@@ -325,7 +328,7 @@ function AdjustmentsCard({ employee }: { employee: Employee }) {
                                     </TableCell>
                                     <TableCell>{adj.reason}</TableCell>
                                     <TableCell className={`text-right font-medium ${adj.type === 'bonus' ? 'text-green-400' : 'text-red-400'}`}>
-                                        {adj.type === 'deduction' && '-'}{(adj.amount || 0).toLocaleString('fr-FR')} FCFA
+                                        {adj.type === 'deduction' && '-'}{formatCurrency(adj.amount)}
                                     </TableCell>
                                     <TableCell className="text-right">
                                          <Button variant="ghost" size="icon" onClick={() => handleDelete(adj.id)}>
@@ -396,7 +399,7 @@ function PayHistoryTab({ employeeId }: { employeeId: string }) {
                         {payStubs.map(stub => (
                             <TableRow key={stub.id}>
                                 <TableCell className="font-medium">{stub.period}</TableCell>
-                                <TableCell className="text-right font-bold text-primary">{(stub.totalPay || 0).toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right font-bold text-primary">{formatCurrency(stub.totalPay)}</TableCell>
                                 <TableCell className="text-right">{format(parseISO(stub.payDate), 'dd/MM/yyyy')}</TableCell>
                             </TableRow>
                         ))}
@@ -463,28 +466,55 @@ export default function EmployeeRecapPage() {
   const downloadWeeklySummary = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+    let cursorY = 15;
 
     // Header
     if (company?.logoUrl) {
-      doc.addImage(company.logoUrl, 'PNG', 14, 15, 30, 15);
+      try {
+        doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
+      } catch (e) {
+          console.error("Erreur d'ajout de l'image:", e);
+      }
     }
-    doc.setFontSize(22);
+    doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
-    doc.text(company?.name || "Fiche de Paie", pageWidth / 2, 22, { align: 'center' });
-    doc.setFontSize(12);
+    doc.text(company?.name || "Entreprise", pageWidth / 2, cursorY + 7, { align: 'center' });
+    cursorY += 10;
+    
+    if (company?.description) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(128, 128, 128);
+        doc.text(company.description, pageWidth / 2, cursorY + 5, { align: 'center' });
+        cursorY += 5;
+    }
+    cursorY += 5;
+    
+    doc.setDrawColor(221, 221, 221);
+    doc.line(14, cursorY, pageWidth - 14, cursorY);
+    cursorY += 10;
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 58, 90);
+    doc.text("Fiche de Paie", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 5;
+    
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(128, 128, 128);
-    doc.text(weekPeriod, pageWidth / 2, 30, { align: 'center' });
+    doc.setTextColor(100, 100, 100);
+    doc.text(weekPeriod, pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 10;
+
 
     (doc as any).autoTable({
-        startY: 45,
+        startY: cursorY,
         body: [
             ['Employé:', `${employee.firstName} ${employee.lastName}`],
             ['Département:', employee.domain],
             ['Poste:', employee.poste],
-            ['Salaire Journalier de Base:', `${(currentWage || 0).toLocaleString('fr-FR')} FCFA`],
+            ['Salaire Journalier de Base:', formatCurrency(currentWage)],
         ],
         theme: 'plain',
         styles: { fontSize: 11, cellPadding: 2 },
@@ -496,26 +526,31 @@ export default function EmployeeRecapPage() {
         startY: finalY + 5,
         head: [['Résumé de Paie', 'Montant']],
         body: [
-            ['Paie de base (Présence)', `${basePay.toLocaleString('fr-FR')} FCFA`],
-            ['Total Primes', `${(employee.adjustments?.filter(a => a.type === 'bonus').reduce((s, a) => s + a.amount, 0) || 0).toLocaleString('fr-FR')} FCFA`],
-            ['Total Avances', `${(employee.adjustments?.filter(a => a.type === 'deduction').reduce((s, a) => s + a.amount, 0) || 0).toLocaleString('fr-FR')} FCFA`],
-            ['Remboursement Avance', `${(loanRepayment || 0).toLocaleString('fr-FR')} FCFA`],
+            ['Paie de base (Présence)', formatCurrency(basePay)],
+            ['Total Primes', formatCurrency((employee.adjustments?.filter(a => a.type === 'bonus').reduce((s, a) => s + a.amount, 0) || 0))],
+            ['Total Avances', formatCurrency((employee.adjustments?.filter(a => a.type === 'deduction').reduce((s, a) => s + a.amount, 0) || 0))],
+            ['Remboursement Avance', `-${formatCurrency(loanRepayment)}`],
         ],
         foot: [[
              { content: 'Total Net à Payer', styles: { fontStyle: 'bold', fontSize: 12 } },
-             { content: `${weeklyPay.toLocaleString('fr-FR')} FCFA`, styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }],
+             { content: formatCurrency(weeklyPay), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }],
         ],
         theme: 'striped',
         headStyles: { fillColor: [44, 62, 80], textColor: 255, fontStyle: 'bold' },
         footStyles: { fillColor: [22, 163, 74], textColor: 255 },
+        didParseCell: function(data: any) {
+            if (data.row.section === 'body' && data.column.index === 1) {
+                data.cell.styles.halign = 'right';
+            }
+        },
     });
     finalY = (doc as any).autoTable.previous.finalY;
 
     doc.setFontSize(9);
     doc.setTextColor(150);
+    const pageHeight = doc.internal.pageSize.getHeight();
     doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, 14, pageHeight - 10);
     
-
     doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
   };
 
@@ -548,9 +583,9 @@ export default function EmployeeRecapPage() {
                          <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Né(e) le:</strong> {format(parseISO(employee.birthDate), 'dd MMMM yyyy', { locale: fr })}</div>
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
-                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire/Jour:</strong> {(employee.dailyWage || 0).toLocaleString('fr-FR')} FCFA</div>
+                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire/Jour:</strong> {formatCurrency(employee.dailyWage)}</div>
                          {activeLoan && (
-                            <div className="flex items-center gap-3 pt-2 border-t text-amber-500"><Receipt className="h-4 w-4"/> <strong>Avance en cours:</strong> {(activeLoan.balance).toLocaleString('fr-FR')} FCFA</div>
+                            <div className="flex items-center gap-3 pt-2 border-t text-amber-500"><Receipt className="h-4 w-4"/> <strong>Avance en cours:</strong> {formatCurrency(activeLoan.balance)}</div>
                          )}
                          <div className="text-xs text-muted-foreground pt-2 border-t">
                             Inscrit le : {format(parseISO(employee.registrationDate), 'dd MMMM yyyy', { locale: fr })}
@@ -585,7 +620,7 @@ export default function EmployeeRecapPage() {
                             <CardContent className="space-y-4">
                                     <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground">Salaire pour cette période:</span>
-                                    <span className="font-semibold">{(currentWage || 0).toLocaleString('fr-FR')} FCFA / jour</span>
+                                    <span className="font-semibold">{formatCurrency(currentWage)} / jour</span>
                                 </div>
                                 <Table>
                                     <TableHeader>
@@ -611,19 +646,19 @@ export default function EmployeeRecapPage() {
                                  <div className="space-y-2 pt-4 border-t">
                                      <div className="flex justify-between items-center">
                                         <span>Paie de base (jours travaillés):</span>
-                                        <span className="font-medium">{(basePay || 0).toLocaleString('fr-FR')} FCFA</span>
+                                        <span className="font-medium">{formatCurrency(basePay)}</span>
                                     </div>
                                      <div className="flex justify-between items-center">
                                         <span>Total Primes / Avances ponctuelles:</span>
-                                        <span className={`font-medium ${totalAdjustments > 0 ? 'text-green-400' : totalAdjustments < 0 ? 'text-red-400' : ''}`}>{(totalAdjustments || 0).toLocaleString('fr-FR')} FCFA</span>
+                                        <span className={`font-medium ${totalAdjustments > 0 ? 'text-green-400' : totalAdjustments < 0 ? 'text-red-400' : ''}`}>{formatCurrency(totalAdjustments)}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span>Remboursement avance programmée:</span>
-                                        <span className={`font-medium ${loanRepayment > 0 ? 'text-red-400' : ''}`}>-{(loanRepayment || 0).toLocaleString('fr-FR')} FCFA</span>
+                                        <span className={`font-medium ${loanRepayment > 0 ? 'text-red-400' : ''}`}>-{formatCurrency(loanRepayment)}</span>
                                     </div>
                                     <div className="flex justify-between items-center pt-2 border-t text-lg">
                                         <span className="font-semibold">Paie totale de la période:</span>
-                                        <span className="font-bold text-2xl text-primary">{(weeklyPay || 0).toLocaleString('fr-FR')} FCFA</span>
+                                        <span className="font-bold text-2xl text-primary">{formatCurrency(weeklyPay)}</span>
                                     </div>
                                  </div>
                             </CardContent>

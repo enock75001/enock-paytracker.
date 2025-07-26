@@ -113,19 +113,47 @@ export default function RecapPage() {
   const downloadPdf = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
+    let cursorY = 15;
+
     // Header
     if (company?.logoUrl) {
-        doc.addImage(company.logoUrl, 'PNG', 14, 15, 30, 15);
+        try {
+            doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
+        } catch (e) {
+            console.error("Erreur d'ajout de l'image:", e);
+        }
     }
-    doc.setFontSize(22);
+    
+    doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
-    doc.text(company?.name || "Récapitulatif de Paie", pageWidth / 2, 22, { align: 'center' });
-    doc.setFontSize(12);
+    doc.text(company?.name || "Entreprise", pageWidth / 2, cursorY + 7, { align: 'center' });
+    cursorY += 10;
+    
+    if (company?.description) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(128, 128, 128);
+        doc.text(company.description, pageWidth / 2, cursorY + 5, { align: 'center' });
+        cursorY += 5;
+    }
+    cursorY += 5;
+    
+    doc.setDrawColor(221, 221, 221);
+    doc.line(14, cursorY, pageWidth - 14, cursorY);
+    cursorY += 10;
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 58, 90);
+    doc.text("Récapitulatif de Paie", pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 5;
+    
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(128, 128, 128);
-    doc.text(weekPeriod, pageWidth / 2, 30, { align: 'center' });
+    doc.setTextColor(100, 100, 100);
+    doc.text(weekPeriod, pageWidth / 2, cursorY, { align: 'center' });
+    cursorY += 10;
 
     const tableBody = [];
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
@@ -151,7 +179,7 @@ export default function RecapPage() {
     });
 
     (doc as any).autoTable({
-        startY: 40,
+        startY: cursorY,
         head: [['Employé', 'Jours', 'Base', 'Primes', 'Avances', 'Remb. Avance', 'Paie Nette']],
         body: tableBody,
         theme: 'striped',
