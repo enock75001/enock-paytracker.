@@ -183,11 +183,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         if (userRole === 'admin') {
             const notificationsQuery = query(
                 collection(db, 'notifications'), 
-                where('companyId', '==', companyId),
-                orderBy('createdAt', 'desc')
+                where('companyId', '==', companyId)
             );
             listeners.push(onSnapshot(notificationsQuery, (snapshot) => {
                 const notificationsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Notification[];
+                 notificationsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                 setNotifications(notificationsData);
             }));
         }
@@ -199,7 +199,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
 }, [companyId, userId, userRole]);
 
-  const createNotificationForAllAdmins = async (notificationData: Omit<Notification, 'id' | 'companyId' | 'userId' | 'isRead' | 'createdAt'>) => {
+  const createNotificationForAllAdmins = async (notificationData: Omit<Notification, 'id' | 'companyId' | 'isRead' | 'createdAt'>) => {
         if (!companyId) return;
         
         await addDoc(collection(db, 'notifications'), {

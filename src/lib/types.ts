@@ -136,7 +136,6 @@ export interface OnlineUser {
 export interface Notification {
   id?: string;
   companyId: string;
-  userId: string; // Can be a specific admin ID or a role like 'all_admins'
   title: string;
   description: string;
   link?: string;
