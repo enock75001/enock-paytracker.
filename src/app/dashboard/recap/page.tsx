@@ -22,7 +22,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Eye, RefreshCw, TrendingDown, TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Download, Eye, RefreshCw, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -52,7 +52,7 @@ interface WeeklySummary {
 }
 
 const formatCurrency = (amount: number) => {
-    return `${new Intl.NumberFormat('fr-FR').format(amount)} FCFA`;
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
 };
 
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
@@ -240,7 +240,7 @@ export default function RecapPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Employé</TableHead>
+                                    <TableHead className="w-[250px]">Employé</TableHead>
                                     <TableHead className="text-center">Jours</TableHead>
                                     <TableHead className="text-right">Paie de Base</TableHead>
                                     <TableHead className="text-right">Primes</TableHead>
@@ -269,14 +269,14 @@ export default function RecapPage() {
                                     <TableCell className="text-right">
                                         {formatCurrency(summary.totalHoursPay)}
                                     </TableCell>
-                                     <TableCell className="text-right text-green-400">
-                                        <div className={cn("flex items-center justify-end gap-1", summary.totalBonus === 0 && "text-muted-foreground")}>
+                                     <TableCell className="text-right">
+                                        <div className={cn("flex items-center justify-end gap-1 font-medium", summary.totalBonus > 0 ? "text-green-400" : "text-muted-foreground")}>
                                             <ArrowUpCircle className="h-4 w-4" />
                                             {formatCurrency(summary.totalBonus)}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right text-red-400">
-                                         <div className={cn("flex items-center justify-end gap-1", summary.totalDeduction === 0 && "text-muted-foreground")}>
+                                    <TableCell className="text-right">
+                                         <div className={cn("flex items-center justify-end gap-1 font-medium", summary.totalDeduction > 0 ? "text-red-400" : "text-muted-foreground")}>
                                             <ArrowDownCircle className="h-4 w-4" />
                                             {formatCurrency(summary.totalDeduction)}
                                         </div>
@@ -296,7 +296,7 @@ export default function RecapPage() {
                             ))}
                             </TableBody>
                             <TableFooter>
-                                <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
+                                <TableRow className='bg-secondary/50 hover:bg-secondary/50'>
                                     <TableCell colSpan={5} className="text-right font-bold text-lg">Total Département</TableCell>
                                     <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal)}</TableCell>
                                     <TableCell />
@@ -326,5 +326,3 @@ export default function RecapPage() {
       </Card>
     </div>
   );
-
-    
