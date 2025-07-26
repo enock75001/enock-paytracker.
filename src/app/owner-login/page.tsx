@@ -27,7 +27,7 @@ export default function OwnerLoginPage() {
         setError('');
 
         if (!OWNER_PASSWORD) {
-            setError("La variable d'environnement du mot de passe propriétaire n'est pas définie.");
+            setError("La variable d'environnement du mot de passe propriétaire n'est pas définie. Contactez le support technique.");
             setLoading(false);
             return;
         }
@@ -51,6 +51,8 @@ export default function OwnerLoginPage() {
                         <CardTitle className="text-2xl">Accès Propriétaire</CardTitle>
                         <CardDescription>
                             Entrez le mot de passe pour accéder au tableau de bord principal.
+                            <br />
+                            <span className="text-xs font-mono text-muted-foreground/80">(Mot de passe par défaut : enock@2024)</span>
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
