@@ -46,15 +46,24 @@ interface WeeklySummary {
   totalHoursPay: number;
   totalAdjustments: number;
   totalPay: number;
+  totalBonus: number;
+  totalDeduction: number;
+  currentWage: number;
 }
+
+const formatCurrency = (amount: number) => {
+    return `${new Intl.NumberFormat('de-DE').format(amount)} FCFA`;
+};
 
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
     const daysPresent = days.filter(day => employee.attendance[day]).length;
     const totalHoursPay = daysPresent * currentWage;
-    const totalAdjustments = (employee.adjustments || []).reduce((acc, adj) => {
-        return adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount;
-    }, 0);
+    
+    const totalBonus = (employee.adjustments || []).filter(adj => adj.type === 'bonus').reduce((acc, adj) => acc + adj.amount, 0);
+    const totalDeduction = (employee.adjustments || []).filter(adj => adj.type === 'deduction').reduce((acc, adj) => acc + adj.amount, 0);
+    const totalAdjustments = totalBonus - totalDeduction;
+
     const totalPay = totalHoursPay + totalAdjustments;
 
     return {
@@ -62,7 +71,10 @@ const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary =
         daysPresent,
         totalHoursPay,
         totalAdjustments,
-        totalPay
+        totalPay,
+        totalBonus,
+        totalDeduction,
+        currentWage,
     };
 }
 
@@ -114,33 +126,53 @@ export default function RecapPage() {
 
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
         const domainTotal = summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0);
+        
+        const head = [['Employé', 'Salaire/Jour', 'Jours', 'Paie de Base', 'Primes', 'Avances', 'Paie Nette']];
+        const body = summaries.map(s => ([
+            `${s.employee.firstName} ${s.employee.lastName}`,
+            formatCurrency(s.currentWage),
+            s.daysPresent.toString(),
+            formatCurrency(s.totalHoursPay),
+            formatCurrency(s.totalBonus),
+            formatCurrency(s.totalDeduction),
+            formatCurrency(s.totalPay),
+        ]));
 
         (doc as any).autoTable({
             startY: finalY + 5,
-            head: [[{ content: domain, colSpan: 5, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
+            head: [[{ content: domain, colSpan: 7, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
             columns: [
                 { header: 'Employé', dataKey: 'name' },
-                { header: 'Paie de base', dataKey: 'base' },
-                { header: 'Ajustements', dataKey: 'adjust' },
-                { header: 'Paie Totale', dataKey: 'total' },
+                { header: 'Salaire/Jour', dataKey: 'daily' },
+                { header: 'Jours', dataKey: 'days' },
+                { header: 'Paie de Base', dataKey: 'base' },
+                { header: 'Primes', dataKey: 'bonus' },
+                { header: 'Avances', dataKey: 'deduction' },
+                { header: 'Paie Nette', dataKey: 'net' },
             ],
             body: summaries.map(s => ({
                 name: `${s.employee.firstName} ${s.employee.lastName}`,
-                base: `${(s.totalHoursPay || 0).toLocaleString('fr-FR')} FCFA`,
-                adjust: `${(s.totalAdjustments || 0).toLocaleString('fr-FR')} FCFA`,
-                total: `${(s.totalPay || 0).toLocaleString('fr-FR')} FCFA`,
+                daily: formatCurrency(s.currentWage),
+                days: s.daysPresent,
+                base: formatCurrency(s.totalHoursPay),
+                bonus: formatCurrency(s.totalBonus),
+                deduction: formatCurrency(s.totalDeduction),
+                net: formatCurrency(s.totalPay),
             })),
             foot: [[
-                { content: 'Total Département', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
-                { content: `${domainTotal.toLocaleString('fr-FR')} FCFA`, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
+                { content: 'Total Département', colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
+                { content: formatCurrency(domainTotal), styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
             ]],
             theme: 'striped',
             headStyles: { halign: 'center', fillColor: [44, 62, 80], fontStyle: 'bold' },
             footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
             columnStyles: {
+                daily: { halign: 'right' },
+                days: { halign: 'center' },
                 base: { halign: 'right' },
-                adjust: { halign: 'right' },
-                total: { halign: 'right', fontStyle: 'bold' },
+                bonus: { halign: 'right' },
+                deduction: { halign: 'right' },
+                net: { halign: 'right', fontStyle: 'bold' },
             },
             didDrawPage: function (data: any) {
                 const pageHeight = doc.internal.pageSize.getHeight();
@@ -155,7 +187,7 @@ export default function RecapPage() {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
-    doc.text(`Total Général à Payer: ${totalPayroll.toLocaleString('fr-FR')} FCFA`, 14, finalY + 20);
+    doc.text(`Total Général à Payer: ${formatCurrency(totalPayroll)}`, 14, finalY + 20);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -210,7 +242,7 @@ export default function RecapPage() {
                                 <Badge variant="secondary">{summaries.length} employés</Badge>
                             </div>
                             <div className="text-lg font-semibold pr-4">
-                                Total: {(domainTotal || 0).toLocaleString('fr-FR')} FCFA
+                                Total: {formatCurrency(domainTotal)}
                             </div>
                         </div>
                     </AccordionTrigger>
@@ -245,18 +277,18 @@ export default function RecapPage() {
                                         <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">{summary.daysPresent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {(summary.totalHoursPay || 0).toLocaleString('fr-FR')} FCFA
+                                        {formatCurrency(summary.totalHoursPay)}
                                     </TableCell>
                                     <TableCell className={`text-right font-semibold ${summary.totalAdjustments > 0 ? 'text-green-400' : summary.totalAdjustments < 0 ? 'text-red-400' : ''}`}>
                                         <div className="flex items-center justify-end gap-1">
                                             {summary.totalAdjustments !== 0 && (
                                                 summary.totalAdjustments > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />
                                             )}
-                                            {(summary.totalAdjustments || 0).toLocaleString('fr-FR')} FCFA
+                                            {formatCurrency(summary.totalAdjustments)}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">
-                                        {(summary.totalPay || 0).toLocaleString('fr-FR')} FCFA
+                                        {formatCurrency(summary.totalPay)}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Link href={`/employee/${summary.employee.id}`} passHref>
@@ -272,7 +304,7 @@ export default function RecapPage() {
                             <TableFooter>
                                 <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
                                     <TableCell colSpan={4} className="text-right font-bold text-lg">Total Département</TableCell>
-                                    <TableCell className="text-right font-bold text-lg">{(domainTotal || 0).toLocaleString('fr-FR')} FCFA</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal)}</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableFooter>
@@ -291,7 +323,7 @@ export default function RecapPage() {
         </CardHeader>
         <CardContent>
             <div className="text-4xl font-bold text-primary">
-                {(totalPayroll || 0).toLocaleString('fr-FR')} FCFA
+                {formatCurrency(totalPayroll)}
             </div>
              <p className="text-muted-foreground mt-2">
                 Ceci est la somme totale à payer à tous les employés pour la période en cours.
@@ -300,4 +332,5 @@ export default function RecapPage() {
       </Card>
     </div>
   );
-}
+
+    
