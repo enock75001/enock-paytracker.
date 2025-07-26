@@ -31,6 +31,7 @@ export type Adjustment = {
 export type Loan = {
   id: string;
   employeeId: string;
+  companyId: string;
   amount: number;
   repaymentAmount: number; // Amount to be deducted each pay period
   balance: number;
@@ -130,6 +131,18 @@ export interface OnlineUser {
     role: 'admin' | 'manager';
     departmentName?: string;
     lastSeen: number; // Unix timestamp
+}
+
+export interface Notification {
+  id?: string;
+  companyId: string;
+  userId: string; // Can be a specific admin ID or a role like 'all_admins'
+  title: string;
+  description: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string; // ISO string
+  type: 'info' | 'warning' | 'success';
 }
 
     

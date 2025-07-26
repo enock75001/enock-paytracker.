@@ -1,7 +1,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
@@ -49,8 +49,11 @@ interface EmployeeContextType {
   userId: string;
   userRole: 'admin' | 'manager' | null;
   loans: Loan[];
-  addLoan: (loanData: Omit<Loan, 'id' | 'balance' | 'status'>) => Promise<void>;
+  addLoan: (loanData: Omit<Loan, 'id' | 'balance' | 'status' | 'companyId'>) => Promise<void>;
   updateLoanStatus: (loanId: string, status: Loan['status']) => Promise<void>;
+  notifications: Notification[];
+  markNotificationAsRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -100,6 +103,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessageMap>({});
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const [userId, setUserId] = useState('');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | null>(null);
@@ -123,6 +127,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setOnlineUsers([]);
     setChatMessages({});
     setLoans([]);
+    setNotifications([]);
   }, []);
 
   const fetchAdmins = useCallback(async (cId: string) => {
@@ -135,57 +140,91 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!companyId || !userId) return;
+    
+    // Combined listener setup
+    const setupListeners = () => {
+        const listeners: (() => void)[] = [];
 
-    // Listen for online users
-    const onlineUsersQuery = query(collection(db, 'online_users'), where('companyId', '==', companyId));
-    const unsubscribeOnlineUsers = onSnapshot(onlineUsersQuery, (snapshot) => {
-        const users: OnlineUser[] = [];
-        snapshot.forEach(doc => {
-            const user = doc.data() as OnlineUser;
-            if (Date.now() - user.lastSeen < 5 * 60 * 1000) {
-                 users.push({ ...user, userId: doc.id });
+        // Listen for online users
+        const onlineUsersQuery = query(collection(db, 'online_users'), where('companyId', '==', companyId));
+        listeners.push(onSnapshot(onlineUsersQuery, (snapshot) => {
+            const users: OnlineUser[] = [];
+            snapshot.forEach(doc => {
+                const user = doc.data() as OnlineUser;
+                if (Date.now() - user.lastSeen < 5 * 60 * 1000) {
+                     users.push({ ...user, userId: doc.id });
+                }
+            });
+            setOnlineUsers(users);
+        }));
+        
+        // Listen for chat messages
+        const messagesQuery = query(collection(db, "messages"), where('conversationParticipants', 'array-contains', userId));
+        listeners.push(onSnapshot(messagesQuery, (snapshot) => {
+          const allMessages = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
+          })).sort((a,b) => a.timestamp - b.timestamp);
+        
+          const newMessagesByConversation: ChatMessageMap = {};
+        
+          allMessages.forEach(message => {
+            if (!newMessagesByConversation[message.conversationId]) {
+              newMessagesByConversation[message.conversationId] = [];
+            }
+            newMessagesByConversation[message.conversationId].push(message as ChatMessage);
+          });
+        
+          setChatMessages(prev => ({ ...prev, ...newMessagesByConversation }));
+        }));
+
+        // Listen for notifications
+        if (userRole === 'admin') {
+            const notificationsQuery = query(
+                collection(db, 'notifications'), 
+                where('companyId', '==', companyId),
+                orderBy('createdAt', 'desc')
+            );
+            listeners.push(onSnapshot(notificationsQuery, (snapshot) => {
+                const notificationsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Notification[];
+                setNotifications(notificationsData);
+            }));
+        }
+
+        return () => listeners.forEach(unsub => unsub());
+    };
+
+    const unsubscribe = setupListeners();
+    return () => unsubscribe();
+}, [companyId, userId, userRole]);
+
+  const createNotificationForAllAdmins = async (notificationData: Omit<Notification, 'id' | 'companyId' | 'userId' | 'isRead' | 'createdAt'>) => {
+        if (!companyId) return;
+        
+        await addDoc(collection(db, 'notifications'), {
+            ...notificationData,
+            companyId,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+        });
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+        const notifRef = doc(db, 'notifications', notificationId);
+        await updateDoc(notifRef, { isRead: true });
+  };
+
+  const markAllNotificationsAsRead = async () => {
+        const batch = writeBatch(db);
+        notifications.forEach(n => {
+            if (!n.isRead) {
+                const notifRef = doc(db, 'notifications', n.id!);
+                batch.update(notifRef, { isRead: true });
             }
         });
-        setOnlineUsers(users);
-    });
-    
-    // Listen for chat messages relevant to the current user
-    const messagesQuery = query(
-      collection(db, "messages"),
-      where('conversationParticipants', 'array-contains', userId)
-    );
-
-    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
-      const allMessages = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id,
-        timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
-      })) as ChatMessage[];
-    
-      const newMessagesByConversation: ChatMessageMap = {};
-    
-      allMessages.forEach(message => {
-        if (!newMessagesByConversation[message.conversationId]) {
-          newMessagesByConversation[message.conversationId] = [];
-        }
-        newMessagesByConversation[message.conversationId].push(message);
-      });
-    
-      for (const conversationId in newMessagesByConversation) {
-        newMessagesByConversation[conversationId].sort((a, b) => a.timestamp - b.timestamp);
-      }
-    
-      setChatMessages(prev => ({
-        ...prev,
-        ...newMessagesByConversation,
-      }));
-    });
-
-    return () => {
-        unsubscribeOnlineUsers();
-        unsubscribeMessages();
-    };
-}, [companyId, userId]);
+        await batch.commit();
+  }
 
   const fetchDataForCompany = useCallback(async (cId: string) => {
       setLoading(true);
@@ -270,6 +309,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     };
     const docRef = await addDoc(collection(db, "employees"), newEmployee);
     setEmployees(prev => [...prev, { ...newEmployee, id: docRef.id }].sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
+    
+    createNotificationForAllAdmins({
+        title: "Nouvel Employé Ajouté",
+        description: `${employeeData.firstName} ${employeeData.lastName} a été ajouté au département ${employeeData.domain}.`,
+        link: `/employee/${docRef.id}`,
+        type: 'success'
+    });
   };
 
   const updateEmployee = async (employeeId: string, data: EmployeeUpdatePayload) => {
@@ -444,6 +490,15 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             const newBalance = activeLoan.balance - loanRepayment;
             const newStatus = newBalance <= 0 ? 'repaid' : 'active';
             batch.update(loanRef, { balance: newBalance, status: newStatus });
+
+            if (newStatus === 'repaid') {
+                 createNotificationForAllAdmins({
+                    title: "Avance Remboursée",
+                    description: `L'avance de ${emp.firstName} ${emp.lastName} a été entièrement remboursée.`,
+                    link: `/employee/${emp.id}`,
+                    type: 'success'
+                });
+            }
         }
         
         const newAttendance = nextPeriodDays.reduce((acc, day) => ({ ...acc, [day]: false }), {});
@@ -531,7 +586,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const addLoan = async (loanData: Omit<Loan, 'id' | 'balance' | 'status'>) => {
+  const addLoan = async (loanData: Omit<Loan, 'id' | 'balance' | 'status' | 'companyId'>) => {
     if (!companyId) throw new Error("Company ID is missing");
     const newLoan: Omit<Loan, 'id'> = {
       ...loanData,
@@ -566,6 +621,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     loans,
     addLoan,
     updateLoanStatus,
+    notifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead
   };
   
   return (

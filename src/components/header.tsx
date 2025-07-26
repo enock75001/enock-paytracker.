@@ -16,13 +16,73 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+  DropdownMenuSubContent
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Menu, WalletCards, LogOut, User, Shield, PanelLeft, Building } from 'lucide-react';
+import { Menu, WalletCards, LogOut, User, Shield, PanelLeft, Building, Bell, CheckCheck } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import { useSidebar } from './ui/sidebar';
 import { useEffect, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+function NotificationsDropdown() {
+    const { notifications, markAllNotificationsAsRead, markNotificationAsRead } = useEmployees();
+    const router = useRouter();
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
+    const handleNotificationClick = (notification: any) => {
+        markNotificationAsRead(notification.id);
+        if (notification.link) {
+            router.push(notification.link);
+        }
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                 <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                            {unreadCount}
+                        </span>
+                    )}
+                 </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-80" align="end">
+                <DropdownMenuLabel>
+                    <div className="flex items-center justify-between">
+                        <span>Notifications</span>
+                        {notifications.length > 0 && (
+                             <Button variant="link" size="sm" className="h-auto p-0" onClick={markAllNotificationsAsRead}>
+                                <CheckCheck className="mr-2 h-3 w-3" />
+                                Tout marquer comme lu
+                             </Button>
+                        )}
+                    </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                 {notifications.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">Aucune nouvelle notification.</p>
+                 ) : (
+                    notifications.map(n => (
+                        <DropdownMenuItem key={n.id} onSelect={() => handleNotificationClick(n)} className={cn("cursor-pointer flex-col items-start gap-1", !n.isRead && "bg-secondary")}>
+                            <p className="font-semibold">{n.title}</p>
+                            <p className="text-xs text-muted-foreground">{n.description}</p>
+                            <p className="text-xs text-muted-foreground/80">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr })}</p>
+                        </DropdownMenuItem>
+                    ))
+                 )}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
+
 
 export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const router = useRouter();
@@ -73,6 +133,7 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
 
         {isLoggedIn && (
              <div className="flex items-center gap-4">
+              {userType === 'admin' && <NotificationsDropdown />}
              <DropdownMenu>
                <DropdownMenuTrigger asChild>
                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
