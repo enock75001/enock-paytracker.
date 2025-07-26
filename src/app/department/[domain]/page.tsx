@@ -42,7 +42,8 @@ import { ImagePicker } from '@/components/image-picker';
 import { Header } from '@/components/header';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ChatWidget } from '@/components/chat-widget';
 
 
 const registerSchema = z.object({
@@ -328,8 +329,12 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { employees, departments, isLoading, clearData } = useEmployees();
-  
+  const { employees, departments, isLoading, clearData, companyId } = useEmployees();
+  const [sessionData, setSessionData] = useState({
+      managerId: '',
+      managerName: '',
+  });
+
   const getManagerName = (managerId: string | null) => {
       if (!managerId) return null;
       const manager = employees.find(e => e.id === managerId);
@@ -339,10 +344,18 @@ export default function DepartmentPage() {
   useEffect(() => {
     const userType = sessionStorage.getItem('userType');
     const departmentName = sessionStorage.getItem('department');
-    const companyId = sessionStorage.getItem('companyId');
-    if (userType !== 'manager' || departmentName !== domain || !companyId) {
+    const sessionCompanyId = sessionStorage.getItem('companyId');
+
+    if (userType !== 'manager' || departmentName !== domain || !sessionCompanyId) {
       router.replace('/');
+      return;
     }
+
+    setSessionData({
+      managerId: sessionStorage.getItem('managerId') || '',
+      managerName: sessionStorage.getItem('managerName') || '',
+    });
+
   }, [router, domain]);
 
   const department = departments.find(d => d.name === domain);
@@ -396,6 +409,15 @@ export default function DepartmentPage() {
                 </TabsContent>
             </Tabs>
         </main>
+         {companyId && sessionData.managerId && (
+            <ChatWidget
+              companyId={companyId}
+              userId={sessionData.managerId}
+              userName={sessionData.managerName}
+              userRole="manager"
+              departmentName={domain}
+            />
+          )}
     </div>
   );
 }

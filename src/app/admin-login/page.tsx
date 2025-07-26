@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Checkbox } from '@/components/ui/checkbox';
+import { updateUserPresence } from '@/lib/chat';
 
 export default function AdminLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
@@ -84,6 +85,14 @@ export default function AdminLoginPage() {
 
                 setCompanyId(company.id);
                 await fetchDataForCompany(company.id);
+
+                await updateUserPresence({
+                    userId: admin.id,
+                    companyId: company.id,
+                    name: admin.name,
+                    role: 'admin',
+                    lastSeen: Date.now(),
+                });
 
                 try {
                     await addDoc(collection(db, "login_logs"), {

@@ -97,3 +97,22 @@ export interface LoginLog {
   details: string; // Department name for manager, role for admin
   timestamp: string; // ISO string
 }
+
+export interface ChatMessage {
+  id?: string;
+  companyId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'admin' | 'manager';
+  text: string;
+  timestamp: number; // Unix timestamp
+}
+
+export interface OnlineUser {
+    userId: string; // adminId or employeeId for manager
+    companyId: string;
+    name: string;
+    role: 'admin' | 'manager';
+    departmentName?: string;
+    lastSeen: number; // Unix timestamp
+}

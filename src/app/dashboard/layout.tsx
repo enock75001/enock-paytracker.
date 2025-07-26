@@ -18,6 +18,7 @@ import { Header } from "@/components/header";
 import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
 import { Button } from "@/components/ui/button";
+import { ChatWidget } from "@/components/chat-widget";
 
 const menuItems = [
     { href: '/dashboard', label: 'Tableau de bord', icon: Home },
@@ -39,14 +40,22 @@ export default function DashboardLayout({
   const router = useRouter();
   const { isLoading, companyId } = useEmployees();
   const [companyName, setCompanyName] = useState("Enock PayTracker");
+  const [adminName, setAdminName] = useState("");
+  const [adminId, setAdminId] = useState("");
+  const [userType, setUserType] = useState<"admin" | "manager" | null>(null);
 
   useEffect(() => {
-    const userType = sessionStorage.getItem('userType');
+    const sessionUserType = sessionStorage.getItem('userType');
     const sessionCompanyId = sessionStorage.getItem('companyId');
-    if (userType !== 'admin' || !sessionCompanyId) {
+    if (sessionUserType !== 'admin' || !sessionCompanyId) {
       router.replace('/');
+      return;
     }
+
     setCompanyName(sessionStorage.getItem('companyName') || "Enock PayTracker");
+    setAdminName(sessionStorage.getItem('adminName') || "");
+    setAdminId(sessionStorage.getItem('adminId') || "");
+    setUserType(sessionUserType as "admin" | "manager");
   }, [router]);
 
 
@@ -109,6 +118,14 @@ export default function DashboardLayout({
       <div className="flex flex-col flex-1">
         <Header variant="sidebar" />
         <SidebarInset>{children}</SidebarInset>
+         {userType === 'admin' && companyId && adminId && (
+            <ChatWidget
+              companyId={companyId}
+              userId={adminId}
+              userName={adminName}
+              userRole="admin"
+            />
+          )}
       </div>
     </SidebarProvider>
   );

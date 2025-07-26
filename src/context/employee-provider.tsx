@@ -1,9 +1,9 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +39,9 @@ interface EmployeeContextType {
   addAdjustment: (employeeId: string, adjustment: Omit<Adjustment, 'id' | 'date'>) => Promise<void>;
   deleteAdjustment: (employeeId: string, adjustmentId: string) => Promise<void>;
   fetchEmployeePayStubs: (employeeId: string) => Promise<PayStub[]>;
+  onlineUsers: OnlineUser[];
+  chatMessages: ChatMessage[];
+  sendMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -58,10 +61,13 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: s
             period = `Mois de ${format(startDate, 'MMMM yyyy', { locale: fr })}`;
             break;
         case 'bi-weekly':
-            startDate = startOfWeek(today, weekOptions);
-            endDate = addDays(startDate, 13);
-            period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
-            break;
+             startDate = startOfWeek(today, weekOptions);
+             if (new Date().getDay() > 3) { // After Wednesday, start next week's 2-week period
+                 startDate = addDays(startDate, 7);
+             }
+             endDate = addDays(startDate, 13);
+             period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
+             break;
         case 'weekly':
         default:
             startDate = startOfWeek(today, weekOptions);
@@ -85,6 +91,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [company, setCompany] = useState<Company | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
 
@@ -95,6 +104,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setAdmins([]);
     setCompany(null);
     setCompanyId(null);
+    setOnlineUsers([]);
+    setChatMessages([]);
   }, []);
 
   const fetchAdmins = useCallback(async (cId: string) => {
@@ -104,6 +115,47 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
     setAdmins(adminsData);
   }, []);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    // Listen for online users
+    const onlineUsersQuery = query(
+        collection(db, 'online_users'),
+        where('companyId', '==', companyId)
+    );
+    const unsubscribeOnlineUsers = onSnapshot(onlineUsersQuery, (snapshot) => {
+        const users: OnlineUser[] = [];
+        snapshot.forEach(doc => {
+            // Filter out users who haven't been seen in the last 5 minutes
+            const user = doc.data() as OnlineUser;
+            if (Date.now() - user.lastSeen < 5 * 60 * 1000) {
+                 users.push({ ...user, userId: doc.id });
+            }
+        });
+        setOnlineUsers(users);
+    });
+    
+    // Listen for chat messages
+    const chatQuery = query(
+      collection(db, 'chats'),
+      where('companyId', '==', companyId),
+      orderBy('timestamp', 'asc')
+    );
+    const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
+        const messages: ChatMessage[] = [];
+        snapshot.forEach(doc => {
+            messages.push({ ...doc.data(), id: doc.id } as ChatMessage);
+        });
+        setChatMessages(messages);
+    });
+
+
+    return () => {
+        unsubscribeOnlineUsers();
+        unsubscribeChat();
+    };
+  }, [companyId]);
 
   const fetchDataForCompany = useCallback(async (cId: string) => {
       setLoading(true);
@@ -408,6 +460,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
     };
+    
+  const sendMessage = async (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+    if (!companyId) throw new Error("No company selected.");
+    await addDoc(collection(db, 'chats'), {
+      ...message,
+      timestamp: Date.now(),
+    });
+  };
 
 
   const value = { 
@@ -419,6 +479,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     deleteArchive, fetchDataForCompany, clearData,
     updateCompanyProfile, addAdjustment, deleteAdjustment,
     fetchEmployeePayStubs,
+    onlineUsers,
+    chatMessages,
+    sendMessage,
   };
   
   return (

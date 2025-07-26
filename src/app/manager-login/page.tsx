@@ -19,6 +19,7 @@ import { addDoc, collection, getDocs, query, where, getDoc, doc } from 'firebase
 import type { Department, Employee } from '@/lib/types';
 import { findCompanyByIdentifier } from '@/lib/auth';
 import { Checkbox } from '@/components/ui/checkbox';
+import { updateUserPresence } from '@/lib/chat';
 
 export default function ManagerLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
@@ -104,11 +105,22 @@ export default function ManagerLoginPage() {
         if (manager && manager.phone === pin) {
             sessionStorage.setItem('userType', 'manager');
             sessionStorage.setItem('department', department!.name);
+            sessionStorage.setItem('managerId', manager.id);
+            sessionStorage.setItem('managerName', `${manager.firstName} ${manager.lastName}`);
             sessionStorage.setItem('companyId', company.id);
             sessionStorage.setItem('companyName', company.name);
             
             setCompanyId(company.id);
             await fetchDataForCompany(company.id);
+
+            await updateUserPresence({
+              userId: manager.id,
+              companyId: company.id,
+              name: `${manager.firstName} ${manager.lastName}`,
+              role: 'manager',
+              departmentName: department!.name,
+              lastSeen: Date.now(),
+            });
 
             try {
                 await addDoc(collection(db, "login_logs"), {
