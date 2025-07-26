@@ -87,6 +87,7 @@ function NotificationsDropdown() {
 export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const router = useRouter();
   const { clearData } = useEmployees();
+  const [isClient, setIsClient] = useState(false);
   const [sessionData, setSessionData] = useState({
       userType: '',
       adminName: '',
@@ -97,6 +98,7 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
   
   // This is needed to prevent hydration mismatch errors, as sessionStorage is client-side only.
   useEffect(() => {
+    setIsClient(true);
     setSessionData({
       userType: sessionStorage.getItem('userType') || '',
       adminName: sessionStorage.getItem('adminName') || '',
@@ -108,7 +110,7 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
 
 
   const { userType, adminName, companyName, departmentName, managerName } = sessionData;
-  const isLoggedIn = !!userType;
+  const isLoggedIn = isClient && !!userType;
   
   const handleLogout = () => {
     clearData();
