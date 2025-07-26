@@ -14,9 +14,10 @@ interface ImagePickerProps {
   value: string;
   onChange: (value: string) => void;
   name: string;
+  disabled?: boolean;
 }
 
-export function ImagePicker({ value, onChange, name }: ImagePickerProps) {
+export function ImagePicker({ value, onChange, name, disabled = false }: ImagePickerProps) {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [facingMode, setFacingMode] = useState('user');
@@ -95,11 +96,11 @@ export function ImagePicker({ value, onChange, name }: ImagePickerProps) {
     <Card className="p-4 flex items-center gap-4">
        <Avatar className="h-20 w-20">
          <AvatarImage src={value || undefined} data-ai-hint="person photo"/>
-         <AvatarFallback className="text-2xl">{name.charAt(0) || 'P'}</AvatarFallback>
+         <AvatarFallback className="text-2xl">{name?.charAt(0) || 'P'}</AvatarFallback>
        </Avatar>
        <div className="flex flex-col gap-2">
          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={disabled}>
                 <Upload className="mr-2 h-4 w-4" /> Importer
             </Button>
             <input
@@ -108,12 +109,13 @@ export function ImagePicker({ value, onChange, name }: ImagePickerProps) {
                 className="hidden"
                 accept="image/*"
                 onChange={handleFileChange}
+                disabled={disabled}
             />
-            <Button type="button" variant="outline" onClick={() => setIsCameraOpen(true)}>
-                <Camera className="mr-2 h-4 w-4" /> Prendre une photo
+            <Button type="button" variant="outline" onClick={() => setIsCameraOpen(true)} disabled={disabled}>
+                <Camera className="mr-2 h-4 w-4" /> Caméra
             </Button>
             {value && (
-                <Button type="button" variant="destructive" size="icon" onClick={removeImage}>
+                <Button type="button" variant="destructive" size="icon" onClick={removeImage} disabled={disabled}>
                     <Trash2 className="h-4 w-4" />
                 </Button>
             )}

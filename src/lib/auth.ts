@@ -25,7 +25,13 @@ export async function registerCompany(companyName: string, adminName: string, ad
     const batch = writeBatch(db);
 
     const companyRef = doc(collection(db, "companies"));
-    const newCompany = { name: companyName, superAdminName: adminName, payPeriod };
+    const newCompany = { 
+        name: companyName, 
+        superAdminName: adminName, 
+        payPeriod,
+        logoUrl: '',
+        description: '' 
+    };
     batch.set(companyRef, newCompany);
 
     const adminRef = doc(collection(db, "admins"));
@@ -71,11 +77,11 @@ export async function addAdmin(companyId: string, name: string, pin: string): Pr
     await addDoc(collection(db, "admins"), { companyId, name, pin, role: 'adjoint' });
 }
 
-export async function updateAdminPin(adminId: string, currentPin: string, newPin: string): Promise<void> {
+export async function updateAdminPin(companyId: string, adminId: string, currentPin: string, newPin: string): Promise<void> {
     const adminRef = doc(db, "admins", adminId);
     const adminDoc = await getDoc(adminRef);
 
-    if (!adminDoc.exists()) {
+    if (!adminDoc.exists() || adminDoc.data().companyId !== companyId) {
         throw new Error("Administrateur non trouvé.");
     }
     

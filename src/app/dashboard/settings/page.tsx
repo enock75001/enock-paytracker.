@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEmployees } from '@/context/employee-provider';
-import type { Admin } from '@/lib/types';
+import type { Admin, PayPeriod } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit, Trash2, KeyRound, User, Shield, UserCog } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, KeyRound, User, Shield, UserCog, Building, Pen, Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,6 +37,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { addAdmin as addAdminAction, updateAdminPin, deleteAdmin as deleteAdminAction } from '@/lib/auth';
+import { ImagePicker } from '@/components/image-picker';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { payPeriods } from '@/lib/data';
 
 const adminSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
@@ -51,6 +55,130 @@ const pinSchema = z.object({
     message: "Les nouveaux PINs ne correspondent pas.",
     path: ["confirmPin"],
 });
+
+const companyProfileSchema = z.object({
+    name: z.string().min(3, "Le nom de l'entreprise est requis."),
+    description: z.string().optional(),
+    logoUrl: z.string().optional(),
+    payPeriod: z.enum(['weekly', 'bi-weekly', 'monthly']),
+});
+
+function CompanyProfileCard() {
+    const { company, updateCompanyProfile } = useEmployees();
+    const { toast } = useToast();
+    const [isEditing, setIsEditing] = useState(false);
+
+    const form = useForm<z.infer<typeof companyProfileSchema>>({
+        resolver: zodResolver(companyProfileSchema),
+    });
+
+    useEffect(() => {
+        if (company) {
+            form.reset({
+                name: company.name,
+                description: company.description || '',
+                logoUrl: company.logoUrl || '',
+                payPeriod: company.payPeriod || 'weekly',
+            });
+        }
+    }, [company, form]);
+
+    const onSubmit = async (values: z.infer<typeof companyProfileSchema>) => {
+        await updateCompanyProfile(values);
+        toast({ title: 'Succès', description: 'Profil de l\'entreprise mis à jour.' });
+        setIsEditing(false);
+    };
+
+    if (!company) return null;
+
+    return (
+        <Card>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Profil de l'Entreprise</CardTitle>
+                            <CardDescription>Gérez les informations publiques de votre entreprise.</CardDescription>
+                        </div>
+                        {isEditing ? (
+                            <Button type="submit" size="sm"><Save className="mr-2 h-4 w-4" />Sauvegarder</Button>
+                        ) : (
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}><Pen className="mr-2 h-4 w-4" />Modifier</Button>
+                        )}
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="logoUrl"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Logo de l'entreprise</FormLabel>
+                                    <FormControl>
+                                        <ImagePicker 
+                                            value={field.value ?? ''} 
+                                            onChange={field.onChange}
+                                            name={form.getValues('name')}
+                                            disabled={!isEditing}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Nom de l'entreprise</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} disabled={!isEditing} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Description</FormLabel>
+                                    <FormControl>
+                                        <Textarea {...field} disabled={!isEditing} placeholder="Décrivez brièvement votre entreprise..." />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="payPeriod"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Période de Paie</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isEditing}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Choisir une période de paie" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {payPeriods.map(period => (
+                                                <SelectItem key={period.value} value={period.value}>{period.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </form>
+            </Form>
+        </Card>
+    )
+}
 
 export default function SettingsPage() {
     const { admins, fetchAdmins, companyId } = useEmployees();
@@ -89,9 +217,9 @@ export default function SettingsPage() {
     };
     
     const onChangePinSubmit = async (values: z.infer<typeof pinSchema>) => {
-        if (!currentAdminId) return;
+        if (!currentAdminId || !companyId) return;
         try {
-            await updateAdminPin(currentAdminId, values.currentPin, values.newPin);
+            await updateAdminPin(companyId, currentAdminId, values.currentPin, values.newPin);
             toast({ title: 'Succès', description: 'Votre code PIN a été modifié.' });
             setIsPinDialogOpen(false);
             pinForm.reset();
@@ -114,8 +242,10 @@ export default function SettingsPage() {
         <div className="flex-1 space-y-8 p-8 pt-6">
             <div>
                 <h2 className="text-3xl font-bold tracking-tight">Paramètres</h2>
-                <p className="text-muted-foreground">Gérez les accès administrateur de votre entreprise.</p>
+                <p className="text-muted-foreground">Gérez le profil de votre entreprise et les accès administrateur.</p>
             </div>
+
+            <CompanyProfileCard />
 
             <Card>
                 <CardHeader>

@@ -10,7 +10,17 @@ export interface Company {
     name: string;
     superAdminName: string;
     payPeriod: PayPeriod;
+    logoUrl?: string;
+    description?: string;
 }
+
+export type Adjustment = {
+    id: string;
+    date: string; // ISO string date
+    type: 'bonus' | 'deduction';
+    amount: number;
+    reason: string;
+};
 
 export interface Employee {
   id: string;
@@ -26,6 +36,7 @@ export interface Employee {
   phone: string;
   photoUrl: string;
   attendance: Attendance;
+  adjustments: Adjustment[];
 }
 
 export interface Department {

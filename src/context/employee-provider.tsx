@@ -1,13 +1,14 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { v4 as uuidv4 } from 'uuid';
 
-type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>;
+type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>;
 
 interface EmployeeContextType {
   employees: Employee[];
@@ -18,7 +19,7 @@ interface EmployeeContextType {
   companyId: string | null;
   setCompanyId: (companyId: string | null) => void;
   isLoading: boolean;
-  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>) => Promise<void>;
+  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>) => Promise<void>;
   updateEmployee: (employeeId: string, data: EmployeeUpdatePayload) => Promise<void>;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => Promise<void>;
   deleteEmployee: (employeeId: string) => Promise<void>;
@@ -34,6 +35,9 @@ interface EmployeeContextType {
   deleteArchive: (archiveId: string) => Promise<void>;
   fetchDataForCompany: (companyId: string) => Promise<void>;
   clearData: () => void;
+  updateCompanyProfile: (data: Partial<Omit<Company, 'id' | 'superAdminName'>>) => Promise<void>;
+  addAdjustment: (employeeId: string, adjustment: Omit<Adjustment, 'id' | 'date'>) => Promise<void>;
+  deleteAdjustment: (employeeId: string, adjustmentId: string) => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -64,7 +68,7 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly'): { days: string[
     }
 
     const dates = eachDayOfInterval({ start: startDate, end: endDate });
-    const days = dates.map(date => format(date, 'E', { locale: fr }));
+    const days = dates.map(date => format(date, 'EEEE', { locale: fr }));
 
     return { days, period, dates };
 };
@@ -129,13 +133,12 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           
           const safeEmployees = employeesData.map(e => {
             const newAttendance = { ...e.attendance };
-            // Ensure all days for the current period are in the attendance object
             dynamicDays.forEach(day => {
                 if (!(day in newAttendance)) {
                     newAttendance[day] = false;
                 }
             });
-            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, attendance: newAttendance };
+            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, attendance: newAttendance, adjustments: e.adjustments || [] };
           });
 
 
@@ -144,7 +147,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
       } catch (error) {
           console.error("Error fetching company data:", error);
-          clearData(); // Clear data on error to force re-login
+          clearData(); 
       } finally {
           setLoading(false);
       }
@@ -155,7 +158,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const storedCompanyId = sessionStorage.getItem('companyId');
       if (storedCompanyId) {
           setCompanyId(storedCompanyId);
-          if(!company){ // only fetch if company data is not already loaded
+          if(!company){ 
             fetchDataForCompany(storedCompanyId);
           }
       } else {
@@ -164,7 +167,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchDataForCompany, company]);
 
 
-  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>) => {
+  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>) => {
     if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
     const newEmployee: Omit<Employee, 'id'> = {
       ...employeeData,
@@ -173,6 +176,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       attendance: days.reduce((acc, day) => ({ ...acc, [day]: false }), {}),
       photoUrl: employeeData.photoUrl || `https://placehold.co/100x100.png?text=${employeeData.firstName.charAt(0)}${employeeData.lastName.charAt(0)}`,
       currentWeekWage: employeeData.dailyWage,
+      adjustments: [],
     };
     const docRef = await addDoc(collection(db, "employees"), newEmployee);
     setEmployees(prev => [...prev, { ...newEmployee, id: docRef.id }]);
@@ -264,7 +268,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       }
       
       await batch.commit();
-      fetchDataForCompany(companyId); // Refetch all data to ensure consistency
+      fetchDataForCompany(companyId);
   };
 
   const deleteDepartment = async (departmentName: string) => {
@@ -284,7 +288,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const totalPayroll = employees.reduce((total, emp) => {
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
-        return total + (daysPresent * weeklyWage);
+        const totalAdjustments = emp.adjustments.reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+        return total + (daysPresent * weeklyWage) + totalAdjustments;
     }, 0);
 
     const departmentTotals: { [key: string]: { total: number, employeeCount: number } } = {};
@@ -295,7 +300,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         }
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
-        departmentTotals[emp.domain].total += (daysPresent * weeklyWage);
+        const totalAdjustments = emp.adjustments.reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+        departmentTotals[emp.domain].total += (daysPresent * weeklyWage) + totalAdjustments;
         departmentTotals[emp.domain].employeeCount += 1;
     });
 
@@ -325,14 +331,15 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         batch.update(empRef, {
             attendance: newAttendance,
             currentWeekWage: newCurrentWeekWage,
+            adjustments: [], // Clear adjustments for the new period
         });
-        updatedEmployeesForState.push({ ...emp, attendance: newAttendance, currentWeekWage: newCurrentWeekWage });
+        updatedEmployeesForState.push({ ...emp, attendance: newAttendance, currentWeekWage: newCurrentWeekWage, adjustments: [] });
     });
     
     await batch.commit();
     
     if (companyId) {
-        fetchDataForCompany(companyId); // Refetch all data to ensure consistency
+        fetchDataForCompany(companyId);
     }
   };
   
@@ -340,6 +347,42 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     if (!archiveId) return;
     await deleteDoc(doc(db, "archives", archiveId));
     setArchives(prev => prev.filter(archive => archive.id !== archiveId));
+  };
+  
+  const updateCompanyProfile = async (data: Partial<Omit<Company, 'id' | 'superAdminName'>>) => {
+      if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
+      const companyRef = doc(db, 'companies', companyId);
+      await updateDoc(companyRef, data);
+      setCompany(prev => prev ? { ...prev, ...data } : null);
+      if (data.name) {
+          sessionStorage.setItem('companyName', data.name);
+      }
+  };
+  
+  const addAdjustment = async (employeeId: string, adjustmentData: Omit<Adjustment, 'id' | 'date'>) => {
+      const newAdjustment: Adjustment = {
+        ...adjustmentData,
+        id: uuidv4(),
+        date: new Date().toISOString(),
+      };
+      const employeeRef = doc(db, "employees", employeeId);
+      await updateDoc(employeeRef, {
+        adjustments: arrayUnion(newAdjustment)
+      });
+      setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, adjustments: [...emp.adjustments, newAdjustment] } : emp));
+  };
+
+  const deleteAdjustment = async (employeeId: string, adjustmentId: string) => {
+      const employee = employees.find(e => e.id === employeeId);
+      if (!employee) return;
+      const adjustmentToDelete = employee.adjustments.find(adj => adj.id === adjustmentId);
+      if (!adjustmentToDelete) return;
+      
+      const employeeRef = doc(db, "employees", employeeId);
+      await updateDoc(employeeRef, {
+        adjustments: arrayRemove(adjustmentToDelete)
+      });
+      setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, adjustments: emp.adjustments.filter(adj => adj.id !== adjustmentId) } : emp));
   };
 
 
@@ -349,7 +392,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     days, weekPeriod, weekDates,
     addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
     fetchAdmins: () => companyId ? fetchAdmins(companyId) : Promise.resolve(), 
-    deleteArchive, fetchDataForCompany, clearData
+    deleteArchive, fetchDataForCompany, clearData,
+    updateCompanyProfile, addAdjustment, deleteAdjustment
   };
   
   return (
