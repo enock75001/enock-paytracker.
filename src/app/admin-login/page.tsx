@@ -13,6 +13,8 @@ import { AlertCircle, User, Lock, ArrowLeft, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { loginAdmin } from '@/lib/auth';
+import { db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +52,18 @@ export default function AdminLoginPage() {
                 sessionStorage.setItem('userType', 'admin');
                 sessionStorage.setItem('adminName', admin.name);
                 sessionStorage.setItem('adminId', admin.id);
+
+                try {
+                    await addDoc(collection(db, "login_logs"), {
+                        userName: admin.name,
+                        userType: 'admin',
+                        details: admin.role === 'superadmin' ? 'Super Administrateur' : 'Adjoint',
+                        timestamp: new Date().toISOString(),
+                    });
+                } catch (logError) {
+                    console.error("Failed to write admin login log:", logError);
+                }
+
                 toast({
                     title: "Connexion réussie",
                     description: `Bienvenue, ${admin.name}.`,

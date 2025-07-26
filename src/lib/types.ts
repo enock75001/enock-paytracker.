@@ -47,7 +47,8 @@ export interface Admin {
 
 export interface LoginLog {
   id?: string;
-  managerName: string;
-  departmentName: string;
+  userName: string;
+  userType: 'admin' | 'manager';
+  details: string; // Department name for manager, role for admin
   timestamp: string; // ISO string
 }

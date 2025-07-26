@@ -49,8 +49,9 @@ export default function ManagerLoginPage() {
 
             try {
                 await addDoc(collection(db, "login_logs"), {
-                    managerName: department.manager.name,
-                    departmentName: department.name,
+                    userName: department.manager.name,
+                    userType: 'manager',
+                    details: department.name,
                     timestamp: new Date().toISOString(),
                 });
             } catch (logError) {
