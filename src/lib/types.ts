@@ -100,12 +100,12 @@ export interface LoginLog {
 
 export interface ChatMessage {
   id?: string;
-  companyId: string;
+  conversationId: string; // New field to group messages. e.g., 'userId1_userId2'
   senderId: string;
-  senderName: string;
-  senderRole: 'admin' | 'manager';
+  receiverId: string; // New field for private messages
   text: string;
   timestamp: any; // Can be a server timestamp or a number
+  read: boolean;
 }
 
 export interface OnlineUser {

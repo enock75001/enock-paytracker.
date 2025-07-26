@@ -10,6 +10,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>;
 
+type ChatMessageMap = {
+    [conversationId: string]: ChatMessage[];
+};
+
 interface EmployeeContextType {
   employees: Employee[];
   departments: Department[];
@@ -40,8 +44,10 @@ interface EmployeeContextType {
   deleteAdjustment: (employeeId: string, adjustmentId: string) => Promise<void>;
   fetchEmployeePayStubs: (employeeId: string) => Promise<PayStub[]>;
   onlineUsers: OnlineUser[];
-  chatMessages: ChatMessage[];
-  sendMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => Promise<void>;
+  chatMessages: ChatMessageMap;
+  sendMessage: (text: string, receiverId: string) => Promise<void>;
+  userId: string;
+  userRole: 'admin' | 'manager' | null;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -89,10 +95,19 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessageMap>({});
 
+  const [userId, setUserId] = useState('');
+  const [userRole, setUserRole] = useState<'admin' | 'manager' | null>(null);
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
+
+  useEffect(() => {
+    const sessionUserId = sessionStorage.getItem('adminId') || sessionStorage.getItem('managerId');
+    const sessionUserRole = sessionStorage.getItem('userType');
+    if (sessionUserId) setUserId(sessionUserId);
+    if (sessionUserRole) setUserRole(sessionUserRole as 'admin' | 'manager');
+  }, []);
 
   const clearData = useCallback(() => {
     setEmployees([]);
@@ -102,7 +117,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setCompany(null);
     setCompanyId(null);
     setOnlineUsers([]);
-    setChatMessages([]);
+    setChatMessages({});
   }, []);
 
   const fetchAdmins = useCallback(async (cId: string) => {
@@ -114,17 +129,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId || !userId) return;
 
     // Listen for online users
-    const onlineUsersQuery = query(
-        collection(db, 'online_users'),
-        where('companyId', '==', companyId)
-    );
+    const onlineUsersQuery = query(collection(db, 'online_users'), where('companyId', '==', companyId));
     const unsubscribeOnlineUsers = onSnapshot(onlineUsersQuery, (snapshot) => {
         const users: OnlineUser[] = [];
         snapshot.forEach(doc => {
-            // Filter out users who haven't been seen in the last 5 minutes
             const user = doc.data() as OnlineUser;
             if (Date.now() - user.lastSeen < 5 * 60 * 1000) {
                  users.push({ ...user, userId: doc.id });
@@ -133,32 +144,51 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         setOnlineUsers(users);
     });
     
-    // Listen for chat messages
-    const chatQuery = query(
-      collection(db, 'chats'),
-      where('companyId', '==', companyId),
-      orderBy('timestamp', 'desc')
-    );
-    const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
-        const messages: ChatMessage[] = [];
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            messages.push({
+    // Listen for chat messages relevant to the current user
+    const sentMessagesQuery = query(collection(db, "messages"), where("senderId", "==", userId));
+    const receivedMessagesQuery = query(collection(db, "messages"), where("receiverId", "==", userId));
+    
+    const processSnapshot = (snapshot: any) => {
+        const newMessages: ChatMessage[] = [];
+        snapshot.forEach((doc: any) => {
+             const data = doc.data();
+             newMessages.push({
                 ...data,
                 id: doc.id,
-                // Ensure timestamp is a number, converting from Firestore Timestamp if necessary
                 timestamp: data.timestamp instanceof Timestamp ? data.timestamp.toMillis() : data.timestamp,
             } as ChatMessage);
         });
-        setChatMessages(messages.reverse()); // Reverse to show oldest first
-    });
+        
+        setChatMessages(prev => {
+            const updatedMessages = {...prev};
+            newMessages.forEach(msg => {
+                if (!updatedMessages[msg.conversationId]) {
+                    updatedMessages[msg.conversationId] = [];
+                }
+                // Avoid duplicates
+                if (!updatedMessages[msg.conversationId].some(m => m.id === msg.id)) {
+                    updatedMessages[msg.conversationId].push(msg);
+                }
+            });
 
+             // Sort messages within each conversation
+            for (const key in updatedMessages) {
+                updatedMessages[key].sort((a, b) => a.timestamp - b.timestamp);
+            }
+
+            return updatedMessages;
+        });
+    };
+
+    const unsubscribeSent = onSnapshot(sentMessagesQuery, processSnapshot);
+    const unsubscribeReceived = onSnapshot(receivedMessagesQuery, processSnapshot);
 
     return () => {
         unsubscribeOnlineUsers();
-        unsubscribeChat();
+        unsubscribeSent();
+        unsubscribeReceived();
     };
-  }, [companyId]);
+  }, [companyId, userId]);
 
   const fetchDataForCompany = useCallback(async (cId: string) => {
       setLoading(true);
@@ -464,11 +494,16 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
     };
     
-  const sendMessage = async (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    if (!companyId) throw new Error("No company selected.");
-    await addDoc(collection(db, 'chats'), {
-      ...message,
+  const sendMessage = async (text: string, receiverId: string) => {
+    if (!userId) throw new Error("User not authenticated.");
+    const conversationId = [userId, receiverId].sort().join('_');
+    await addDoc(collection(db, 'messages'), {
+      conversationId,
+      senderId: userId,
+      receiverId,
+      text,
       timestamp: serverTimestamp(),
+      read: false,
     });
   };
 
@@ -485,6 +520,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     onlineUsers,
     chatMessages,
     sendMessage,
+    userId,
+    userRole,
   };
   
   return (

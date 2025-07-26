@@ -333,6 +333,7 @@ export default function DepartmentPage() {
   const [sessionData, setSessionData] = useState({
       managerId: '',
       managerName: '',
+      userType: ''
   });
 
   const getManagerName = (managerId: string | null) => {
@@ -345,15 +346,18 @@ export default function DepartmentPage() {
     const userType = sessionStorage.getItem('userType');
     const departmentName = sessionStorage.getItem('department');
     const sessionCompanyId = sessionStorage.getItem('companyId');
+    const sessionManagerId = sessionStorage.getItem('managerId');
 
-    if (userType !== 'manager' || departmentName !== domain || !sessionCompanyId) {
+
+    if (userType !== 'manager' || departmentName !== domain || !sessionCompanyId || !sessionManagerId) {
       router.replace('/');
       return;
     }
 
     setSessionData({
-      managerId: sessionStorage.getItem('managerId') || '',
+      managerId: sessionManagerId,
       managerName: sessionStorage.getItem('managerName') || '',
+      userType: userType,
     });
 
   }, [router, domain]);
@@ -409,7 +413,7 @@ export default function DepartmentPage() {
                 </TabsContent>
             </Tabs>
         </main>
-         {companyId && sessionData.managerId && (
+         {sessionData.userType === 'manager' && companyId && sessionData.managerId && (
             <ChatWidget
               companyId={companyId}
               userId={sessionData.managerId}

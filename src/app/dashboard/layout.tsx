@@ -47,14 +47,16 @@ export default function DashboardLayout({
   useEffect(() => {
     const sessionUserType = sessionStorage.getItem('userType');
     const sessionCompanyId = sessionStorage.getItem('companyId');
-    if (sessionUserType !== 'admin' || !sessionCompanyId) {
+    const sessionAdminId = sessionStorage.getItem('adminId');
+
+    if (sessionUserType !== 'admin' || !sessionCompanyId || !sessionAdminId) {
       router.replace('/');
       return;
     }
 
     setCompanyName(sessionStorage.getItem('companyName') || "Enock PayTracker");
     setAdminName(sessionStorage.getItem('adminName') || "");
-    setAdminId(sessionStorage.getItem('adminId') || "");
+    setAdminId(sessionAdminId);
     setUserType(sessionUserType as "admin" | "manager");
   }, [router]);
 
