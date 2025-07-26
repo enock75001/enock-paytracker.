@@ -1,4 +1,5 @@
 
+
 export type Attendance = {
   [day: string]: boolean;
 };

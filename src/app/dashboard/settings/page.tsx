@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -79,7 +80,7 @@ function CompanyProfileCard() {
     });
 
     useEffect(() => {
-        if (company) {
+        if (company && !isEditing) {
             form.reset({
                 name: company.name,
                 description: company.description || '',
@@ -87,7 +88,7 @@ function CompanyProfileCard() {
                 payPeriod: company.payPeriod || 'weekly',
             });
         }
-    }, [company, form]);
+    }, [company, form, isEditing]);
 
     const onSubmit = async (values: z.infer<typeof companyProfileSchema>) => {
         await updateCompanyProfile(values);
