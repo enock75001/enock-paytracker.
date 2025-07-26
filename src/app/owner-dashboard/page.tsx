@@ -30,7 +30,7 @@ export default function OwnerDashboardPage() {
     const [companies, setCompanies] = useState<CompanyWithAdmins[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingCompany, setEditingCompany] = useState<{ id: string, name: string, identifier: string } | null>(null);
-    const [editingAdmin, setEditingAdmin] = useState<{ id: string, pin: string } | null>(null);
+    const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -78,11 +78,11 @@ export default function OwnerDashboardPage() {
         fetchData();
     };
 
-    const handleUpdateAdminPin = async () => {
+    const handleUpdateAdminPassword = async () => {
         if (!editingAdmin) return;
         const adminRef = doc(db, 'admins', editingAdmin.id);
-        await updateDoc(adminRef, { pin: editingAdmin.pin });
-        toast({ title: 'Succès', description: 'Code PIN de l\'administrateur mis à jour.' });
+        await updateDoc(adminRef, { password: editingAdmin.password });
+        toast({ title: 'Succès', description: 'Mot de passe de l\'administrateur mis à jour.' });
         setEditingAdmin(null);
         fetchData();
     };
@@ -204,13 +204,13 @@ export default function OwnerDashboardPage() {
                                             <div className="flex items-center gap-2">
                                             {editingAdmin?.id === admin.id ? (
                                                  <div className="flex items-center gap-2">
-                                                    <Input type="password" value={editingAdmin.pin} onChange={(e) => setEditingAdmin({...editingAdmin, pin: e.target.value})} maxLength={4} className="w-24"/>
-                                                    <Button size="icon" onClick={handleUpdateAdminPin}><Save className="h-4 w-4"/></Button>
+                                                    <Input type="password" value={editingAdmin.password} onChange={(e) => setEditingAdmin({...editingAdmin, password: e.target.value})} />
+                                                    <Button size="icon" onClick={handleUpdateAdminPassword}><Save className="h-4 w-4"/></Button>
                                                     <Button size="icon" variant="ghost" onClick={() => setEditingAdmin(null)}>X</Button>
                                                  </div>
                                             ) : (
-                                                <Button variant="outline" size="sm" onClick={() => setEditingAdmin({id: admin.id, pin: ''})}>
-                                                    <KeyRound className="mr-2 h-4 w-4"/> Réinitialiser PIN
+                                                <Button variant="outline" size="sm" onClick={() => setEditingAdmin({id: admin.id, password: ''})}>
+                                                    <KeyRound className="mr-2 h-4 w-4"/> Réinitialiser Mdp
                                                 </Button>
                                             )}
                                             </div>

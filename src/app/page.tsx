@@ -77,7 +77,7 @@ function CompanyRegistrationForm() {
     const [companyIdNumber, setCompanyIdNumber] = useState('');
     const [adminName, setAdminName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
-    const [adminPin, setAdminPin] = useState('');
+    const [adminPassword, setAdminPassword] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
     const [registrationCode, setRegistrationCode] = useState('');
     const [error, setError] = useState('');
@@ -93,16 +93,12 @@ function CompanyRegistrationForm() {
         
         const companyIdentifier = `EPT-${companyIdNumber}`;
 
-        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !adminPin || !payPeriod || !registrationCode) {
+        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !adminPassword || !payPeriod || !registrationCode) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
         }
-        if (adminPin.length !== 4) {
-            setError("Le code PIN doit contenir 4 chiffres.");
-            setLoading(false);
-            return;
-        }
+
         if (registrationCode.length !== 10) {
             setError("Le code d'inscription doit contenir 10 chiffres.");
             setLoading(false);
@@ -110,7 +106,7 @@ function CompanyRegistrationForm() {
         }
 
         try {
-            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPin, payPeriod, registrationCode);
+            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPassword, payPeriod, registrationCode);
             
             // Log the new company in
             sessionStorage.setItem('userType', 'admin');
@@ -183,8 +179,8 @@ function CompanyRegistrationForm() {
                 <Input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@entreprise.com" required />
             </div>
              <div className="space-y-2">
-                <Label htmlFor="admin-pin">Votre code PIN (4 chiffres)</Label>
-                <Input id="admin-pin" type="password" value={adminPin} onChange={e => setAdminPin(e.target.value)} placeholder="••••" maxLength={4} required />
+                <Label htmlFor="admin-password">Votre mot de passe</Label>
+                <Input id="admin-password" type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="pay-period">Période de Paie</Label>

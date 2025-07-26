@@ -27,7 +27,7 @@ export async function registerCompany(
     companyIdentifier: string, 
     adminName: string, 
     adminEmail: string,
-    adminPin: string, 
+    adminPassword: string, 
     payPeriod: PayPeriod,
     registrationCode: string
 ): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
@@ -72,7 +72,7 @@ export async function registerCompany(
     const newAdmin = {
         companyId: companyRef.id,
         name: adminName,
-        pin: adminPin,
+        password: adminPassword,
         role: 'superadmin'
     };
     batch.set(adminRef, newAdmin);
@@ -86,11 +86,11 @@ export async function registerCompany(
 }
 
 
-export async function loginAdmin(companyId: string, name: string, pin: string): Promise<(Admin & { id: string }) | null> {
+export async function loginAdmin(companyId: string, name: string, password: string): Promise<(Admin & { id: string }) | null> {
     const q = query(collection(db, "admins"), 
         where("companyId", "==", companyId),
         where("name", "==", name), 
-        where("pin", "==", pin)
+        where("password", "==", password)
     );
     const querySnapshot = await getDocs(q);
 
@@ -102,16 +102,16 @@ export async function loginAdmin(companyId: string, name: string, pin: string): 
     return { id: adminDoc.id, ...adminDoc.data() } as Admin & { id: string };
 }
 
-export async function addAdmin(companyId: string, name: string, pin: string): Promise<void> {
+export async function addAdmin(companyId: string, name: string, password: string): Promise<void> {
     const nameExistsQuery = query(collection(db, "admins"), where("companyId", "==", companyId), where("name", "==", name));
     const nameExistsSnapshot = await getDocs(nameExistsQuery);
     if (!nameExistsSnapshot.empty) {
         throw new Error("Un administrateur avec ce nom existe déjà dans cette entreprise.");
     }
-    await addDoc(collection(db, "admins"), { companyId, name, pin, role: 'adjoint' });
+    await addDoc(collection(db, "admins"), { companyId, name, password, role: 'adjoint' });
 }
 
-export async function updateAdminPin(companyId: string, adminId: string, currentPin: string, newPin: string): Promise<void> {
+export async function updateAdminPassword(companyId: string, adminId: string, currentPassword: string, newPassword: string): Promise<void> {
     const adminRef = doc(db, "admins", adminId);
     const adminDoc = await getDoc(adminRef);
 
@@ -119,11 +119,11 @@ export async function updateAdminPin(companyId: string, adminId: string, current
         throw new Error("Administrateur non trouvé.");
     }
     
-    if(adminDoc.data().pin !== currentPin) {
-        throw new Error("Le code PIN actuel est incorrect.");
+    if(adminDoc.data().password !== currentPassword) {
+        throw new Error("Le mot de passe actuel est incorrect.");
     }
 
-    await updateDoc(adminRef, { pin: newPin });
+    await updateDoc(adminRef, { password: newPassword });
 }
 
 export async function deleteAdmin(adminId: string): Promise<void> {

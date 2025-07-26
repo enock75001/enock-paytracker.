@@ -31,7 +31,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 export default function AdminLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
     const [name, setName] = useState('');
-    const [pin, setPin] = useState('');
+    const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -54,8 +54,8 @@ export default function AdminLoginPage() {
         setError('');
         setLoading(true);
 
-        if (!companyIdentifier || !name || !pin) {
-            setError("Veuillez entrer l'ID de l'entreprise, votre nom et votre code PIN.");
+        if (!companyIdentifier || !name || !password) {
+            setError("Veuillez entrer l'ID de l'entreprise, votre nom et votre mot de passe.");
             setLoading(false);
             return;
         }
@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
                 localStorage.removeItem('rememberedCompanyId');
             }
 
-            const admin = await loginAdmin(company.id, name, pin);
+            const admin = await loginAdmin(company.id, name, password);
             if (admin) {
                 sessionStorage.setItem('userType', 'admin');
                 sessionStorage.setItem('adminName', admin.name);
@@ -105,7 +105,7 @@ export default function AdminLoginPage() {
                 });
                 router.push(`/dashboard`);
             } else {
-                setError("Nom d'utilisateur ou code PIN incorrect pour cette entreprise.");
+                setError("Nom d'utilisateur ou mot de passe incorrect pour cette entreprise.");
             }
         } catch (err: any) {
             setError(err.message || "Une erreur est survenue.");
@@ -159,19 +159,19 @@ export default function AdminLoginPage() {
                             </div>
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <Label htmlFor="pin-code">Code PIN</Label>
+                                    <Label htmlFor="password">Mot de passe</Label>
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                              <button type="button" className="text-xs text-primary hover:underline flex items-center gap-1">
                                                 <HelpCircle className="h-3 w-3" />
-                                                Code PIN oublié ?
+                                                Mot de passe oublié ?
                                              </button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
-                                                <AlertDialogTitle>Réinitialisation du Code PIN</AlertDialogTitle>
+                                                <AlertDialogTitle>Réinitialisation du mot de passe</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                   Pour réinitialiser le code PIN, veuillez contacter le super administrateur de votre entreprise. Si vous êtes le super administrateur et que vous avez perdu l'accès, vous devrez contacter le support technique.
+                                                   Pour réinitialiser le mot de passe, veuillez contacter le super administrateur de votre entreprise. Si vous êtes le super administrateur et que vous avez perdu l'accès, vous devrez contacter le support technique.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -183,14 +183,13 @@ export default function AdminLoginPage() {
                                 <div className="relative">
                                     <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        id="pin-code"
+                                        id="password"
                                         type="password"
-                                        placeholder="••••"
-                                        value={pin}
-                                        onChange={(e) => setPin(e.target.value)}
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
                                         required
                                         className="pl-8"
-                                        maxLength={4}
                                     />
                                 </div>
                             </div>

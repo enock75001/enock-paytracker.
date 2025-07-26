@@ -68,7 +68,7 @@ export interface Admin {
     id: string;
     companyId: string;
     name: string;
-    pin: string;
+    password: string;
     role: 'superadmin' | 'adjoint';
 }
 

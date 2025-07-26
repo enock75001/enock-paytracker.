@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { addAdmin as addAdminAction, updateAdminPin, deleteAdmin as deleteAdminAction } from '@/lib/auth';
+import { addAdmin as addAdminAction, updateAdminPassword, deleteAdmin as deleteAdminAction } from '@/lib/auth';
 import { ImagePicker } from '@/components/image-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,16 +44,16 @@ import { payPeriods } from '@/lib/data';
 
 const adminSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
-  pin: z.string().length(4, "Le PIN doit contenir 4 chiffres."),
+  password: z.string().min(4, "Le mot de passe doit contenir au moins 4 caractères."),
 });
 
-const pinSchema = z.object({
-    currentPin: z.string().length(4, "Le PIN actuel est requis."),
-    newPin: z.string().length(4, "Le nouveau PIN doit contenir 4 chiffres."),
-    confirmPin: z.string().length(4, "La confirmation est requise."),
-}).refine(data => data.newPin === data.confirmPin, {
-    message: "Les nouveaux PINs ne correspondent pas.",
-    path: ["confirmPin"],
+const passwordSchema = z.object({
+    currentPassword: z.string().min(1, "Le mot de passe actuel est requis."),
+    newPassword: z.string().min(4, "Le nouveau mot de passe doit contenir au moins 4 caractères."),
+    confirmPassword: z.string().min(4, "La confirmation est requise."),
+}).refine(data => data.newPassword === data.confirmPassword, {
+    message: "Les nouveaux mots de passe ne correspondent pas.",
+    path: ["confirmPassword"],
 });
 
 const companyProfileSchema = z.object({
@@ -87,7 +87,7 @@ function CompanyProfileCard() {
                 payPeriod: company.payPeriod || 'weekly',
             });
         }
-    }, [company, form]);
+    }, [company, form, isEditing]);
 
     const onSubmit = async (values: z.infer<typeof companyProfileSchema>) => {
         await updateCompanyProfile(values);
@@ -190,7 +190,7 @@ export default function SettingsPage() {
     const { admins, fetchAdmins, companyId } = useEmployees();
     const { toast } = useToast();
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-    const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
+    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -201,18 +201,18 @@ export default function SettingsPage() {
 
     const form = useForm({
         resolver: zodResolver(adminSchema),
-        defaultValues: { name: '', pin: '' },
+        defaultValues: { name: '', password: '' },
     });
     
-    const pinForm = useForm({
-        resolver: zodResolver(pinSchema),
-        defaultValues: { currentPin: '', newPin: '', confirmPin: '' },
+    const passwordForm = useForm({
+        resolver: zodResolver(passwordSchema),
+        defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
     });
 
     const onAddAdjointSubmit = async (values: z.infer<typeof adminSchema>) => {
         if (!companyId) return;
         try {
-            await addAdminAction(companyId, values.name, values.pin);
+            await addAdminAction(companyId, values.name, values.password);
             toast({ title: 'Succès', description: 'Administrateur adjoint ajouté.' });
             fetchAdmins();
             setIsFormDialogOpen(false);
@@ -222,13 +222,13 @@ export default function SettingsPage() {
         }
     };
     
-    const onChangePinSubmit = async (values: z.infer<typeof pinSchema>) => {
+    const onChangePasswordSubmit = async (values: z.infer<typeof passwordSchema>) => {
         if (!currentAdminId || !companyId) return;
         try {
-            await updateAdminPin(companyId, currentAdminId, values.currentPin, values.newPin);
-            toast({ title: 'Succès', description: 'Votre code PIN a été modifié.' });
-            setIsPinDialogOpen(false);
-            pinForm.reset();
+            await updateAdminPassword(companyId, currentAdminId, values.currentPassword, values.newPassword);
+            toast({ title: 'Succès', description: 'Votre mot de passe a été modifié.' });
+            setIsPasswordDialogOpen(false);
+            passwordForm.reset();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Erreur', description: error.message });
         }
@@ -255,28 +255,28 @@ export default function SettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Changer mon code PIN</CardTitle>
-                    <CardDescription>Modifiez votre code PIN de connexion administrateur.</CardDescription>
+                    <CardTitle>Changer mon mot de passe</CardTitle>
+                    <CardDescription>Modifiez votre mot de passe de connexion administrateur.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Dialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
+                    <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button><KeyRound className="mr-2 h-4 w-4" />Changer mon PIN</Button>
+                            <Button><KeyRound className="mr-2 h-4 w-4" />Changer mon mot de passe</Button>
                         </DialogTrigger>
                         <DialogContent>
                              <DialogHeader>
-                                <DialogTitle>Changer le code PIN</DialogTitle>
+                                <DialogTitle>Changer le mot de passe</DialogTitle>
                             </DialogHeader>
-                            <Form {...pinForm}>
-                                <form onSubmit={pinForm.handleSubmit(onChangePinSubmit)} className="space-y-4">
-                                    <FormField name="currentPin" control={pinForm.control} render={({ field }) => (
-                                        <FormItem><FormLabel>PIN Actuel</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
+                            <Form {...passwordForm}>
+                                <form onSubmit={passwordForm.handleSubmit(onChangePasswordSubmit)} className="space-y-4">
+                                    <FormField name="currentPassword" control={passwordForm.control} render={({ field }) => (
+                                        <FormItem><FormLabel>Mot de passe actuel</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                     <FormField name="newPin" control={pinForm.control} render={({ field }) => (
-                                        <FormItem><FormLabel>Nouveau PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
+                                     <FormField name="newPassword" control={passwordForm.control} render={({ field }) => (
+                                        <FormItem><FormLabel>Nouveau mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                     <FormField name="confirmPin" control={pinForm.control} render={({ field }) => (
-                                        <FormItem><FormLabel>Confirmer le nouveau PIN</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
+                                     <FormField name="confirmPassword" control={passwordForm.control} render={({ field }) => (
+                                        <FormItem><FormLabel>Confirmer le nouveau mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
@@ -311,8 +311,8 @@ export default function SettingsPage() {
                                     <FormField name="name" control={form.control} render={({ field }) => (
                                         <FormItem><FormLabel>Nom de l'adjoint</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                    <FormField name="pin" control={form.control} render={({ field }) => (
-                                        <FormItem><FormLabel>Code PIN (4 chiffres)</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormField name="password" control={form.control} render={({ field }) => (
+                                        <FormItem><FormLabel>Mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <DialogFooter>
                                         <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
@@ -374,5 +374,3 @@ export default function SettingsPage() {
         </div>
     );
 }
-
-    
