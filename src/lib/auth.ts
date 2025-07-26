@@ -12,7 +12,13 @@ export async function findCompanyByIdentifier(companyIdentifier: string): Promis
         return null;
     }
     const companyDoc = querySnapshot.docs[0];
-    return { id: companyDoc.id, ...companyDoc.data() } as Company & { id: string };
+    const companyData = { id: companyDoc.id, ...companyDoc.data() } as Company & { id: string };
+
+    if (companyData.status === 'suspended') {
+        throw new Error("Le compte de cette entreprise est actuellement suspendu.");
+    }
+    
+    return companyData;
 }
 
 
@@ -20,6 +26,7 @@ export async function registerCompany(
     companyName: string, 
     companyIdentifier: string, 
     adminName: string, 
+    adminEmail: string,
     adminPin: string, 
     payPeriod: PayPeriod,
     registrationCode: string
@@ -36,7 +43,7 @@ export async function registerCompany(
         throw new Error("Ce code d'inscription a déjà été utilisé.");
     }
 
-    const existingCompany = await findCompanyByIdentifier(companyIdentifier);
+    const existingCompany = await findCompanyByIdentifier(companyIdentifier).catch(() => null);
     if (existingCompany) {
         throw new Error("Une entreprise avec cet identifiant existe déjà.");
     }
@@ -50,12 +57,14 @@ export async function registerCompany(
     const newCompany = { 
         name: companyName,
         companyIdentifier,
-        superAdminName: adminName, 
+        superAdminName: adminName,
+        superAdminEmail: adminEmail, 
         payPeriod,
         payPeriodStartDate: new Date().toISOString(),
         logoUrl: '',
         description: '',
         registrationDate: new Date().toISOString(),
+        status: 'active' as const,
     };
     batch.set(companyRef, newCompany);
 

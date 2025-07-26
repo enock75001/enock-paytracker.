@@ -4,14 +4,25 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Company, Admin } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, RefreshCw, Pen, Save, PlusCircle } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 type CompanyWithAdmins = Company & { admins: Admin[], id: string };
 
@@ -76,6 +87,45 @@ export default function OwnerDashboardPage() {
         fetchData();
     };
 
+    const handleToggleSuspendCompany = async (company: CompanyWithAdmins) => {
+        const newStatus = company.status === 'suspended' ? 'active' : 'suspended';
+        const companyRef = doc(db, 'companies', company.id);
+        await updateDoc(companyRef, { status: newStatus });
+        toast({
+            title: 'Statut Modifié',
+            description: `L'entreprise ${company.name} a été ${newStatus === 'suspended' ? 'suspendue' : 'réactivée'}.`
+        });
+        fetchData();
+    };
+
+    const handleDeleteCompany = async (companyId: string) => {
+        try {
+            const batch = writeBatch(db);
+
+            // Define collections to delete documents from
+            const collectionsToDelete = ['employees', 'departments', 'admins', 'archives', 'login_logs'];
+
+            for (const coll of collectionsToDelete) {
+                const q = query(collection(db, coll), where("companyId", "==", companyId));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(doc => batch.delete(doc.ref));
+            }
+
+            // Delete the company document itself
+            const companyRef = doc(db, 'companies', companyId);
+            batch.delete(companyRef);
+
+            await batch.commit();
+
+            toast({ title: 'Succès', description: "L'entreprise et toutes ses données ont été supprimées." });
+            fetchData();
+        } catch (error) {
+            console.error("Error deleting company:", error);
+            toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de supprimer l'entreprise." });
+        }
+    };
+
+
     if (loading) {
         return <div className="flex h-screen items-center justify-center">Chargement...</div>;
     }
@@ -94,7 +144,7 @@ export default function OwnerDashboardPage() {
 
                 <div className="space-y-8">
                     {companies.map(company => (
-                        <Card key={company.id}>
+                        <Card key={company.id} className={company.status === 'suspended' ? 'border-destructive bg-destructive/10' : ''}>
                             <CardHeader>
                                 <div className="flex justify-between items-start">
                                     <div>
@@ -112,13 +162,41 @@ export default function OwnerDashboardPage() {
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingCompany({ id: company.id, name: company.name, identifier: company.companyIdentifier })}><Pen className="h-4 w-4" /></Button>
                                             </div>
                                         )}
-                                        <CardDescription>Super Admin: {company.superAdminName}</CardDescription>
+                                        <CardDescription>
+                                            Super Admin: {company.superAdminName} ({company.superAdminEmail})
+                                            {company.status === 'suspended' && <span className="text-destructive font-bold ml-2">(Suspendu)</span>}
+                                        </CardDescription>
                                     </div>
                                     <span className="text-sm text-muted-foreground">Inscrit le: {company.registrationDate ? new Date(company.registrationDate).toLocaleDateString() : 'N/A'}</span>
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <h4 className="font-semibold mb-2">Administrateurs :</h4>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-semibold">Administrateurs :</h4>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => handleToggleSuspendCompany(company)}>
+                                            {company.status === 'suspended' ? <PlayCircle className="mr-2 h-4 w-4" /> : <Ban className="mr-2 h-4 w-4" />}
+                                            {company.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4"/>Supprimer</Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Supprimer l'entreprise {company.name} ?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Cette action est irréversible et supprimera l'entreprise, ainsi que tous ses employés, départements, archives, et historiques.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteCompany(company.id)}>Confirmer la suppression</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </div>
                                 <ul className="space-y-2">
                                     {company.admins.map(admin => (
                                         <li key={admin.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">

@@ -10,11 +10,13 @@ export interface Company {
     companyIdentifier: string; // The "EPT-XXXX" unique ID
     name: string;
     superAdminName: string;
+    superAdminEmail: string;
     payPeriod: PayPeriod;
     payPeriodStartDate?: string; // ISO string for the start date of the first pay period
     logoUrl?: string;
     description?: string;
     registrationDate?: string;
+    status: 'active' | 'suspended';
 }
 
 export type Adjustment = {

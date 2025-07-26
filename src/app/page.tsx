@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { registerCompany } from "@/lib/auth";
 import { useEmployees } from "@/context/employee-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, KeyRound } from "lucide-react";
+import { AlertCircle, KeyRound, Phone, Mail } from "lucide-react";
 import {
   Tabs,
   TabsContent,
@@ -76,6 +76,7 @@ function CompanyRegistrationForm() {
     const [companyName, setCompanyName] = useState('');
     const [companyIdNumber, setCompanyIdNumber] = useState('');
     const [adminName, setAdminName] = useState('');
+    const [adminEmail, setAdminEmail] = useState('');
     const [adminPin, setAdminPin] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
     const [registrationCode, setRegistrationCode] = useState('');
@@ -92,7 +93,7 @@ function CompanyRegistrationForm() {
         
         const companyIdentifier = `EPT-${companyIdNumber}`;
 
-        if (!companyName || !companyIdNumber || !adminName || !adminPin || !payPeriod || !registrationCode) {
+        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !adminPin || !payPeriod || !registrationCode) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -109,7 +110,7 @@ function CompanyRegistrationForm() {
         }
 
         try {
-            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminPin, payPeriod, registrationCode);
+            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPin, payPeriod, registrationCode);
             
             // Log the new company in
             sessionStorage.setItem('userType', 'admin');
@@ -140,8 +141,18 @@ function CompanyRegistrationForm() {
                 <Label htmlFor="registration-code">Code d'Inscription</Label>
                 <div className="relative">
                     <KeyRound className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input id="registration-code" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="Code à 10 chiffres fourni par le propriétaire" required className="pl-8"/>
+                    <Input id="registration-code" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="Code à 10 chiffres" required className="pl-8"/>
                 </div>
+                <CardDescription className="text-xs pt-2">
+                    Pour obtenir un code d'inscription, veuillez contacter le propriétaire du site :
+                    <br />
+                    <a href="mailto:franckenock78@gmail.com" className="flex items-center gap-2 hover:underline text-primary">
+                        <Mail className="h-3 w-3" /> franckenock78@gmail.com
+                    </a>
+                    <a href="tel:+2250544552956" className="flex items-center gap-2 hover:underline text-primary">
+                       <Phone className="h-3 w-3" /> +225 05 44 55 29 56
+                    </a>
+                </CardDescription>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="company-name">Nom de l'entreprise</Label>
@@ -166,6 +177,10 @@ function CompanyRegistrationForm() {
              <div className="space-y-2">
                 <Label htmlFor="admin-name">Votre nom (Super Administrateur)</Label>
                 <Input id="admin-name" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="John Doe" required />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="admin-email">Votre Email</Label>
+                <Input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@entreprise.com" required />
             </div>
              <div className="space-y-2">
                 <Label htmlFor="admin-pin">Votre code PIN (4 chiffres)</Label>
