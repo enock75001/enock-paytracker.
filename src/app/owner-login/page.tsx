@@ -12,7 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Lock } from "lucide-react";
 import { Header } from '@/components/header';
 
-const OWNER_PASSWORD = process.env.NEXT_PUBLIC_OWNER_PASSWORD;
+// Le mot de passe est maintenant défini ici pour éviter les problèmes d'environnement.
+const OWNER_PASSWORD = "enock@2024";
 
 export default function OwnerLoginPage() {
     const [password, setPassword] = useState('');
@@ -25,12 +26,6 @@ export default function OwnerLoginPage() {
         e.preventDefault();
         setLoading(true);
         setError('');
-
-        if (!OWNER_PASSWORD) {
-            setError("La variable d'environnement du mot de passe propriétaire n'est pas définie. Contactez le support technique.");
-            setLoading(false);
-            return;
-        }
 
         if (password === OWNER_PASSWORD) {
             sessionStorage.setItem('ownerLoggedIn', 'true');
@@ -51,8 +46,6 @@ export default function OwnerLoginPage() {
                         <CardTitle className="text-2xl">Accès Propriétaire</CardTitle>
                         <CardDescription>
                             Entrez le mot de passe pour accéder au tableau de bord principal.
-                            <br />
-                            <span className="text-xs font-mono text-muted-foreground/80">(Mot de passe par défaut : enock@2024)</span>
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
