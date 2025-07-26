@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
@@ -23,7 +22,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Eye, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Download, Eye, RefreshCw, TrendingDown, TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -39,6 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { cn } from '@/lib/utils';
 
 interface WeeklySummary {
   employee: Employee;
@@ -52,7 +52,7 @@ interface WeeklySummary {
 }
 
 const formatCurrency = (amount: number) => {
-    return `${new Intl.NumberFormat('de-DE').format(amount)} FCFA`;
+    return `${new Intl.NumberFormat('fr-FR').format(amount)} FCFA`;
 };
 
 const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
@@ -127,17 +127,6 @@ export default function RecapPage() {
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
         const domainTotal = summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0);
         
-        const head = [['Employé', 'Salaire/Jour', 'Jours', 'Paie de Base', 'Primes', 'Avances', 'Paie Nette']];
-        const body = summaries.map(s => ([
-            `${s.employee.firstName} ${s.employee.lastName}`,
-            formatCurrency(s.currentWage),
-            s.daysPresent.toString(),
-            formatCurrency(s.totalHoursPay),
-            formatCurrency(s.totalBonus),
-            formatCurrency(s.totalDeduction),
-            formatCurrency(s.totalPay),
-        ]));
-
         (doc as any).autoTable({
             startY: finalY + 5,
             head: [[{ content: domain, colSpan: 7, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
@@ -252,10 +241,11 @@ export default function RecapPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Employé</TableHead>
-                                    <TableHead className="text-center">Jours Présents</TableHead>
-                                    <TableHead className="text-right">Salaire de base</TableHead>
-                                    <TableHead className="text-right">Ajustements</TableHead>
-                                    <TableHead className="text-right">Paie Totale</TableHead>
+                                    <TableHead className="text-center">Jours</TableHead>
+                                    <TableHead className="text-right">Paie de Base</TableHead>
+                                    <TableHead className="text-right">Primes</TableHead>
+                                    <TableHead className="text-right">Avances</TableHead>
+                                    <TableHead className="text-right font-bold">Paie Nette</TableHead>
                                     <TableHead className="text-center">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -274,20 +264,24 @@ export default function RecapPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">{summary.daysPresent}</Badge>
+                                        <Badge variant="outline">{summary.daysPresent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {formatCurrency(summary.totalHoursPay)}
                                     </TableCell>
-                                    <TableCell className={`text-right font-semibold ${summary.totalAdjustments > 0 ? 'text-green-400' : summary.totalAdjustments < 0 ? 'text-red-400' : ''}`}>
-                                        <div className="flex items-center justify-end gap-1">
-                                            {summary.totalAdjustments !== 0 && (
-                                                summary.totalAdjustments > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />
-                                            )}
-                                            {formatCurrency(summary.totalAdjustments)}
+                                     <TableCell className="text-right text-green-400">
+                                        <div className={cn("flex items-center justify-end gap-1", summary.totalBonus === 0 && "text-muted-foreground")}>
+                                            <ArrowUpCircle className="h-4 w-4" />
+                                            {formatCurrency(summary.totalBonus)}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-semibold">
+                                    <TableCell className="text-right text-red-400">
+                                         <div className={cn("flex items-center justify-end gap-1", summary.totalDeduction === 0 && "text-muted-foreground")}>
+                                            <ArrowDownCircle className="h-4 w-4" />
+                                            {formatCurrency(summary.totalDeduction)}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-lg text-primary">
                                         {formatCurrency(summary.totalPay)}
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -303,7 +297,7 @@ export default function RecapPage() {
                             </TableBody>
                             <TableFooter>
                                 <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
-                                    <TableCell colSpan={4} className="text-right font-bold text-lg">Total Département</TableCell>
+                                    <TableCell colSpan={5} className="text-right font-bold text-lg">Total Département</TableCell>
                                     <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal)}</TableCell>
                                     <TableCell />
                                 </TableRow>
