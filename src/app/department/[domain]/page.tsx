@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -186,18 +187,19 @@ function AttendanceTab({ domain }: { domain: string }) {
     // Title
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(40, 58, 90);
     doc.text(`Feuille de Présence & Paie - ${domain}`, pageWidth / 2, 20, { align: 'center' });
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(128, 128, 128);
     doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
     
-    const head = [['Employé', ...days.map(d => d.substring(0,3)), 'Présents', 'Absents', 'Paie (FCFA)']];
+    const head = [['Employé', ...days.map(d => d.substring(0,3)), 'Présents', 'Paie (FCFA)']];
 
     let departmentTotalPay = 0;
 
     const body = employeesInDomain.map(employee => {
         const daysPresent = days.filter(day => employee.attendance[day]).length;
-        const daysAbsent = days.length - daysPresent;
         const weeklyPay = daysPresent * (employee.currentWeekWage || employee.dailyWage || 0);
         departmentTotalPay += weeklyPay;
         const attendanceStatus = days.map(day => employee.attendance[day] ? 'P' : 'A');
@@ -206,8 +208,7 @@ function AttendanceTab({ domain }: { domain: string }) {
             `${employee.firstName} ${employee.lastName}`,
             ...attendanceStatus,
             daysPresent.toString(),
-            daysAbsent.toString(),
-            new Intl.NumberFormat('fr-FR').format(weeklyPay)
+            `${weeklyPay.toLocaleString('de-DE')}`
         ];
     });
 
@@ -216,19 +217,18 @@ function AttendanceTab({ domain }: { domain: string }) {
         head: head,
         body: body,
         foot: [[
-            { content: 'Total Département', colSpan: 9, styles: { halign: 'right', fontStyle: 'bold' } },
-            { content: new Intl.NumberFormat('fr-FR').format(departmentTotalPay) + ' FCFA', styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'Total Département', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: `${departmentTotalPay.toLocaleString('de-DE')} FCFA`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
-        headStyles: { fillColor: [44, 62, 80], halign: 'center' },
-        footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80] },
+        headStyles: { fillColor: [44, 62, 80], halign: 'center', fontStyle: 'bold' },
+        footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
         columnStyles: {
             0: { fontStyle: 'bold' },
             1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' },
             5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' },
             8: { halign: 'center', fontStyle: 'bold' },
-            9: { halign: 'center', fontStyle: 'bold' },
-            10: { halign: 'right', fontStyle: 'bold' },
+            9: { halign: 'right', fontStyle: 'bold' },
         },
         didParseCell: function(data: any) {
             if (data.section === 'body' && data.column.index > 0 && data.column.index < 8) {
@@ -238,6 +238,12 @@ function AttendanceTab({ domain }: { domain: string }) {
                     data.cell.styles.textColor = [192, 57, 43]; // Red for Absent
                 }
             }
+        },
+        didDrawPage: function (data: any) {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            doc.setFontSize(9);
+            doc.setTextColor(150);
+            doc.text('Généré par Enock PayTracker le ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, pageHeight - 10);
         }
     });
 
@@ -286,7 +292,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </Avatar>
                             <div>
                             <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{new Intl.NumberFormat('fr-FR').format(employee.currentWeekWage || employee.dailyWage || 0)} FCFA/jour</div>
+                            <div className="text-sm text-muted-foreground">{(employee.currentWeekWage || employee.dailyWage || 0).toLocaleString('de-DE')} FCFA/jour</div>
                             </div>
                         </div>
                         </TableCell>

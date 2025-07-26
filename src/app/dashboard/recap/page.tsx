@@ -97,61 +97,57 @@ export default function RecapPage() {
   const downloadPdf = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-
-    // Titre
-    doc.setFontSize(20);
+    
+    // Header
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text("Récapitulatif de Paie Hebdomadaire", pageWidth / 2, 20, { align: 'center' });
+    doc.setTextColor(40, 58, 90); // Dark Blue
+    doc.text("Récapitulatif de Paie Hebdomadaire", pageWidth / 2, 22, { align: 'center' });
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
+    doc.setTextColor(128, 128, 128); // Grey
+    doc.text(weekPeriod, pageWidth / 2, 30, { align: 'center' });
 
-    let finalY = 35;
+    let finalY = 38;
 
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
         const domainTotal = summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0);
 
         (doc as any).autoTable({
             startY: finalY + 5,
-            head: [[{ content: domain, colSpan: 5, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold' } }]],
+            head: [[{ content: domain, colSpan: 5, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
             columns: [
                 { header: 'Employé', dataKey: 'name' },
                 { header: 'Présents', dataKey: 'present' },
                 { header: 'Absents', dataKey: 'absent' },
-                { header: 'Salaire/Jour (FCFA)', dataKey: 'daily' },
-                { header: 'Paie Totale (FCFA)', dataKey: 'total' },
+                { header: 'Salaire/Jour', dataKey: 'daily' },
+                { header: 'Paie Totale', dataKey: 'total' },
             ],
             body: summaries.map(s => ({
                 name: `${s.employee.firstName} ${s.employee.lastName}`,
                 present: s.daysPresent,
                 absent: s.daysAbsent,
-                daily: new Intl.NumberFormat('fr-FR').format(s.employee.currentWeekWage || s.employee.dailyWage || 0),
-                total: new Intl.NumberFormat('fr-FR').format(s.totalPay || 0),
+                daily: `${(s.employee.currentWeekWage || s.employee.dailyWage || 0).toLocaleString('de-DE')} FCFA`,
+                total: `${(s.totalPay || 0).toLocaleString('de-DE')} FCFA`,
             })),
             foot: [[
                 { content: 'Total Département', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
-                { content: new Intl.NumberFormat('fr-FR').format(domainTotal), styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
+                { content: `${domainTotal.toLocaleString('de-DE')} FCFA`, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
             ]],
             theme: 'striped',
-            headStyles: { halign: 'center', fillColor: [44, 62, 80] },
-            footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80] },
+            headStyles: { halign: 'center', fillColor: [44, 62, 80], fontStyle: 'bold' },
+            footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
             columnStyles: {
                 present: { halign: 'center' },
                 absent: { halign: 'center' },
                 daily: { halign: 'right' },
-                total: { halign: 'right' },
+                total: { halign: 'right', fontStyle: 'bold' },
             },
             didDrawPage: function (data: any) {
                 const pageHeight = doc.internal.pageSize.getHeight();
-                doc.setFontSize(10);
+                doc.setFontSize(9);
                 doc.setTextColor(150);
-                doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, pageHeight - 10);
-                
-                doc.setTextColor(30, 109, 235); // Primary color
-                const siteTitle = 'Enock PayTracker';
-                const siteTitleWidth = doc.getTextWidth(siteTitle);
-                doc.text(siteTitle, pageWidth - data.settings.margin.right - siteTitleWidth, pageHeight - 10);
-                doc.setTextColor(0); 
+                doc.text('Généré par Enock PayTracker le ' + new Date().toLocaleDateString('fr-FR'), data.settings.margin.left, pageHeight - 10);
             }
         });
         finalY = (doc as any).autoTable.previous.finalY;
@@ -159,7 +155,8 @@ export default function RecapPage() {
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total Général à Payer: ${new Intl.NumberFormat('fr-FR').format(totalPayroll || 0)} FCFA`, 14, finalY + 15);
+    doc.setTextColor(40, 58, 90);
+    doc.text(`Total Général à Payer: ${totalPayroll.toLocaleString('de-DE')} FCFA`, 14, finalY + 20);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -214,7 +211,7 @@ export default function RecapPage() {
                                 <Badge variant="secondary">{summaries.length} employés</Badge>
                             </div>
                             <div className="text-lg font-semibold pr-4">
-                                Total: {new Intl.NumberFormat('fr-FR').format(domainTotal || 0)} FCFA
+                                Total: {(domainTotal || 0).toLocaleString('de-DE')} FCFA
                             </div>
                         </div>
                     </AccordionTrigger>
@@ -252,10 +249,10 @@ export default function RecapPage() {
                                         <Badge variant="secondary">{summary.daysAbsent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.employee.currentWeekWage || summary.employee.dailyWage || 0)} FCFA
+                                        {(summary.employee.currentWeekWage || summary.employee.dailyWage || 0).toLocaleString('de-DE')} FCFA
                                     </TableCell>
                                     <TableCell className="text-right font-semibold">
-                                        {new Intl.NumberFormat('fr-FR').format(summary.totalPay || 0)} FCFA
+                                        {(summary.totalPay || 0).toLocaleString('de-DE')} FCFA
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Link href={`/employee/${summary.employee.id}`} passHref>
@@ -271,7 +268,7 @@ export default function RecapPage() {
                             <TableFooter>
                                 <TableRow className='bg-secondary/80 hover:bg-secondary/80'>
                                     <TableCell colSpan={4} className="text-right font-bold text-lg">Total Département</TableCell>
-                                    <TableCell className="text-right font-bold text-lg">{new Intl.NumberFormat('fr-FR').format(domainTotal || 0)} FCFA</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">{(domainTotal || 0).toLocaleString('de-DE')} FCFA</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableFooter>
@@ -290,7 +287,7 @@ export default function RecapPage() {
         </CardHeader>
         <CardContent>
             <div className="text-4xl font-bold text-primary">
-                {new Intl.NumberFormat('fr-FR').format(totalPayroll || 0)} FCFA
+                {(totalPayroll || 0).toLocaleString('de-DE')} FCFA
             </div>
              <p className="text-muted-foreground mt-2">
                 Ceci est la somme totale à payer à tous les employés pour la semaine en cours.

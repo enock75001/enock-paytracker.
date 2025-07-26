@@ -124,7 +124,7 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
                             <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
-                        <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map((d: any) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="birthDate" render={({ field }) => (<FormItem><FormLabel>Date de naissance</FormLabel><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Adresse</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -275,13 +275,15 @@ export default function EmployeeRecapPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Titre
-    doc.setFontSize(20);
+    // Header
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text("Fiche de Paie Hebdomadaire", pageWidth / 2, 20, { align: 'center' });
+    doc.setTextColor(40, 58, 90);
+    doc.text("Fiche de Paie Hebdomadaire", pageWidth / 2, 22, { align: 'center' });
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
+    doc.setTextColor(128, 128, 128);
+    doc.text(weekPeriod, pageWidth / 2, 30, { align: 'center' });
 
     // Informations de l'employé
     (doc as any).autoTable({
@@ -289,7 +291,7 @@ export default function EmployeeRecapPage() {
         body: [
             ['Nom Complet', `${employee.firstName} ${employee.lastName}`],
             ['Département', employee.domain],
-            ['Salaire/Jour (cette semaine)', `${new Intl.NumberFormat('fr-FR').format(currentWage || 0)} FCFA`],
+            ['Salaire/Jour (cette semaine)', `${(currentWage || 0).toLocaleString('de-DE')} FCFA`],
         ],
         theme: 'plain',
         styles: { fontSize: 11, cellPadding: 2 },
@@ -300,14 +302,14 @@ export default function EmployeeRecapPage() {
     // Tableau de présence
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text("Détail de la Présence", 14, finalY + 10);
+    doc.text("Détail de la Présence", 14, finalY + 15);
     
     const attendanceData = days.map(day => [
         day, 
         employee.attendance[day] ? 'Présent' : 'Absent'
     ]);
     (doc as any).autoTable({
-        startY: finalY + 15,
+        startY: finalY + 20,
         head: [['Jour', 'Statut']],
         body: attendanceData,
         theme: 'striped',
@@ -336,7 +338,7 @@ export default function EmployeeRecapPage() {
             ['Jours Présents', `${daysPresent} jour(s)`],
             ['Jours Absents', `${days.length - daysPresent} jour(s)`],
             [{ content: 'Total Paie Hebdomadaire', styles: { fontStyle: 'bold', fontSize: 12 } },
-             { content: `${new Intl.NumberFormat('fr-FR').format(weeklyPay || 0)} FCFA`, styles: { fontStyle: 'bold', fontSize: 12 } }],
+             { content: `${weeklyPay.toLocaleString('de-DE')} FCFA`, styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }],
         ],
         theme: 'grid',
         styles: { fontSize: 11, cellPadding: 3 },
@@ -345,15 +347,10 @@ export default function EmployeeRecapPage() {
     finalY = (doc as any).autoTable.previous.finalY;
 
     // Footer
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(150);
-    doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 14, pageHeight - 10);
+    doc.text('Généré par Enock PayTracker le ' + new Date().toLocaleDateString('fr-FR'), 14, pageHeight - 10);
     
-    const siteTitle = 'Enock PayTracker';
-    const siteTitleWidth = doc.getTextWidth(siteTitle);
-    doc.setTextColor(30, 109, 235);
-    doc.text(siteTitle, pageWidth - 14 - siteTitleWidth, pageHeight - 10);
-    doc.setTextColor(0); // Reset color
 
     doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
   };
@@ -396,7 +393,7 @@ export default function EmployeeRecapPage() {
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                         <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
-                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {new Intl.NumberFormat('fr-FR').format(employee.dailyWage || 0)} FCFA</div>
+                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {(employee.dailyWage || 0).toLocaleString('de-DE')} FCFA</div>
                     </div>
                 </div>
                 
@@ -409,7 +406,7 @@ export default function EmployeeRecapPage() {
                         <CardContent className="space-y-4">
                              <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Salaire pour cette semaine:</span>
-                                <span className="font-semibold">{new Intl.NumberFormat('fr-FR').format(currentWage || 0)} FCFA / jour</span>
+                                <span className="font-semibold">{(currentWage || 0).toLocaleString('de-DE')} FCFA / jour</span>
                             </div>
                             <Table>
                                 <TableHeader>
@@ -434,7 +431,7 @@ export default function EmployeeRecapPage() {
                             </Table>
                             <div className="flex justify-between items-center pt-4 border-t">
                                 <span className="font-semibold text-lg">Paie de la semaine:</span>
-                                <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(weeklyPay || 0)} FCFA</span>
+                                <span className="font-bold text-2xl text-primary">{(weeklyPay || 0).toLocaleString('de-DE')} FCFA</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -447,7 +444,7 @@ export default function EmployeeRecapPage() {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <span className="font-semibold">Salaire total estimé:</span>
-                                    <span className="font-bold text-2xl text-primary">{new Intl.NumberFormat('fr-FR').format(estimatedTotalEarnings || 0)} FCFA</span>
+                                    <span className="font-bold text-2xl text-primary">{(estimatedTotalEarnings || 0).toLocaleString('de-DE')} FCFA</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
                                     Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.
