@@ -9,10 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, User, Lock, ArrowLeft } from 'lucide-react';
+import { AlertCircle, User, Lock, ArrowLeft, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { loginAdmin } from '@/lib/auth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function AdminLoginPage() {
     const [name, setName] = useState('');
@@ -83,7 +93,28 @@ export default function AdminLoginPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="pin-code">Code PIN</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="pin-code">Code PIN</Label>
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                             <button type="button" className="text-xs text-primary hover:underline flex items-center gap-1">
+                                                <HelpCircle className="h-3 w-3" />
+                                                Code PIN oublié ?
+                                             </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Réinitialisation du Code PIN</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Pour des raisons de sécurité, la réinitialisation du code PIN du super administrateur nécessite une intervention manuelle. Veuillez contacter le support pour obtenir de l'aide.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogAction>Compris</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
                                 <div className="relative">
                                     <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
