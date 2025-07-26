@@ -137,7 +137,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const chatQuery = query(
       collection(db, 'chats'),
       where('companyId', '==', companyId),
-      orderBy('timestamp', 'asc')
+      orderBy('timestamp', 'desc')
     );
     const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
         const messages: ChatMessage[] = [];
@@ -150,7 +150,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                 timestamp: data.timestamp instanceof Timestamp ? data.timestamp.toMillis() : data.timestamp,
             } as ChatMessage);
         });
-        setChatMessages(messages);
+        setChatMessages(messages.reverse()); // Reverse to show oldest first
     });
 
 
