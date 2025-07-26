@@ -181,10 +181,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
         // Listen for notifications
         if (userRole === 'admin') {
-            const notificationsQuery = query(
-                collection(db, 'notifications'), 
-                where('companyId', '==', companyId)
-            );
+            const notificationsQuery = query(collection(db, 'notifications'), where('companyId', '==', companyId));
             listeners.push(onSnapshot(notificationsQuery, (snapshot) => {
                 const notificationsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Notification[];
                  notificationsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -284,16 +281,16 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
-      const storedCompanyId = sessionStorage.getItem('companyId');
-      if (storedCompanyId) {
-          setCompanyId(storedCompanyId);
-          if(!company){ 
-            fetchDataForCompany(storedCompanyId);
-          }
-      } else {
-          setLoading(false);
+    const storedCompanyId = sessionStorage.getItem('companyId');
+    if (storedCompanyId) {
+      if (companyId !== storedCompanyId) {
+        setCompanyId(storedCompanyId);
+        fetchDataForCompany(storedCompanyId);
       }
-  }, [fetchDataForCompany, company]);
+    } else {
+      setLoading(false);
+    }
+  }, [companyId, fetchDataForCompany]);
 
 
   const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>) => {
