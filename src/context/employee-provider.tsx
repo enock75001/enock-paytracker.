@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth, addMonths, subDays, isBefore, startOfDay, addWeeks } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -48,7 +48,8 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: s
     let startDate, endDate;
     let period: string;
     
-    const initialStartDate = startDateStr ? startOfDay(new Date(startDateStr)) : today;
+    // The week starts on Monday for fr locale
+    const weekOptions = { weekStartsOn: 1 as 0 | 1 | 2 | 3 | 4 | 5 | 6 };
 
     switch (payPeriod) {
         case 'monthly':
@@ -57,22 +58,14 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: s
             period = `Mois de ${format(startDate, 'MMMM yyyy', { locale: fr })}`;
             break;
         case 'bi-weekly':
-            let biWeeklyStart = initialStartDate;
-            while(isBefore(addDays(biWeeklyStart, 13), today)) {
-                biWeeklyStart = addDays(biWeeklyStart, 14);
-            }
-            startDate = biWeeklyStart;
+            startDate = startOfWeek(today, weekOptions);
             endDate = addDays(startDate, 13);
             period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
             break;
         case 'weekly':
         default:
-            let weeklyStart = initialStartDate;
-            while(isBefore(addDays(weeklyStart, 6), today)) {
-                weeklyStart = addDays(weeklyStart, 7);
-            }
-            startDate = weeklyStart;
-            endDate = addDays(startDate, 6);
+            startDate = startOfWeek(today, weekOptions);
+            endDate = endOfWeek(today, weekOptions);
             period = `Semaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
             break;
     }
