@@ -75,7 +75,7 @@ export default function ManagerLoginPage() {
                                         <SelectValue placeholder="Sélectionnez votre département" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {departments.map(d => <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>)}
+                                        {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
