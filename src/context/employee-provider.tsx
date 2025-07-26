@@ -1,9 +1,9 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth, addMonths, subDays, isBefore, startOfDay, addWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
@@ -38,6 +38,7 @@ interface EmployeeContextType {
   updateCompanyProfile: (data: Partial<Omit<Company, 'id' | 'superAdminName'>>) => Promise<void>;
   addAdjustment: (employeeId: string, adjustment: Omit<Adjustment, 'id' | 'date'>) => Promise<void>;
   deleteAdjustment: (employeeId: string, adjustmentId: string) => Promise<void>;
+  fetchEmployeePayStubs: (employeeId: string) => Promise<PayStub[]>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -315,15 +316,36 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const archiveRef = doc(collection(db, "archives"));
     batch.set(archiveRef, newArchiveData);
 
-    const updatedEmployeesForState: Employee[] = [];
-    const employeesQuery = query(collection(db, "employees"), where("companyId", "==", companyId));
-    const employeesSnapshot = await getDocs(employeesQuery);
-    
     const { days: nextPeriodDays } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
+    const payDate = new Date().toISOString();
 
-    employeesSnapshot.docs.forEach(empDoc => {
-        const emp = { id: empDoc.id, ...empDoc.data() } as Employee;
+    for (const emp of employees) {
         const empRef = doc(db, "employees", emp.id);
+
+        // Create Pay Stub
+        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        const currentWage = emp.currentWeekWage || emp.dailyWage || 0;
+        const basePay = daysPresent * currentWage;
+        const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+        const totalPay = basePay + totalAdjustments;
+
+        const payStub: Omit<PayStub, 'id'> = {
+            companyId,
+            employeeId: emp.id,
+            employeeName: `${emp.firstName} ${emp.lastName}`,
+            period: weekPeriod,
+            payDate,
+            daysPresent,
+            dailyWageAtTime: currentWage,
+            basePay,
+            adjustments: emp.adjustments || [],
+            totalAdjustments,
+            totalPay,
+        };
+        const payStubRef = doc(collection(db, "pay_stubs"));
+        batch.set(payStubRef, payStub);
+        
+        // Reset employee for next period
         const newAttendance = nextPeriodDays.reduce((acc, day) => ({ ...acc, [day]: false }), {});
         const newCurrentWeekWage = emp.dailyWage;
         batch.update(empRef, {
@@ -331,8 +353,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             currentWeekWage: newCurrentWeekWage,
             adjustments: [], // Clear adjustments for the new period
         });
-        updatedEmployeesForState.push({ ...emp, attendance: newAttendance, currentWeekWage: newCurrentWeekWage, adjustments: [] });
-    });
+    }
     
     await batch.commit();
     
@@ -367,7 +388,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       await updateDoc(employeeRef, {
         adjustments: arrayUnion(newAdjustment)
       });
-      setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, adjustments: [...emp.adjustments, newAdjustment] } : emp));
+      setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, adjustments: [...(emp.adjustments || []), newAdjustment] } : emp));
   };
 
   const deleteAdjustment = async (employeeId: string, adjustmentId: string) => {
@@ -383,6 +404,18 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, adjustments: emp.adjustments.filter(adj => adj.id !== adjustmentId) } : emp));
   };
 
+    const fetchEmployeePayStubs = async (employeeId: string): Promise<PayStub[]> => {
+        if (!companyId) return [];
+        const q = query(
+            collection(db, "pay_stubs"), 
+            where("companyId", "==", companyId), 
+            where("employeeId", "==", employeeId),
+            orderBy("payDate", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
+    };
+
 
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
@@ -391,7 +424,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
     fetchAdmins: () => companyId ? fetchAdmins(companyId) : Promise.resolve(), 
     deleteArchive, fetchDataForCompany, clearData,
-    updateCompanyProfile, addAdjustment, deleteAdjustment
+    updateCompanyProfile, addAdjustment, deleteAdjustment,
+    fetchEmployeePayStubs,
   };
   
   return (

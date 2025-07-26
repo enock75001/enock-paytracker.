@@ -9,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown, GanttChartSquare } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown, GanttChartSquare, History } from 'lucide-react';
 import { differenceInWeeks, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -40,7 +40,7 @@ import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Department, Employee, Adjustment } from '@/lib/types';
+import type { Department, Employee, Adjustment, PayStub } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -58,6 +58,8 @@ import { format } from 'date-fns';
 import { ImagePicker } from '@/components/image-picker';
 import { Header } from '@/components/header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 const employeeSchema = z.object({
@@ -334,6 +336,69 @@ function AdjustmentsCard({ employee }: { employee: Employee }) {
     );
 }
 
+function PayHistoryTab({ employeeId }: { employeeId: string }) {
+    const { fetchEmployeePayStubs } = useEmployees();
+    const [payStubs, setPayStubs] = useState<PayStub[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadPayStubs = async () => {
+            setLoading(true);
+            const stubs = await fetchEmployeePayStubs(employeeId);
+            setPayStubs(stubs);
+            setLoading(false);
+        };
+        loadPayStubs();
+    }, [employeeId, fetchEmployeePayStubs]);
+
+    if (loading) {
+        return (
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+            </div>
+        )
+    }
+
+    if (payStubs.length === 0) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-muted-foreground">Aucun historique de paie trouvé.</p>
+            </div>
+        )
+    }
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Historique de Paie</CardTitle>
+                <CardDescription>Liste de toutes les fiches de paie générées pour cet employé.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Période</TableHead>
+                            <TableHead className="text-right">Paie Nette</TableHead>
+                            <TableHead className="text-right">Date de Paiement</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {payStubs.map(stub => (
+                            <TableRow key={stub.id}>
+                                <TableCell className="font-medium">{stub.period}</TableCell>
+                                <TableCell className="text-right font-bold text-primary">{(stub.totalPay || 0).toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{format(parseISO(stub.payDate), 'dd/MM/yyyy')}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
@@ -490,55 +555,67 @@ export default function EmployeeRecapPage() {
             </div>
 
             <div className="lg:col-span-2 space-y-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Récapitulatif de la Période</CardTitle>
-                            <CardDescription>{weekPeriod}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Salaire pour cette période:</span>
-                            <span className="font-semibold">{(currentWage || 0).toLocaleString('fr-FR')} FCFA / jour</span>
+                 <Tabs defaultValue="current_period" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="current_period">Période Actuelle</TabsTrigger>
+                        <TabsTrigger value="history"><History className="mr-2 h-4 w-4"/>Historique de Paie</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="current_period">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Récapitulatif de la Période</CardTitle>
+                                    <CardDescription>{weekPeriod}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                    <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Salaire pour cette période:</span>
+                                    <span className="font-semibold">{(currentWage || 0).toLocaleString('fr-FR')} FCFA / jour</span>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Jour</TableHead>
+                                            <TableHead className="text-right">Statut</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {days.map(day => (
+                                            <TableRow key={day}>
+                                                <TableCell>{day}</TableCell>
+                                                <TableCell className="text-right">
+                                                    {employee.attendance[day] ? 
+                                                        <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
+                                                        <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
+                                                    }
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                 <div className="space-y-2 pt-4 border-t">
+                                     <div className="flex justify-between items-center">
+                                        <span>Paie de base (jours travaillés):</span>
+                                        <span className="font-medium">{(basePay || 0).toLocaleString('fr-FR')} FCFA</span>
+                                    </div>
+                                     <div className="flex justify-between items-center">
+                                        <span>Total Primes / Avances:</span>
+                                        <span className={`font-medium ${totalAdjustments > 0 ? 'text-green-400' : totalAdjustments < 0 ? 'text-red-400' : ''}`}>{(totalAdjustments || 0).toLocaleString('fr-FR')} FCFA</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-2 border-t text-lg">
+                                        <span className="font-semibold">Paie totale de la période:</span>
+                                        <span className="font-bold text-2xl text-primary">{(weeklyPay || 0).toLocaleString('fr-FR')} FCFA</span>
+                                    </div>
+                                 </div>
+                            </CardContent>
+                        </Card>
+                        <div className="mt-8">
+                            <AdjustmentsCard employee={employee} />
                         </div>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Jour</TableHead>
-                                    <TableHead className="text-right">Statut</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {days.map(day => (
-                                    <TableRow key={day}>
-                                        <TableCell>{day}</TableCell>
-                                        <TableCell className="text-right">
-                                            {employee.attendance[day] ? 
-                                                <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
-                                                <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
-                                            }
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                         <div className="space-y-2 pt-4 border-t">
-                             <div className="flex justify-between items-center">
-                                <span>Paie de base (jours travaillés):</span>
-                                <span className="font-medium">{(basePay || 0).toLocaleString('fr-FR')} FCFA</span>
-                            </div>
-                             <div className="flex justify-between items-center">
-                                <span>Total Primes / Avances:</span>
-                                <span className={`font-medium ${totalAdjustments > 0 ? 'text-green-400' : totalAdjustments < 0 ? 'text-red-400' : ''}`}>{(totalAdjustments || 0).toLocaleString('fr-FR')} FCFA</span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 border-t text-lg">
-                                <span className="font-semibold">Paie totale de la période:</span>
-                                <span className="font-bold text-2xl text-primary">{(weeklyPay || 0).toLocaleString('fr-FR')} FCFA</span>
-                            </div>
-                         </div>
-                    </CardContent>
-                </Card>
-                
-                <AdjustmentsCard employee={employee} />
+                    </TabsContent>
+                    <TabsContent value="history">
+                       <PayHistoryTab employeeId={employee.id} />
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
         </main>

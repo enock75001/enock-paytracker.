@@ -64,6 +64,22 @@ export interface ArchivedPayroll {
   }[];
 }
 
+export interface PayStub {
+  id?: string;
+  companyId: string;
+  employeeId: string;
+  employeeName: string; // For easier display without extra lookups
+  period: string; // e.g., "Semaine du 21 Juil au 27 Juil 2024"
+  payDate: string; // ISO string date when the stub was generated
+  daysPresent: number;
+  basePay: number;
+  adjustments: Adjustment[]; // Store the actual adjustments for that period
+  totalAdjustments: number;
+  totalPay: number;
+  dailyWageAtTime: number;
+}
+
+
 export interface Admin {
     id: string;
     companyId: string;
