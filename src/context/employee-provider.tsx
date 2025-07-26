@@ -107,6 +107,17 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                 
                 await batch.commit();
                 console.log("Mock data initialized.");
+            } else {
+                 // Ensure superadmin PIN is always reset to default on load
+                const superAdminQuery = query(collection(db, "admins"), where("role", "==", "superadmin"));
+                const superAdminSnapshot = await getDocs(superAdminQuery);
+                if (!superAdminSnapshot.empty) {
+                    const superAdminDoc = superAdminSnapshot.docs[0];
+                    if (superAdminDoc.data().pin !== "7624") {
+                        await updateDoc(superAdminDoc.ref, { pin: "7624" });
+                        console.log("Superadmin PIN has been reset to default.");
+                    }
+                }
             }
             await fetchData();
         } catch (error) {
@@ -307,3 +318,5 @@ export const useEmployees = () => {
   }
   return context;
 };
+
+    
