@@ -71,16 +71,16 @@ function CompanyProfileCard() {
 
     const form = useForm<z.infer<typeof companyProfileSchema>>({
         resolver: zodResolver(companyProfileSchema),
-        defaultValues: {
-            name: '',
-            description: '',
-            logoUrl: '',
-            payPeriod: 'weekly',
+        values: { // Use `values` to pre-populate the form
+            name: company?.name || '',
+            description: company?.description || '',
+            logoUrl: company?.logoUrl || '',
+            payPeriod: company?.payPeriod || 'weekly',
         }
     });
 
-    useEffect(() => {
-        if (company && !isEditing) {
+    const resetFormToCompanyData = () => {
+        if (company) {
             form.reset({
                 name: company.name,
                 description: company.description || '',
@@ -88,7 +88,12 @@ function CompanyProfileCard() {
                 payPeriod: company.payPeriod || 'weekly',
             });
         }
-    }, [company, form, isEditing]);
+    }
+    
+    const handleCancel = () => {
+        resetFormToCompanyData();
+        setIsEditing(false);
+    }
 
     const onSubmit = async (values: z.infer<typeof companyProfileSchema>) => {
         await updateCompanyProfile(values);
@@ -108,7 +113,10 @@ function CompanyProfileCard() {
                             <CardDescription>Gérez les informations publiques de votre entreprise.</CardDescription>
                         </div>
                         {isEditing ? (
-                            <Button type="submit" size="sm"><Save className="mr-2 h-4 w-4" />Sauvegarder</Button>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="ghost" onClick={handleCancel}>Annuler</Button>
+                                <Button type="submit"><Save className="mr-2 h-4 w-4" />Sauvegarder</Button>
+                            </div>
                         ) : (
                             <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}><Pen className="mr-2 h-4 w-4" />Modifier</Button>
                         )}
@@ -164,7 +172,7 @@ function CompanyProfileCard() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Période de Paie</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isEditing}>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={!isEditing}>
                                         <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Choisir une période de paie" />
@@ -375,3 +383,4 @@ export default function SettingsPage() {
         </div>
     );
 }
+
