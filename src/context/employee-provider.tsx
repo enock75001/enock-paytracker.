@@ -84,7 +84,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
                 // Add default admin
                 const adminRef = doc(collection(db, "admins"));
-                batch.set(adminRef, { name: "Admin", pin: "0000", role: "superadmin" });
+                batch.set(adminRef, { name: "Admin", pin: "7624", role: "superadmin" });
 
                 mockDepartments.forEach(dept => {
                     const docRef = doc(collection(db, "departments"));
