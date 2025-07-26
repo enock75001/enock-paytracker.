@@ -4,15 +4,12 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger
 } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
@@ -26,6 +23,7 @@ const menuItems = [
     { href: '/dashboard/register', label: 'Enregistrer', icon: UserPlus },
     { href: '/dashboard/recap', label: 'Récapitulatif', icon: FileText },
     { href: '/dashboard/archives', label: 'Archives', icon: Archive },
+    { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
 ];
 
 export default function DashboardLayout({

@@ -1,3 +1,4 @@
+
 export type Attendance = {
   [day: string]: boolean;
 };
@@ -27,7 +28,7 @@ export interface Department {
 }
 
 export interface ArchivedPayroll {
-  id: string;
+  id?: string;
   period: string; // e.g., "2024-W25"
   totalPayroll: number;
   departments: {
@@ -35,4 +36,11 @@ export interface ArchivedPayroll {
     total: number;
     employeeCount: number;
   }[];
+}
+
+export interface Admin {
+    id: string;
+    name: string;
+    pin: string;
+    role: 'superadmin' | 'adjoint';
 }

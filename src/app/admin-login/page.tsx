@@ -12,10 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, User, Lock, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
-
-// Hardcoded admin credentials
-const ADMIN_NAME = "Admin";
-const ADMIN_PIN = "0000";
+import { loginAdmin } from '@/lib/auth';
 
 export default function AdminLoginPage() {
     const [name, setName] = useState('');
@@ -25,11 +22,10 @@ export default function AdminLoginPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-        // Clear any existing session on login page load
         sessionStorage.clear();
     }, []);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
@@ -38,16 +34,23 @@ export default function AdminLoginPage() {
             return;
         }
 
-        if (name === ADMIN_NAME && pin === ADMIN_PIN) {
-            sessionStorage.setItem('userType', 'admin');
-            toast({
-                title: "Connexion réussie",
-                description: `Bienvenue, ${name}.`,
-                className: 'bg-accent text-accent-foreground'
-            });
-            router.push(`/dashboard`);
-        } else {
-            setError("Nom d'utilisateur ou code PIN incorrect.");
+        try {
+            const admin = await loginAdmin(name, pin);
+            if (admin) {
+                sessionStorage.setItem('userType', 'admin');
+                sessionStorage.setItem('adminName', admin.name);
+                sessionStorage.setItem('adminId', admin.id);
+                toast({
+                    title: "Connexion réussie",
+                    description: `Bienvenue, ${admin.name}.`,
+                    className: 'bg-accent text-accent-foreground'
+                });
+                router.push(`/dashboard`);
+            } else {
+                setError("Nom d'utilisateur ou code PIN incorrect.");
+            }
+        } catch (err: any) {
+            setError(err.message || "Une erreur est survenue.");
         }
     };
 

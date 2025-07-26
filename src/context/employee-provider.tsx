@@ -1,10 +1,10 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin } from '@/lib/types';
 import { initialDays, mockDepartments, mockEmployees, mockArchives } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where } from 'firebase/firestore';
 
 type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>;
 
@@ -12,6 +12,7 @@ interface EmployeeContextType {
   employees: Employee[];
   departments: Department[];
   archives: ArchivedPayroll[];
+  admins: Admin[];
   addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>) => Promise<void>;
   updateEmployee: (employeeId: string, data: EmployeeUpdatePayload) => Promise<void>;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => Promise<void>;
@@ -22,6 +23,7 @@ interface EmployeeContextType {
   updateDepartment: (originalName: string, updatedDepartment: Omit<Department, 'id'>) => Promise<void>;
   deleteDepartment: (departmentName: string) => Promise<void>;
   startNewWeek: () => Promise<void>;
+  fetchAdmins: () => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -30,8 +32,16 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [archives, setArchives] = useState<ArchivedPayroll[]>([]);
+  const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
   const days = initialDays;
+
+  const fetchAdmins = useCallback(async () => {
+    const adminsQuery = query(collection(db, "admins"));
+    const adminsSnapshot = await getDocs(adminsQuery);
+    const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
+    setAdmins(adminsData);
+  }, []);
 
   const fetchData = useCallback(async () => {
       try {
@@ -39,10 +49,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const employeesQuery = query(collection(db, "employees"));
           const archivesQuery = query(collection(db, "archives"));
 
-          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot] = await Promise.all([
+          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, _] = await Promise.all([
               getDocs(departmentsQuery),
               getDocs(employeesQuery),
               getDocs(archivesQuery),
+              fetchAdmins(),
           ]);
 
           const departmentsData = departmentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Department[];
@@ -57,7 +68,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
           console.error("Error fetching data:", error);
       }
-  }, []);
+  }, [fetchAdmins]);
 
 
   useEffect(() => {
@@ -69,6 +80,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             if (!metadataDoc.exists()) {
                 console.log("Database is empty. Initializing with mock data...");
                 const batch = writeBatch(db);
+
+                // Add default admin
+                const adminRef = doc(collection(db, "admins"));
+                batch.set(adminRef, { name: "Admin", pin: "0000", role: "superadmin" });
 
                 mockDepartments.forEach(dept => {
                     const docRef = doc(collection(db, "departments"));
@@ -117,15 +132,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
   const updateEmployee = async (employeeId: string, data: EmployeeUpdatePayload) => {
     const docRef = doc(db, "employees", employeeId);
-    // When updating an employee, only dailyWage is persisted. 
-    // The change to currentWeekWage will apply at the start of the next week.
     const { dailyWage, ...restData } = data;
     const employeeToUpdate = employees.find(e => e.id === employeeId);
     
     if (!employeeToUpdate) return;
   
-    // Check if the dailyWage has changed. If so, it will be the new base wage.
-    // The current week's wage remains unchanged until startNewWeek() is called.
     const updatedData = {
         ...restData,
         dailyWage: dailyWage
@@ -138,7 +149,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         ...emp, 
         ...restData,
         dailyWage: dailyWage,
-        // currentWeekWage is NOT updated here to preserve this week's payroll calculation.
       } : emp
     ));
   };
@@ -190,8 +200,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const oldDeptRef = doc(db, "departments", originalDept.id);
 
       if(isRenaming) {
-        // If renaming, we can just update the name field of the existing document.
-        // We also need to update all employees in that department.
         batch.update(oldDeptRef, updatedDepartmentData);
         
         const employeesToUpdateQuery = query(collection(db, 'employees'), where('domain', '==', originalName));
@@ -200,7 +208,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             batch.update(doc(db, "employees", empDoc.id), { domain: updatedDepartmentData.name });
         });
       } else {
-        // Just update the manager info
         batch.update(oldDeptRef, { manager: updatedDepartmentData.manager });
       }
       
@@ -248,16 +255,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     
     const batch = writeBatch(db);
     
-    // Add new archive
     const archiveRef = doc(collection(db, "archives"));
     batch.set(archiveRef, newArchiveData);
 
-    // Reset employees attendance and update wages
     const updatedEmployeesForState: Employee[] = [];
     employees.forEach(emp => {
         const empRef = doc(db, "employees", emp.id);
         const newAttendance = days.reduce((acc, day) => ({ ...acc, [day]: false }), {});
-        const newCurrentWeekWage = emp.dailyWage; // New salary takes effect now
+        const newCurrentWeekWage = emp.dailyWage;
         batch.update(empRef, {
             attendance: newAttendance,
             currentWeekWage: newCurrentWeekWage,
@@ -267,12 +272,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     
     await batch.commit();
 
-    // Update state locally
     setArchives(prev => [{ ...newArchiveData, id: archiveRef.id }, ...prev].sort((a,b) => (b.period || "").localeCompare(a.period || "")));
     setEmployees(updatedEmployeesForState);
   }
 
-  const value = { employees, departments, archives, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment, startNewWeek };
+  const value = { employees, departments, archives, admins, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment, startNewWeek, fetchAdmins };
   
   return (
     <EmployeeContext.Provider value={value}>
@@ -295,5 +299,3 @@ export const useEmployees = () => {
   }
   return context;
 };
-
-    
