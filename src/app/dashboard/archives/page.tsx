@@ -19,7 +19,21 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ServerCrash, CalendarCheck } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from '@/components/ui/button';
+import { ServerCrash, CalendarCheck, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 function groupArchivesByYear(archives: ArchivedPayroll[]): Record<string, ArchivedPayroll[]> {
   return archives.reduce((acc, archive) => {
@@ -33,10 +47,27 @@ function groupArchivesByYear(archives: ArchivedPayroll[]): Record<string, Archiv
 };
 
 export default function ArchivesPage() {
-  const { archives } = useEmployees();
+  const { archives, deleteArchive } = useEmployees();
+  const { toast } = useToast();
   
   const groupedArchives = groupArchivesByYear(archives);
   const years = Object.keys(groupedArchives).sort((a, b) => b.localeCompare(a));
+  
+  const handleDelete = async (archiveId: string) => {
+      try {
+        await deleteArchive(archiveId);
+        toast({
+            title: "Archive Supprimée",
+            description: "L'archive de paie a été supprimée avec succès.",
+        });
+      } catch(error: any) {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: error.message || "Impossible de supprimer l'archive.",
+        });
+      }
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -75,11 +106,34 @@ export default function ArchivesPage() {
                   <AccordionContent className="p-0">
                     {groupedArchives[year]
                         .map(archive => (
-                            <div key={archive.id} className="border-t p-4">
-                                <h3 className="font-semibold text-lg">{archive.period}</h3>
-                                <p className="text-muted-foreground mb-2">
-                                  Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
-                                </p>
+                            <div key={archive.id} className="border-t p-4 space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h3 className="font-semibold text-lg">{archive.period}</h3>
+                                    <p className="text-muted-foreground mb-2">
+                                      Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
+                                    </p>
+                                  </div>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="destructive" size="icon">
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Êtes-vous sûr de vouloir supprimer cette archive ?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Cette action est irréversible. L'archive pour la période <strong>{archive.period}</strong> sera définitivement supprimée.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(archive.id!)}>Confirmer</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

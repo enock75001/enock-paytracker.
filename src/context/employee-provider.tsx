@@ -24,6 +24,7 @@ interface EmployeeContextType {
   deleteDepartment: (departmentName: string) => Promise<void>;
   startNewWeek: () => Promise<void>;
   fetchAdmins: () => Promise<void>;
+  deleteArchive: (archiveId: string) => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -274,9 +275,16 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
     setArchives(prev => [{ ...newArchiveData, id: archiveRef.id }, ...prev].sort((a,b) => (b.period || "").localeCompare(a.period || "")));
     setEmployees(updatedEmployeesForState);
-  }
+  };
+  
+  const deleteArchive = async (archiveId: string) => {
+    if (!archiveId) return;
+    await deleteDoc(doc(db, "archives", archiveId));
+    setArchives(prev => prev.filter(archive => archive.id !== archiveId));
+  };
 
-  const value = { employees, departments, archives, admins, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment, startNewWeek, fetchAdmins };
+
+  const value = { employees, departments, archives, admins, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment, startNewWeek, fetchAdmins, deleteArchive };
   
   return (
     <EmployeeContext.Provider value={value}>

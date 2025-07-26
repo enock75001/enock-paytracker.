@@ -208,7 +208,7 @@ function AttendanceTab({ domain }: { domain: string }) {
             `${employee.firstName} ${employee.lastName}`,
             ...attendanceStatus,
             daysPresent.toString(),
-            `${weeklyPay.toLocaleString('de-DE')}`
+            `${weeklyPay.toLocaleString('de-DE')} FCFA`
         ];
     });
 
@@ -297,7 +297,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                         </div>
                         </TableCell>
                         {days.map((day, index) => {
-                            const isPastDay = weekDates[index] < today;
+                            const isFutureDay = weekDates[index] > today;
                             return (
                                 <TableCell key={day} className="text-center">
                                     <Checkbox
@@ -306,7 +306,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                         updateAttendance(employee.id, day, !!checked)
                                     }
                                     aria-label={`Attendance for ${day}`}
-                                    disabled={isPastDay}
+                                    disabled={isFutureDay}
                                     />
                                 </TableCell>
                             )
