@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import type { Admin, Company, PayPeriod } from './types';
+import type { Admin, Company, Department, Employee, PayPeriod } from './types';
 
 export async function findCompanyByIdentifier(companyIdentifier: string): Promise<(Company & { id: string }) | null> {
     const q = query(collection(db, "companies"), where("companyIdentifier", "==", companyIdentifier));
@@ -100,6 +100,39 @@ export async function loginAdmin(companyId: string, name: string, password: stri
     
     const adminDoc = querySnapshot.docs[0];
     return { id: adminDoc.id, ...adminDoc.data() } as Admin & { id: string };
+}
+
+export async function findManagerByPin(companyId: string, pin: string): Promise<{ manager: Employee, department: Department }> {
+    // The PIN is the manager's phone number
+    const employeesQuery = query(
+        collection(db, "employees"),
+        where("companyId", "==", companyId),
+        where("phone", "==", pin)
+    );
+    const employeesSnapshot = await getDocs(employeesQuery);
+
+    if (employeesSnapshot.empty) {
+        throw new Error("Aucun employé trouvé avec ce code PIN.");
+    }
+    
+    const manager = employeesSnapshot.docs[0].data() as Employee;
+    manager.id = employeesSnapshot.docs[0].id;
+
+    const departmentsQuery = query(
+        collection(db, "departments"),
+        where("companyId", "==", companyId),
+        where("managerId", "==", manager.id)
+    );
+    const departmentsSnapshot = await getDocs(departmentsQuery);
+    
+    if (departmentsSnapshot.empty) {
+        throw new Error("Vous n'êtes pas assigné comme responsable à un département.");
+    }
+    
+    const department = departmentsSnapshot.docs[0].data() as Department;
+    department.id = departmentsSnapshot.docs[0].id;
+    
+    return { manager, department };
 }
 
 export async function addAdmin(companyId: string, name: string, password: string): Promise<void> {

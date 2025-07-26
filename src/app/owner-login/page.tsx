@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Lock } from "lucide-react";
 import { Header } from '@/components/header';
 
-const OWNER_PASSWORD = process.env.NEXT_PUBLIC_OWNER_PASSWORD || "supersecret";
+const OWNER_PASSWORD = process.env.NEXT_PUBLIC_OWNER_PASSWORD;
 
 export default function OwnerLoginPage() {
     const [password, setPassword] = useState('');
@@ -25,6 +25,12 @@ export default function OwnerLoginPage() {
         e.preventDefault();
         setLoading(true);
         setError('');
+
+        if (!OWNER_PASSWORD) {
+            setError("La variable d'environnement du mot de passe propriétaire n'est pas définie.");
+            setLoading(false);
+            return;
+        }
 
         if (password === OWNER_PASSWORD) {
             sessionStorage.setItem('ownerLoggedIn', 'true');
