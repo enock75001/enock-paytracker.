@@ -44,6 +44,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 function groupEmployeesByDomain(employees: any[]): Record<string, any[]> {
@@ -59,8 +60,7 @@ function groupEmployeesByDomain(employees: any[]): Record<string, any[]> {
 
 const departmentSchema = z.object({
   name: z.string().min(3, "Le nom du département est requis."),
-  managerName: z.string().min(3, "Le nom du manager est requis."),
-  managerPin: z.string().length(4, "Le code PIN doit contenir 4 chiffres."),
+  managerId: z.string().nullable(),
 });
 
 // Component for Departments Tab
@@ -71,24 +71,22 @@ export default function DepartmentsPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [viewingDepartment, setViewingDepartment] = useState<Department | null>(null);
-  const [defaultValues, setDefaultValues] = useState({ name: '', managerName: '', managerPin: '' });
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [originalDepartmentName, setOriginalDepartmentName] = useState('');
-
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  
   const form = useForm({
     resolver: zodResolver(departmentSchema),
-    defaultValues,
+    defaultValues: { name: '', managerId: null },
   });
+  
+  const getManagerName = (managerId: string | null) => {
+      if (!managerId) return "Aucun";
+      const manager = employees.find(e => e.id === managerId);
+      return manager ? `${manager.firstName} ${manager.lastName}` : "Inconnu";
+  };
 
   const openFormDialog = (department?: Department) => {
-    if (department) {
-      setIsEditMode(true);
-      setOriginalDepartmentName(department.name);
-      form.reset({ name: department.name, managerName: department.manager.name, managerPin: department.manager.pin });
-    } else {
-      setIsEditMode(false);
-      form.reset({ name: '', managerName: '', managerPin: '' });
-    }
+    setEditingDepartment(department || null);
+    form.reset({ name: department?.name || '', managerId: department?.managerId || null });
     setIsFormDialogOpen(true);
   };
   
@@ -99,17 +97,11 @@ export default function DepartmentsPage() {
 
   const onSubmit = async (values: z.infer<typeof departmentSchema>) => {
     try {
-      if (isEditMode) {
-        await updateDepartment(originalDepartmentName, {
-          name: values.name,
-          manager: { name: values.managerName, pin: values.managerPin }
-        });
+      if (editingDepartment) {
+        await updateDepartment(editingDepartment.id!, values);
         toast({ title: "Succès", description: "Département mis à jour." });
       } else {
-        await addDepartment({
-          name: values.name,
-          manager: { name: values.managerName, pin: values.managerPin }
-        });
+        await addDepartment(values);
         toast({ title: "Succès", description: "Nouveau département ajouté." });
       }
       setIsFormDialogOpen(false);
@@ -137,19 +129,38 @@ export default function DepartmentsPage() {
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{isEditMode ? "Modifier le département" : "Créer un nouveau département"}</DialogTitle>
+                        <DialogTitle>{editingDepartment ? "Modifier le département" : "Créer un nouveau département"}</DialogTitle>
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                             <FormField name="name" control={form.control} render={({ field }) => (
                                 <FormItem><FormLabel>Nom du département</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
-                            <FormField name="managerName" control={form.control} render={({ field }) => (
-                                <FormItem><FormLabel>Nom du Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField name="managerPin" control={form.control} render={({ field }) => (
-                                <FormItem><FormLabel>Code PIN du Manager (4 chiffres)</FormLabel><FormControl><Input type="password" maxLength={4} {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
+                             <FormField
+                                control={form.control}
+                                name="managerId"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Manager</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                        <SelectValue placeholder="Sélectionnez un manager" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="">Aucun manager</SelectItem>
+                                        {employees.map(e => (
+                                        <SelectItem key={e.id} value={e.id}>
+                                            {e.firstName} {e.lastName}
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                             <DialogFooter>
                                 <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
                                 <Button type="submit">Sauvegarder</Button>
@@ -171,7 +182,7 @@ export default function DepartmentsPage() {
                         </CardTitle>
                         <CardDescription className="flex items-center pt-1">
                             <UserCog className="mr-2 h-4 w-4" />
-                            <span>Manager: {department.manager.name}</span>
+                            <span>Manager: {getManagerName(department.managerId)}</span>
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -191,7 +202,7 @@ export default function DepartmentsPage() {
                                     <AlertDialogHeader><AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le département sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => deleteDepartment(department.name)}>Supprimer</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => deleteDepartment(department.id!)}>Supprimer</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                              </AlertDialog>

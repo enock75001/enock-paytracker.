@@ -46,10 +46,7 @@ export interface Department {
   id?: string;
   companyId: string;
   name: string;
-  manager: {
-    name: string;
-    pin: string;
-  };
+  managerId: string | null; // ID of the employee who is the manager
 }
 
 export interface ArchivedPayroll {

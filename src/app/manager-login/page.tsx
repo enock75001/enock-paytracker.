@@ -15,16 +15,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
-import type { Department } from '@/lib/types';
+import { addDoc, collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
+import type { Department, Employee } from '@/lib/types';
 import { findCompanyByIdentifier } from '@/lib/auth';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export default function ManagerLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
     const [departmentsForCompany, setDepartmentsForCompany] = useState<Department[]>([]);
+    const [employeesForCompany, setEmployeesForCompany] = useState<Employee[]>([]);
     const [selectedDepartment, setSelectedDepartment] = useState('');
-    const [pin, setPin] = useState('');
+    const [pin, setPin] = useState(''); // Pin will be the employee's phone number
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -47,6 +48,7 @@ export default function ManagerLoginPage() {
         setCompanyIdentifier(identifier);
         setError('');
         setDepartmentsForCompany([]);
+        setEmployeesForCompany([]);
         setSelectedDepartment('');
         setPin('');
         if (identifier) {
@@ -54,9 +56,17 @@ export default function ManagerLoginPage() {
             const company = await findCompanyByIdentifier(identifier);
             if(company) {
                  const deptsQuery = query(collection(db, "departments"), where("companyId", "==", company.id));
-                 const deptsSnapshot = await getDocs(deptsQuery);
+                 const empsQuery = query(collection(db, "employees"), where("companyId", "==", company.id));
+                 
+                 const [deptsSnapshot, empsSnapshot] = await Promise.all([
+                    getDocs(deptsQuery),
+                    getDocs(empsQuery),
+                 ]);
+
                  const depts = deptsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Department[];
+                 const emps = empsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
                  setDepartmentsForCompany(depts);
+                 setEmployeesForCompany(emps);
             } else {
                 setError("Aucune entreprise trouvée avec cet ID.");
             }
@@ -64,8 +74,9 @@ export default function ManagerLoginPage() {
         }
     }
 
-    const selectedManagerName = departmentsForCompany.find(d => d.name === selectedDepartment)?.manager.name;
-
+    const department = departmentsForCompany.find(d => d.name === selectedDepartment);
+    const manager = department?.managerId ? employeesForCompany.find(e => e.id === department.managerId) : null;
+    
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -90,11 +101,9 @@ export default function ManagerLoginPage() {
             localStorage.removeItem('rememberedCompanyId');
         }
 
-        const department = departmentsForCompany.find(d => d.name === selectedDepartment);
-
-        if (department && department.manager.pin === pin) {
+        if (manager && manager.phone === pin) {
             sessionStorage.setItem('userType', 'manager');
-            sessionStorage.setItem('department', department.name);
+            sessionStorage.setItem('department', department!.name);
             sessionStorage.setItem('companyId', company.id);
             sessionStorage.setItem('companyName', company.name);
             
@@ -105,9 +114,9 @@ export default function ManagerLoginPage() {
                 await addDoc(collection(db, "login_logs"), {
                     companyId: company.id,
                     companyName: company.name,
-                    userName: department.manager.name,
+                    userName: `${manager.firstName} ${manager.lastName}`,
                     userType: 'manager',
-                    details: department.name,
+                    details: department!.name,
                     timestamp: new Date().toISOString(),
                 });
             } catch (logError) {
@@ -116,12 +125,12 @@ export default function ManagerLoginPage() {
 
             toast({
                 title: "Connexion réussie",
-                description: `Bienvenue, ${department.manager.name}.`,
+                description: `Bienvenue, ${manager.firstName} ${manager.lastName}.`,
                 className: 'bg-accent text-accent-foreground'
             });
-            router.push(`/department/${encodeURIComponent(department.name)}`);
+            router.push(`/department/${encodeURIComponent(department!.name)}`);
         } else {
-            setError("Code PIN incorrect pour ce département. Veuillez réessayer.");
+            setError("Code PIN (numéro de téléphone) incorrect pour ce responsable. Veuillez réessayer.");
         }
         setLoading(false);
     };
@@ -165,27 +174,27 @@ export default function ManagerLoginPage() {
                                         <SelectValue placeholder={loading ? "Chargement..." : "Sélectionnez votre département"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {departmentsForCompany.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                                        {departmentsForCompany.filter(d => d.managerId).map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {selectedManagerName && (
+                            {manager && (
                                 <div className="space-y-2">
                                     <Label htmlFor="manager-name">Nom du Responsable</Label>
                                     <div className="relative">
                                         <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                        <Input id="manager-name" type="text" value={selectedManagerName} readOnly disabled className="pl-8" />
+                                        <Input id="manager-name" type="text" value={`${manager.firstName} ${manager.lastName}`} readOnly disabled className="pl-8" />
                                     </div>
                                 </div>
                             )}
                             <div className="space-y-2">
-                                <Label htmlFor="pin-code">Code PIN</Label>
+                                <Label htmlFor="pin-code">Code PIN (Votre numéro de téléphone)</Label>
                                 <div className="relative">
                                     <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         id="pin-code"
                                         type="password"
-                                        placeholder="••••"
+                                        placeholder="••••••••••"
                                         value={pin}
                                         onChange={(e) => setPin(e.target.value)}
                                         required

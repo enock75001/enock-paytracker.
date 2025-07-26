@@ -1,5 +1,4 @@
 
-
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment } from '@/lib/types';
@@ -29,8 +28,8 @@ interface EmployeeContextType {
   weekPeriod: string;
   weekDates: Date[];
   addDepartment: (department: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
-  updateDepartment: (originalName: string, updatedDepartment: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
-  deleteDepartment: (departmentName: string) => Promise<void>;
+  updateDepartment: (departmentId: string, updatedDepartment: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
+  deleteDepartment: (departmentId: string) => Promise<void>;
   startNewWeek: () => Promise<void>;
   fetchAdmins: () => Promise<void>;
   deleteArchive: (archiveId: string) => Promise<void>;
@@ -154,7 +153,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
 
           setDepartments(departmentsData);
-          setEmployees(safeEmployees);
+          setEmployees(safeEmployees.sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
           setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
       } catch (error) {
           console.error("Error fetching company data:", error);
@@ -190,7 +189,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       adjustments: [],
     };
     const docRef = await addDoc(collection(db, "employees"), newEmployee);
-    setEmployees(prev => [...prev, { ...newEmployee, id: docRef.id }]);
+    setEmployees(prev => [...prev, { ...newEmployee, id: docRef.id }].sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
   };
 
   const updateEmployee = async (employeeId: string, data: EmployeeUpdatePayload) => {
@@ -214,7 +213,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         ...restData,
         dailyWage: dailyWage,
       } : emp
-    ));
+    ).sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
   };
   
 
@@ -230,6 +229,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const deleteEmployee = async (employeeId: string) => {
+    // Before deleting an employee, check if they are a manager of any department
+    const isManager = departments.some(d => d.managerId === employeeId);
+    if (isManager) {
+        throw new Error("Cet employé est manager d'un département. Veuillez d'abord assigner un nouveau manager.");
+    }
     await deleteDoc(doc(db, "employees", employeeId));
     setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
   };
@@ -253,45 +257,27 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setDepartments([...departments, { ...newDepartment, id: docRef.id }]);
   };
 
-  const updateDepartment = async (originalName: string, updatedDepartmentData: Omit<Department, 'id' | 'companyId'>) => {
+  const updateDepartment = async (departmentId: string, updatedDepartmentData: Omit<Department, 'id' | 'companyId'>) => {
       if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
-      const originalDept = departments.find(d => d.name === originalName);
-      if(!originalDept || !originalDept.id) return;
-
-      const nameExists = departments.some(d => d.name.toLowerCase() === updatedDepartmentData.name.toLowerCase() && d.name.toLowerCase() !== originalName.toLowerCase());
-      if (nameExists) throw new Error("Un autre département avec ce nouveau nom existe déjà.");
-
-      const isRenaming = originalName !== updatedDepartmentData.name;
       
-      const batch = writeBatch(db);
-      const oldDeptRef = doc(db, "departments", originalDept.id);
+      const deptRef = doc(db, "departments", departmentId);
+      await updateDoc(deptRef, updatedDepartmentData);
 
-      if(isRenaming) {
-        batch.update(oldDeptRef, { ...updatedDepartmentData });
-        
-        const employeesToUpdateQuery = query(collection(db, 'employees'), where('companyId', '==', companyId), where('domain', '==', originalName));
-        const employeesToUpdateSnapshot = await getDocs(employeesToUpdateQuery);
-        employeesToUpdateSnapshot.forEach(empDoc => {
-            batch.update(doc(db, "employees", empDoc.id), { domain: updatedDepartmentData.name });
-        });
-      } else {
-        batch.update(oldDeptRef, { manager: updatedDepartmentData.manager });
+      if (companyId) {
+        fetchDataForCompany(companyId);
       }
-      
-      await batch.commit();
-      fetchDataForCompany(companyId);
   };
 
-  const deleteDepartment = async (departmentName: string) => {
-     const hasEmployees = employees.some(e => e.domain === departmentName);
+  const deleteDepartment = async (departmentId: string) => {
+     const department = departments.find(d => d.id === departmentId);
+     if (!department) return;
+     const hasEmployees = employees.some(e => e.domain === department.name);
      if (hasEmployees) {
          throw new Error("Impossible de supprimer. Veuillez d'abord réaffecter les employés de ce département.");
      }
-     const deptToDelete = departments.find(d => d.name === departmentName);
-     if(deptToDelete && deptToDelete.id) {
-       await deleteDoc(doc(db, "departments", deptToDelete.id));
-       setDepartments(prev => prev.filter(d => d.name !== departmentName));
-     }
+
+     await deleteDoc(doc(db, "departments", departmentId));
+     setDepartments(prev => prev.filter(d => d.id !== departmentId));
   };
   
   const startNewWeek = async () => {

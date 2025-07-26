@@ -48,6 +48,7 @@ import { useEffect } from 'react';
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
   lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
+  poste: z.string().min(2, { message: 'Le poste est requis.' }),
   domain: z.string(),
   birthDate: z.coerce.date({ required_error: 'Une date de naissance est requise.' }),
   address: z.string().min(5, { message: "L'adresse est requise." }),
@@ -67,6 +68,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
         defaultValues: {
             firstName: '',
             lastName: '',
+            poste: '',
             domain: domain,
             address: '',
             dailyWage: 5000,
@@ -129,6 +131,9 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                         <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
+                 <FormField control={form.control} name="poste" render={({ field }) => (
+                    <FormItem><FormLabel>Poste</FormLabel><FormControl><Input placeholder="Ex: Maçon" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
                 <FormField control={form.control} name="domain" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Département</FormLabel>
@@ -323,7 +328,13 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { departments, isLoading, clearData } = useEmployees();
+  const { employees, departments, isLoading, clearData } = useEmployees();
+  
+  const getManagerName = (managerId: string | null) => {
+      if (!managerId) return null;
+      const manager = employees.find(e => e.id === managerId);
+      return manager ? `${manager.firstName} ${manager.lastName}` : null;
+  };
   
   useEffect(() => {
     const userType = sessionStorage.getItem('userType');
@@ -335,6 +346,7 @@ export default function DepartmentPage() {
   }, [router, domain]);
 
   const department = departments.find(d => d.name === domain);
+  const managerName = department ? getManagerName(department.managerId) : 'Chargement...';
 
   if (isLoading) {
     return (
@@ -368,7 +380,7 @@ export default function DepartmentPage() {
             <div className="mb-4">
                 <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
                 <p className="text-muted-foreground">
-                    Interface de présence pour le responsable {department?.manager.name}.
+                    Interface de présence pour le responsable {managerName}.
                 </p>
             </div>
             <Tabs defaultValue="attendance" className="w-full">
