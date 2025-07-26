@@ -44,3 +44,10 @@ export interface Admin {
     pin: string;
     role: 'superadmin' | 'adjoint';
 }
+
+export interface LoginLog {
+  id?: string;
+  managerName: string;
+  departmentName: string;
+  timestamp: string; // ISO string
+}

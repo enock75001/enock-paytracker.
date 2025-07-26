@@ -14,6 +14,8 @@ import { AlertCircle, User, Lock, ArrowLeft } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { Header } from '@/components/header';
+import { db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 
 export default function ManagerLoginPage() {
     const [selectedDepartment, setSelectedDepartment] = useState('');
@@ -30,7 +32,7 @@ export default function ManagerLoginPage() {
 
     const selectedManagerName = departments.find(d => d.name === selectedDepartment)?.manager.name;
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
@@ -44,6 +46,17 @@ export default function ManagerLoginPage() {
         if (department && department.manager.pin === pin) {
             sessionStorage.setItem('userType', 'manager');
             sessionStorage.setItem('department', department.name);
+
+            try {
+                await addDoc(collection(db, "login_logs"), {
+                    managerName: department.manager.name,
+                    departmentName: department.name,
+                    timestamp: new Date().toISOString(),
+                });
+            } catch (logError) {
+                console.error("Failed to write login log:", logError);
+            }
+
             toast({
                 title: "Connexion réussie",
                 description: `Bienvenue, ${department.manager.name}.`,

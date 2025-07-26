@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings } from 'lucide-react';
+import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History } from 'lucide-react';
 import { Header } from "@/components/header";
 import { useEffect } from "react";
 
@@ -23,6 +23,7 @@ const menuItems = [
     { href: '/dashboard/register', label: 'Enregistrer', icon: UserPlus },
     { href: '/dashboard/recap', label: 'Récapitulatif', icon: FileText },
     { href: '/dashboard/archives', label: 'Archives', icon: Archive },
+    { href: '/dashboard/logs', label: 'Historique Connexions', icon: History },
     { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
 ];
 
