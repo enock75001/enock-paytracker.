@@ -60,7 +60,9 @@ export default function SettingsPage() {
     const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
 
     useEffect(() => {
+      if (typeof window !== 'undefined') {
         setCurrentAdminId(sessionStorage.getItem('adminId'));
+      }
     }, []);
 
     const form = useForm({

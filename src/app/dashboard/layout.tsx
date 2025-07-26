@@ -15,8 +15,9 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
 import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History } from 'lucide-react';
 import { Header } from "@/components/header";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
     { href: '/dashboard', label: 'Tableau de bord', icon: Home },
@@ -36,6 +37,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { isLoading, companyId } = useEmployees();
+  const [companyName, setCompanyName] = useState("Enock PayTracker");
 
   useEffect(() => {
     const userType = sessionStorage.getItem('userType');
@@ -43,9 +45,9 @@ export default function DashboardLayout({
     if (userType !== 'admin' || !sessionCompanyId) {
       router.replace('/');
     }
+    setCompanyName(sessionStorage.getItem('companyName') || "Enock PayTracker");
   }, [router]);
 
-  const companyName = sessionStorage.getItem('companyName') || "Enock PayTracker";
 
   if (isLoading) {
     return (

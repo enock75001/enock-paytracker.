@@ -44,7 +44,7 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
       departmentName: sessionStorage.getItem('department') || '',
       managerName: sessionStorage.getItem('managerName') || '',
     });
-  }, [router]);
+  }, [router, usePathname()]);
 
 
   const { userType, adminName, companyName, departmentName, managerName } = sessionData;
