@@ -3,6 +3,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { EmployeeProvider } from '@/context/employee-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { PageProgressBar } from '@/components/page-progress-bar';
 
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
+        <PageProgressBar />
         <EmployeeProvider>
           {children}
           <Toaster />
