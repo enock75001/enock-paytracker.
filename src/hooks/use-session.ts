@@ -29,7 +29,9 @@ export function useSession() {
 
   useEffect(() => {
     setIsClient(true);
-    
+  }, []);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
         const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | null;
         const adminId = sessionStorage.getItem('adminId');
