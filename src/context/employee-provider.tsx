@@ -108,7 +108,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                 await batch.commit();
                 console.log("Mock data initialized.");
             } else {
-                 // Ensure superadmin PIN is always reset to default on load
+                // Ensure superadmin PIN is always reset to default on load
                 const superAdminQuery = query(collection(db, "admins"), where("role", "==", "superadmin"));
                 const superAdminSnapshot = await getDocs(superAdminQuery);
                 if (!superAdminSnapshot.empty) {
@@ -117,6 +117,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                         await updateDoc(superAdminDoc.ref, { pin: "7624" });
                         console.log("Superadmin PIN has been reset to default.");
                     }
+                } else {
+                     // If superadmin somehow got deleted, re-create it.
+                    await setDoc(doc(collection(db, "admins")), { name: "Admin", pin: "7624", role: "superadmin" });
+                    console.log("Superadmin was missing and has been re-created.");
                 }
             }
             await fetchData();
@@ -318,5 +322,3 @@ export const useEmployees = () => {
   }
   return context;
 };
-
-    
