@@ -26,9 +26,11 @@ import { cn } from '@/lib/utils';
 import { Menu, WalletCards, LogOut, User, Shield, PanelLeft, Building, Bell, CheckCheck } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import { useSidebar } from './ui/sidebar';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useSession } from '@/hooks/use-session';
+
 
 function NotificationsDropdown() {
     const { notifications, markAllNotificationsAsRead, markNotificationAsRead } = useEmployees();
@@ -87,30 +89,8 @@ function NotificationsDropdown() {
 export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const router = useRouter();
   const { clearData } = useEmployees();
-  const [isClient, setIsClient] = useState(false);
-  const [sessionData, setSessionData] = useState({
-      userType: '',
-      adminName: '',
-      companyName: '',
-      departmentName: '',
-      managerName: ''
-  });
-  
-  // This is needed to prevent hydration mismatch errors, as sessionStorage is client-side only.
-  useEffect(() => {
-    setIsClient(true);
-    setSessionData({
-      userType: sessionStorage.getItem('userType') || '',
-      adminName: sessionStorage.getItem('adminName') || '',
-      companyName: sessionStorage.getItem('companyName') || '',
-      departmentName: sessionStorage.getItem('department') || '',
-      managerName: sessionStorage.getItem('managerName') || '',
-    });
-  }, [router, usePathname()]);
-
-
+  const { sessionData, isClient, isLoggedIn } = useSession();
   const { userType, adminName, companyName, departmentName, managerName } = sessionData;
-  const isLoggedIn = isClient && !!userType;
   
   const handleLogout = () => {
     clearData();
@@ -185,3 +165,5 @@ function SidebarToggle() {
         </Button>
     )
 }
+
+    

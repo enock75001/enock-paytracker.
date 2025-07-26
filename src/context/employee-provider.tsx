@@ -7,6 +7,7 @@ import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, get
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
+import { useSession } from '@/hooks/use-session';
 
 type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>;
 
@@ -104,18 +105,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [chatMessages, setChatMessages] = useState<ChatMessageMap>({});
   const [loans, setLoans] = useState<Loan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-
-  const [userId, setUserId] = useState('');
-  const [userRole, setUserRole] = useState<'admin' | 'manager' | null>(null);
+  
+  const { userId, userRole } = useSession();
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
-
-  useEffect(() => {
-    const sessionUserId = sessionStorage.getItem('adminId') || sessionStorage.getItem('managerId');
-    const sessionUserRole = sessionStorage.getItem('userType');
-    if (sessionUserId) setUserId(sessionUserId);
-    if (sessionUserRole) setUserRole(sessionUserRole as 'admin' | 'manager');
-  }, []);
 
   const clearData = useCallback(() => {
     setEmployees([]);
@@ -137,92 +130,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
     setAdmins(adminsData);
   }, []);
-
-  useEffect(() => {
-    if (!companyId || !userId) return;
-    
-    // Combined listener setup
-    const setupListeners = () => {
-        const listeners: (() => void)[] = [];
-
-        // Listen for online users
-        const onlineUsersQuery = query(collection(db, 'online_users'), where('companyId', '==', companyId));
-        listeners.push(onSnapshot(onlineUsersQuery, (snapshot) => {
-            const users: OnlineUser[] = [];
-            snapshot.forEach(doc => {
-                const user = doc.data() as OnlineUser;
-                if (Date.now() - user.lastSeen < 5 * 60 * 1000) {
-                     users.push({ ...user, userId: doc.id });
-                }
-            });
-            setOnlineUsers(users);
-        }));
-        
-        // Listen for chat messages
-        const messagesQuery = query(collection(db, "messages"), where('conversationParticipants', 'array-contains', userId));
-        listeners.push(onSnapshot(messagesQuery, (snapshot) => {
-          const allMessages = snapshot.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.id,
-            timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
-          })).sort((a,b) => a.timestamp - b.timestamp);
-        
-          const newMessagesByConversation: ChatMessageMap = {};
-        
-          allMessages.forEach(message => {
-            if (!newMessagesByConversation[message.conversationId]) {
-              newMessagesByConversation[message.conversationId] = [];
-            }
-            newMessagesByConversation[message.conversationId].push(message as ChatMessage);
-          });
-        
-          setChatMessages(prev => ({ ...prev, ...newMessagesByConversation }));
-        }));
-
-        // Listen for notifications
-        if (userRole === 'admin') {
-            const notificationsQuery = query(collection(db, 'notifications'), where('companyId', '==', companyId));
-            listeners.push(onSnapshot(notificationsQuery, (snapshot) => {
-                const notificationsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Notification[];
-                 notificationsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                setNotifications(notificationsData);
-            }));
-        }
-
-        return () => listeners.forEach(unsub => unsub());
-    };
-
-    const unsubscribe = setupListeners();
-    return () => unsubscribe();
-}, [companyId, userId, userRole]);
-
-  const createNotificationForAllAdmins = async (notificationData: Omit<Notification, 'id' | 'companyId' | 'isRead' | 'createdAt'>) => {
-        if (!companyId) return;
-        
-        await addDoc(collection(db, 'notifications'), {
-            ...notificationData,
-            companyId,
-            isRead: false,
-            createdAt: new Date().toISOString(),
-        });
-  };
-
-  const markNotificationAsRead = async (notificationId: string) => {
-        const notifRef = doc(db, 'notifications', notificationId);
-        await updateDoc(notifRef, { isRead: true });
-  };
-
-  const markAllNotificationsAsRead = async () => {
-        const batch = writeBatch(db);
-        notifications.forEach(n => {
-            if (!n.isRead) {
-                const notifRef = doc(db, 'notifications', n.id!);
-                batch.update(notifRef, { isRead: true });
-            }
-        });
-        await batch.commit();
-  }
-
+  
   const fetchDataForCompany = useCallback(async (cId: string) => {
       setLoading(true);
       try {
@@ -279,19 +187,105 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       }
   }, [fetchAdmins, clearData]);
 
-
-  useEffect(() => {
-    const storedCompanyId = sessionStorage.getItem('companyId');
-    if (storedCompanyId) {
-      if (companyId !== storedCompanyId) {
-        setCompanyId(storedCompanyId);
-        fetchDataForCompany(storedCompanyId);
-      }
+   useEffect(() => {
+    const sessionCompanyId = sessionStorage.getItem('companyId');
+    if (sessionCompanyId) {
+      setCompanyId(sessionCompanyId);
+      fetchDataForCompany(sessionCompanyId);
     } else {
       setLoading(false);
     }
-  }, [companyId, fetchDataForCompany]);
+  }, [fetchDataForCompany]);
 
+  useEffect(() => {
+    if (!companyId || !userId) return;
+    
+    // Combined listener setup
+    const setupListeners = () => {
+        const listeners: (() => void)[] = [];
+
+        // Listen for online users
+        const onlineUsersQuery = query(collection(db, 'online_users'), where('companyId', '==', companyId));
+        listeners.push(onSnapshot(onlineUsersQuery, (snapshot) => {
+            const users: OnlineUser[] = [];
+            snapshot.forEach(doc => {
+                const user = doc.data() as OnlineUser;
+                if (Date.now() - user.lastSeen < 5 * 60 * 1000) {
+                     users.push({ ...user, userId: doc.id });
+                }
+            });
+            setOnlineUsers(users);
+        }));
+        
+        // Listen for chat messages
+        const messagesQuery = query(collection(db, "messages"), where('conversationParticipants', 'array-contains', userId));
+        listeners.push(onSnapshot(messagesQuery, (snapshot) => {
+          const allMessages = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
+          }));
+        
+          const newMessagesByConversation: ChatMessageMap = {};
+        
+          allMessages.forEach(message => {
+            if (!newMessagesByConversation[message.conversationId]) {
+              newMessagesByConversation[message.conversationId] = [];
+            }
+            newMessagesByConversation[message.conversationId].push(message as ChatMessage);
+          });
+          
+          for(const conversationId in newMessagesByConversation) {
+              newMessagesByConversation[conversationId].sort((a,b) => a.timestamp - b.timestamp);
+          }
+        
+          setChatMessages(prev => ({ ...prev, ...newMessagesByConversation }));
+        }));
+
+        // Listen for notifications
+        if (userRole === 'admin') {
+            const notificationsQuery = query(collection(db, 'notifications'), where('companyId', '==', companyId));
+            listeners.push(onSnapshot(notificationsQuery, (snapshot) => {
+                const notificationsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Notification[];
+                 
+                 notificationsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                setNotifications(notificationsData);
+            }));
+        }
+
+        return () => listeners.forEach(unsub => unsub());
+    };
+
+    const unsubscribe = setupListeners();
+    return () => unsubscribe();
+}, [companyId, userId, userRole]);
+
+  const createNotificationForAllAdmins = async (notificationData: Omit<Notification, 'id' | 'companyId' | 'isRead' | 'createdAt'>) => {
+        if (!companyId) return;
+        
+        await addDoc(collection(db, 'notifications'), {
+            ...notificationData,
+            companyId,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+        });
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+        const notifRef = doc(db, 'notifications', notificationId);
+        await updateDoc(notifRef, { isRead: true });
+  };
+
+  const markAllNotificationsAsRead = async () => {
+        const batch = writeBatch(db);
+        notifications.forEach(n => {
+            if (!n.isRead) {
+                const notifRef = doc(db, 'notifications', n.id!);
+                batch.update(notifRef, { isRead: true });
+            }
+        });
+        await batch.commit();
+  }
 
   const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>) => {
     if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
@@ -613,7 +607,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     onlineUsers,
     chatMessages,
     sendMessage,
-    userId,
+    userId: userId || '',
     userRole,
     loans,
     addLoan,
@@ -637,3 +631,5 @@ export const useEmployees = () => {
   }
   return context;
 };
+
+    
