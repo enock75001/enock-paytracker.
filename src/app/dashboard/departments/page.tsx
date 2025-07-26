@@ -97,11 +97,16 @@ export default function DepartmentsPage() {
 
   const onSubmit = async (values: z.infer<typeof departmentSchema>) => {
     try {
+      const submissionValues = {
+        ...values,
+        managerId: values.managerId === 'none' ? null : values.managerId,
+      };
+
       if (editingDepartment) {
-        await updateDepartment(editingDepartment.id!, values);
+        await updateDepartment(editingDepartment.id!, submissionValues);
         toast({ title: "Succès", description: "Département mis à jour." });
       } else {
-        await addDepartment(values);
+        await addDepartment(submissionValues);
         toast({ title: "Succès", description: "Nouveau département ajouté." });
       }
       setIsFormDialogOpen(false);
@@ -142,14 +147,14 @@ export default function DepartmentsPage() {
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Manager</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
+                                     <Select onValueChange={field.onChange} value={field.value ?? 'none'}>
                                     <FormControl>
                                         <SelectTrigger>
                                         <SelectValue placeholder="Sélectionnez un manager" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="">Aucun manager</SelectItem>
+                                        <SelectItem value="none">Aucun manager</SelectItem>
                                         {employees.map(e => (
                                         <SelectItem key={e.id} value={e.id}>
                                             {e.firstName} {e.lastName}
