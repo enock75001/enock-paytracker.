@@ -134,6 +134,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, []);
   
   const fetchDataForCompany = useCallback(async (cId: string) => {
+      if (!cId) {
+          setLoading(false);
+          return;
+      }
       setLoading(true);
       try {
           const companyDocRef = doc(db, 'companies', cId);
@@ -194,6 +198,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setCompanyId(sessionCompanyId);
       fetchDataForCompany(sessionCompanyId);
     } else {
+      // If there's no companyId in session, we are done loading.
       setLoading(false);
     }
   }, [sessionCompanyId, fetchDataForCompany]);

@@ -1,6 +1,7 @@
 
+'use client';
+
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 
 interface SessionData {
   userType: 'admin' | 'manager' | null;
@@ -25,29 +26,25 @@ const initialSessionData: SessionData = {
 export function useSession() {
   const [sessionData, setSessionData] = useState<SessionData>(initialSessionData);
   const [isClient, setIsClient] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
+    // This effect runs only once on the client-side
     setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | null;
-        const adminId = sessionStorage.getItem('adminId');
-        const managerId = sessionStorage.getItem('managerId');
-        
-        setSessionData({
-          userType,
-          adminName: sessionStorage.getItem('adminName') || '',
-          companyName: sessionStorage.getItem('companyName') || '',
-          departmentName: sessionStorage.getItem('department') || '',
-          managerName: sessionStorage.getItem('managerName') || '',
-          userId: adminId || managerId,
-          companyId: sessionStorage.getItem('companyId'),
-        });
-    }
-  }, [pathname]);
+    
+    const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | null;
+    const adminId = sessionStorage.getItem('adminId');
+    const managerId = sessionStorage.getItem('managerId');
+    
+    setSessionData({
+      userType,
+      adminName: sessionStorage.getItem('adminName') || '',
+      companyName: sessionStorage.getItem('companyName') || '',
+      departmentName: sessionStorage.getItem('department') || '',
+      managerName: sessionStorage.getItem('managerName') || '',
+      userId: adminId || managerId,
+      companyId: sessionStorage.getItem('companyId'),
+    });
+  }, []); // Empty dependency array ensures it runs only once on mount on the client
 
   return {
     sessionData,
