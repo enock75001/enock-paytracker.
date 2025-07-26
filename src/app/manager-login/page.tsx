@@ -17,13 +17,15 @@ import { Header } from '@/components/header';
 import { db } from '@/lib/firebase';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import type { Department } from '@/lib/types';
-import { findCompanyByName } from '@/lib/auth';
+import { findCompanyByIdentifier } from '@/lib/auth';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function ManagerLoginPage() {
-    const [companyName, setCompanyName] = useState('');
+    const [companyIdentifier, setCompanyIdentifier] = useState('');
     const [departmentsForCompany, setDepartmentsForCompany] = useState<Department[]>([]);
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [pin, setPin] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -33,24 +35,30 @@ export default function ManagerLoginPage() {
      useEffect(() => {
         clearData();
         sessionStorage.clear();
+        const rememberedId = localStorage.getItem('rememberedCompanyId');
+        if (rememberedId) {
+            setCompanyIdentifier(rememberedId);
+            setRememberMe(true);
+            handleCompanyIdChange(rememberedId);
+        }
     }, [clearData]);
 
-    const handleCompanyChange = async (name: string) => {
-        setCompanyName(name);
+    const handleCompanyIdChange = async (identifier: string) => {
+        setCompanyIdentifier(identifier);
         setError('');
         setDepartmentsForCompany([]);
         setSelectedDepartment('');
         setPin('');
-        if (name) {
+        if (identifier) {
             setLoading(true);
-            const company = await findCompanyByName(name);
+            const company = await findCompanyByIdentifier(identifier);
             if(company) {
                  const deptsQuery = query(collection(db, "departments"), where("companyId", "==", company.id));
                  const deptsSnapshot = await getDocs(deptsQuery);
                  const depts = deptsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Department[];
                  setDepartmentsForCompany(depts);
             } else {
-                setError("Aucune entreprise trouvée avec ce nom.");
+                setError("Aucune entreprise trouvée avec cet ID.");
             }
             setLoading(false);
         }
@@ -63,17 +71,23 @@ export default function ManagerLoginPage() {
         setError('');
         setLoading(true);
 
-        if (!companyName || !selectedDepartment || !pin) {
+        if (!companyIdentifier || !selectedDepartment || !pin) {
             setError("Veuillez sélectionner une entreprise, un département et entrer votre code PIN.");
             setLoading(false);
             return;
         }
         
-        const company = await findCompanyByName(companyName);
+        const company = await findCompanyByIdentifier(companyIdentifier);
         if (!company) {
             setError("Erreur: entreprise non trouvée.");
             setLoading(false);
             return;
+        }
+        
+        if (rememberMe) {
+            localStorage.setItem('rememberedCompanyId', companyIdentifier);
+        } else {
+            localStorage.removeItem('rememberedCompanyId');
         }
 
         const department = departmentsForCompany.find(d => d.name === selectedDepartment);
@@ -126,15 +140,15 @@ export default function ManagerLoginPage() {
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="company-name">Nom de l'entreprise</Label>
+                                <Label htmlFor="company-id">ID de l'Entreprise</Label>
                                 <div className="relative">
                                      <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        id="company-name"
+                                        id="company-id"
                                         type="text"
-                                        placeholder="Mon Entreprise SAS"
-                                        value={companyName}
-                                        onChange={(e) => handleCompanyChange(e.target.value)}
+                                        placeholder="EPT-12345"
+                                        value={companyIdentifier}
+                                        onChange={(e) => handleCompanyIdChange(e.target.value)}
                                         required
                                         className="pl-8"
                                     />
@@ -145,7 +159,7 @@ export default function ManagerLoginPage() {
                                 <Select 
                                     onValueChange={setSelectedDepartment} 
                                     value={selectedDepartment} 
-                                    disabled={!companyName || loading || departmentsForCompany.length === 0}
+                                    disabled={!companyIdentifier || loading || departmentsForCompany.length === 0}
                                 >
                                     <SelectTrigger id="department">
                                         <SelectValue placeholder={loading ? "Chargement..." : "Sélectionnez votre département"} />
@@ -180,6 +194,10 @@ export default function ManagerLoginPage() {
                                     />
                                 </div>
                             </div>
+                             <div className="flex items-center space-x-2">
+                                <Checkbox id="remember-me" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked as boolean)} />
+                                <Label htmlFor="remember-me" className="text-sm font-normal text-muted-foreground">Se souvenir de l'ID</Label>
+                             </div>
                             {error && (
                                 <Alert variant="destructive">
                                     <AlertCircle className="h-4 w-4" />

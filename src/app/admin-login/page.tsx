@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, User, Lock, ArrowLeft, HelpCircle, Building } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
-import { loginAdmin, findCompanyByName } from '@/lib/auth';
+import { loginAdmin, findCompanyByIdentifier } from '@/lib/auth';
 import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
 import { useEmployees } from '@/context/employee-provider';
@@ -26,11 +26,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function AdminLoginPage() {
-    const [companyName, setCompanyName] = useState('');
+    const [companyIdentifier, setCompanyIdentifier] = useState('');
     const [name, setName] = useState('');
     const [pin, setPin] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -40,6 +42,11 @@ export default function AdminLoginPage() {
     useEffect(() => {
         clearData();
         sessionStorage.clear();
+        const rememberedId = localStorage.getItem('rememberedCompanyId');
+        if (rememberedId) {
+            setCompanyIdentifier(rememberedId);
+            setRememberMe(true);
+        }
     }, [clearData]);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -47,18 +54,24 @@ export default function AdminLoginPage() {
         setError('');
         setLoading(true);
 
-        if (!companyName || !name || !pin) {
-            setError("Veuillez entrer le nom de l'entreprise, votre nom et votre code PIN.");
+        if (!companyIdentifier || !name || !pin) {
+            setError("Veuillez entrer l'ID de l'entreprise, votre nom et votre code PIN.");
             setLoading(false);
             return;
         }
 
         try {
-            const company = await findCompanyByName(companyName);
+            const company = await findCompanyByIdentifier(companyIdentifier);
             if (!company) {
-                setError("Aucune entreprise trouvée avec ce nom.");
+                setError("Aucune entreprise trouvée avec cet ID.");
                 setLoading(false);
                 return;
+            }
+            
+            if (rememberMe) {
+                localStorage.setItem('rememberedCompanyId', companyIdentifier);
+            } else {
+                localStorage.removeItem('rememberedCompanyId');
             }
 
             const admin = await loginAdmin(company.id, name, pin);
@@ -115,15 +128,15 @@ export default function AdminLoginPage() {
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
                              <div className="space-y-2">
-                                <Label htmlFor="company-name">Nom de l'entreprise</Label>
+                                <Label htmlFor="company-id">ID de l'Entreprise</Label>
                                 <div className="relative">
                                     <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        id="company-name"
+                                        id="company-id"
                                         type="text"
-                                        placeholder="Mon Entreprise SAS"
-                                        value={companyName}
-                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        placeholder="EPT-12345"
+                                        value={companyIdentifier}
+                                        onChange={(e) => setCompanyIdentifier(e.target.value)}
                                         required
                                         className="pl-8"
                                     />
@@ -181,6 +194,10 @@ export default function AdminLoginPage() {
                                     />
                                 </div>
                             </div>
+                             <div className="flex items-center space-x-2">
+                                <Checkbox id="remember-me" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked as boolean)} />
+                                <Label htmlFor="remember-me" className="text-sm font-normal text-muted-foreground">Se souvenir de l'ID de l'entreprise</Label>
+                             </div>
                             {error && (
                                 <Alert variant="destructive">
                                     <AlertCircle className="h-4 w-4" />
@@ -204,4 +221,3 @@ export default function AdminLoginPage() {
         </div>
     );
 }
-

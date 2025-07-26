@@ -74,6 +74,7 @@ function LoginSelector() {
 
 function CompanyRegistrationForm() {
     const [companyName, setCompanyName] = useState('');
+    const [companyIdNumber, setCompanyIdNumber] = useState('');
     const [adminName, setAdminName] = useState('');
     const [adminPin, setAdminPin] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
@@ -81,14 +82,16 @@ function CompanyRegistrationForm() {
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
-    const { setCompanyId, fetchDataForCompany } = useEmployees();
+    const { setCompanyId: setGlobalCompanyId, fetchDataForCompany } = useEmployees();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
+        
+        const companyIdentifier = `EPT-${companyIdNumber}`;
 
-        if (!companyName || !adminName || !adminPin || !payPeriod) {
+        if (!companyName || !companyIdNumber || !adminName || !adminPin || !payPeriod) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -100,7 +103,7 @@ function CompanyRegistrationForm() {
         }
 
         try {
-            const { company, admin } = await registerCompany(companyName, adminName, adminPin, payPeriod);
+            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminPin, payPeriod);
             
             // Log the new company in
             sessionStorage.setItem('userType', 'admin');
@@ -108,7 +111,7 @@ function CompanyRegistrationForm() {
             sessionStorage.setItem('adminId', admin.id);
             sessionStorage.setItem('companyId', company.id);
             sessionStorage.setItem('companyName', company.name);
-            setCompanyId(company.id);
+            setGlobalCompanyId(company.id);
             await fetchDataForCompany(company.id);
 
             toast({
@@ -130,6 +133,22 @@ function CompanyRegistrationForm() {
              <div className="space-y-2">
                 <Label htmlFor="company-name">Nom de l'entreprise</Label>
                 <Input id="company-name" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Mon Entreprise SAS" required />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="company-id">ID de l'Entreprise (chiffres uniquement)</Label>
+                <div className="flex items-center">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-secondary text-sm">EPT-</span>
+                    <Input 
+                        id="company-id" 
+                        type="text"
+                        pattern="[0-9]*"
+                        value={companyIdNumber} 
+                        onChange={e => setCompanyIdNumber(e.target.value.replace(/\D/g, ''))} 
+                        placeholder="12345" 
+                        required 
+                        className="rounded-l-none"
+                    />
+                </div>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="admin-name">Votre nom (Super Administrateur)</Label>

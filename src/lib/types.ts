@@ -7,6 +7,7 @@ export type PayPeriod = 'weekly' | 'bi-weekly' | 'monthly';
 
 export interface Company {
     id: string;
+    companyIdentifier: string; // The "EPT-XXXX" unique ID
     name: string;
     superAdminName: string;
     payPeriod: PayPeriod;

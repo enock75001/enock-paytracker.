@@ -5,8 +5,8 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import type { Admin, Company, PayPeriod } from './types';
 
-export async function findCompanyByName(companyName: string): Promise<(Company & { id: string }) | null> {
-    const q = query(collection(db, "companies"), where("name", "==", companyName));
+export async function findCompanyByIdentifier(companyIdentifier: string): Promise<(Company & { id: string }) | null> {
+    const q = query(collection(db, "companies"), where("companyIdentifier", "==", companyIdentifier));
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) {
         return null;
@@ -16,17 +16,18 @@ export async function findCompanyByName(companyName: string): Promise<(Company &
 }
 
 
-export async function registerCompany(companyName: string, adminName: string, adminPin: string, payPeriod: PayPeriod): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
-    const existingCompany = await findCompanyByName(companyName);
+export async function registerCompany(companyName: string, companyIdentifier: string, adminName: string, adminPin: string, payPeriod: PayPeriod): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
+    const existingCompany = await findCompanyByIdentifier(companyIdentifier);
     if (existingCompany) {
-        throw new Error("Une entreprise avec ce nom existe déjà.");
+        throw new Error("Une entreprise avec cet identifiant existe déjà.");
     }
 
     const batch = writeBatch(db);
 
     const companyRef = doc(collection(db, "companies"));
     const newCompany = { 
-        name: companyName, 
+        name: companyName,
+        companyIdentifier,
         superAdminName: adminName, 
         payPeriod,
         logoUrl: '',
