@@ -106,7 +106,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
-  const { userId, userRole } = useSession();
+  const { sessionData } = useSession();
+  const { userId, userRole, companyId: sessionCompanyId } = sessionData;
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
 
@@ -121,6 +122,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setChatMessages({});
     setLoans([]);
     setNotifications([]);
+    setLoading(true);
   }, []);
 
   const fetchAdmins = useCallback(async (cId: string) => {
@@ -187,15 +189,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       }
   }, [fetchAdmins, clearData]);
 
-   useEffect(() => {
-    const sessionCompanyId = sessionStorage.getItem('companyId');
+  useEffect(() => {
     if (sessionCompanyId) {
       setCompanyId(sessionCompanyId);
       fetchDataForCompany(sessionCompanyId);
     } else {
       setLoading(false);
     }
-  }, [fetchDataForCompany]);
+  }, [sessionCompanyId, fetchDataForCompany]);
 
   useEffect(() => {
     if (!companyId || !userId) return;
@@ -631,5 +632,3 @@ export const useEmployees = () => {
   }
   return context;
 };
-
-    

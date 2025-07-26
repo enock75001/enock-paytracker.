@@ -12,42 +12,43 @@ interface SessionData {
   companyId: string | null;
 }
 
+const initialSessionData: SessionData = {
+  userType: null,
+  adminName: '',
+  managerName: '',
+  companyName: '',
+  departmentName: '',
+  userId: null,
+  companyId: null,
+};
+
 export function useSession() {
-  const [sessionData, setSessionData] = useState<SessionData>({
-    userType: null,
-    adminName: '',
-    managerName: '',
-    companyName: '',
-    departmentName: '',
-    userId: null,
-    companyId: null,
-  });
+  const [sessionData, setSessionData] = useState<SessionData>(initialSessionData);
   const [isClient, setIsClient] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     setIsClient(true);
     
-    const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | null;
-    const adminId = sessionStorage.getItem('adminId');
-    const managerId = sessionStorage.getItem('managerId');
-    
-    setSessionData({
-      userType,
-      adminName: sessionStorage.getItem('adminName') || '',
-      companyName: sessionStorage.getItem('companyName') || '',
-      departmentName: sessionStorage.getItem('department') || '',
-      managerName: sessionStorage.getItem('managerName') || '',
-      userId: adminId || managerId,
-      companyId: sessionStorage.getItem('companyId'),
-    });
+    if (typeof window !== 'undefined') {
+        const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | null;
+        const adminId = sessionStorage.getItem('adminId');
+        const managerId = sessionStorage.getItem('managerId');
+        
+        setSessionData({
+          userType,
+          adminName: sessionStorage.getItem('adminName') || '',
+          companyName: sessionStorage.getItem('companyName') || '',
+          departmentName: sessionStorage.getItem('department') || '',
+          managerName: sessionStorage.getItem('managerName') || '',
+          userId: adminId || managerId,
+          companyId: sessionStorage.getItem('companyId'),
+        });
+    }
   }, [pathname]);
 
   return {
     sessionData,
-    isClient,
     isLoggedIn: isClient && !!sessionData.userType,
   };
 }
-
-    

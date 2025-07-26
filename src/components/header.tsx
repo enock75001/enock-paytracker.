@@ -89,7 +89,7 @@ function NotificationsDropdown() {
 export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const router = useRouter();
   const { clearData } = useEmployees();
-  const { sessionData, isClient, isLoggedIn } = useSession();
+  const { sessionData, isLoggedIn } = useSession();
   const { userType, adminName, companyName, departmentName, managerName } = sessionData;
   
   const handleLogout = () => {
@@ -165,5 +165,3 @@ function SidebarToggle() {
         </Button>
     )
 }
-
-    
