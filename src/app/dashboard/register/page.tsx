@@ -30,6 +30,7 @@ import { ImagePicker } from '@/components/image-picker';
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
   lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
+  poste: z.string().min(2, { message: 'Le poste doit contenir au moins 2 caractères.' }),
   domain: z.string({ required_error: 'Le département est requis.' }),
   birthDate: z.coerce.date({ required_error: 'Une date de naissance est requise.' }),
   address: z.string().min(5, { message: "L'adresse est requise." }),
@@ -48,6 +49,7 @@ export default function RegisterPage() {
         defaultValues: {
             firstName: '',
             lastName: '',
+            poste: '',
             domain: '',
             address: '',
             dailyWage: 5000,
@@ -113,6 +115,10 @@ export default function RegisterPage() {
                                     <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
+                            
+                            <FormField control={form.control} name="poste" render={({ field }) => (
+                                <FormItem><FormLabel>Poste</FormLabel><FormControl><Input placeholder="Ex: Maçon, Gardien..." {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
                             
                             <FormField control={form.control} name="domain" render={({ field }) => (
                                 <FormItem>

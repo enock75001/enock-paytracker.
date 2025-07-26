@@ -1,10 +1,11 @@
 
+
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth, addMonths, subDays, isBefore, startOfDay, addWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -42,36 +43,46 @@ interface EmployeeContextType {
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
-const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly'): { days: string[], period: string, dates: Date[] } => {
-    const today = new Date();
+const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: string): { days: string[], period: string, dates: Date[] } => {
+    const today = startOfDay(new Date());
     let startDate, endDate;
     let period: string;
+    
+    const initialStartDate = startDateStr ? startOfDay(new Date(startDateStr)) : today;
 
     switch (payPeriod) {
         case 'monthly':
             startDate = startOfMonth(today);
             endDate = endOfMonth(today);
-            period = `Mois de ${format(today, 'MMMM yyyy', { locale: fr })}`;
+            period = `Mois de ${format(startDate, 'MMMM yyyy', { locale: fr })}`;
             break;
         case 'bi-weekly':
-            const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
-            startDate = startOfThisWeek;
-            endDate = addDays(startOfThisWeek, 13);
+            let biWeeklyStart = initialStartDate;
+            while(isBefore(addDays(biWeeklyStart, 13), today)) {
+                biWeeklyStart = addDays(biWeeklyStart, 14);
+            }
+            startDate = biWeeklyStart;
+            endDate = addDays(startDate, 13);
             period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
             break;
         case 'weekly':
         default:
-            startDate = startOfWeek(today, { weekStartsOn: 1 });
-            endDate = endOfWeek(today, { weekStartsOn: 1 });
+            let weeklyStart = initialStartDate;
+            while(isBefore(addDays(weeklyStart, 6), today)) {
+                weeklyStart = addDays(weeklyStart, 7);
+            }
+            startDate = weeklyStart;
+            endDate = addDays(startDate, 6);
             period = `Semaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
             break;
     }
 
     const dates = eachDayOfInterval({ start: startDate, end: endDate });
-    const days = dates.map(date => format(date, 'EEEE', { locale: fr }));
+    const days = dates.map(date => format(date, 'EEEE dd', { locale: fr }));
 
     return { days, period, dates };
 };
+
 
 export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -82,7 +93,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod);
+  const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
 
   const clearData = useCallback(() => {
     setEmployees([]);
@@ -113,7 +124,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const companyData = { id: companyDocSnap.id, ...companyDocSnap.data() } as Company;
           setCompany(companyData);
 
-          const { days: dynamicDays } = generateDaysAndPeriod(companyData.payPeriod);
+          const { days: dynamicDays } = generateDaysAndPeriod(companyData.payPeriod, companyData.payPeriodStartDate);
 
           const departmentsQuery = query(collection(db, "departments"), where("companyId", "==", cId));
           const employeesQuery = query(collection(db, "employees"), where("companyId", "==", cId));
@@ -284,7 +295,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const startNewWeek = async () => {
-    if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
+    if (!companyId || !company) throw new Error("Aucune entreprise sélectionnée.");
+
     const totalPayroll = employees.reduce((total, emp) => {
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
@@ -321,7 +333,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const employeesQuery = query(collection(db, "employees"), where("companyId", "==", companyId));
     const employeesSnapshot = await getDocs(employeesQuery);
     
-    const { days: nextPeriodDays } = generateDaysAndPeriod(company?.payPeriod);
+    const { days: nextPeriodDays } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
 
     employeesSnapshot.docs.forEach(empDoc => {
         const emp = { id: empDoc.id, ...empDoc.data() } as Employee;

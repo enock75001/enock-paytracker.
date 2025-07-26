@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -8,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown, GanttChartSquare } from 'lucide-react';
 import { differenceInWeeks, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -62,6 +63,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 const employeeSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
   lastName: z.string().min(2, { message: 'Le nom doit contenir au moins 2 caractères.' }),
+  poste: z.string().min(2, { message: 'Le poste est requis.' }),
   domain: z.string({ required_error: 'Le département est requis.' }),
   birthDate: z.coerce.date({ required_error: 'Une date de naissance est requise.' }),
   address: z.string().min(5, { message: "L'adresse est requise." }),
@@ -117,13 +119,12 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <FormField control={form.control} name="photoUrl" render={({ field }) => (
-                            <FormItem><FormLabel>Photo de l'employé</FormLabel><FormControl><ImagePicker value={field.value ?? ''} onChange={field.onChange} name={`${watchedFirstName} ${watchedLastName}`} /></FormControl><FormMessage /></FormItem>
-                        )} />
+                        <FormField control={form.control} name="photoUrl" render={({ field }) => (<FormItem><FormLabel>Photo de l'employé</FormLabel><FormControl><ImagePicker value={field.value ?? ''} onChange={field.onChange} name={`${watchedFirstName} ${watchedLastName}`} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>Prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Nom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
+                        <FormField control={form.control} name="poste" render={({ field }) => (<FormItem><FormLabel>Poste</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="domain" render={({ field }) => (<FormItem><FormLabel>Département</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un département" /></SelectTrigger></FormControl><SelectContent>{domains.map((d: any) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="birthDate" render={({ field }) => (<FormItem><FormLabel>Date de naissance</FormLabel><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Adresse</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -405,6 +406,7 @@ export default function EmployeeRecapPage() {
         body: [
             ['Employé:', `${employee.firstName} ${employee.lastName}`],
             ['Département:', employee.domain],
+            ['Poste:', employee.poste],
             ['Salaire Journalier de Base:', `${(currentWage || 0).toLocaleString('fr-FR')} FCFA`],
         ],
         theme: 'plain',
@@ -464,6 +466,7 @@ export default function EmployeeRecapPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="text-sm space-y-3">
+                         <div className="flex items-center gap-3"><GanttChartSquare className="h-4 w-4 text-muted-foreground" /> <strong>Poste:</strong> {employee.poste}</div>
                          <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Né(e) le:</strong> {format(parseISO(employee.birthDate), 'dd MMMM yyyy', { locale: fr })}</div>
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>

@@ -11,6 +11,7 @@ export interface Company {
     name: string;
     superAdminName: string;
     payPeriod: PayPeriod;
+    payPeriodStartDate?: string; // ISO string for the start date of the first pay period
     logoUrl?: string;
     description?: string;
 }
@@ -28,6 +29,7 @@ export interface Employee {
   companyId: string;
   firstName: string;
   lastName:string;
+  poste: string; // Employee's position/role
   domain: string;
   birthDate: string;
   address: string;
