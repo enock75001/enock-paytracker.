@@ -53,7 +53,7 @@ interface WeeklySummary {
 }
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
 
 const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[]): WeeklySummary => {
@@ -87,7 +87,7 @@ const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, Week
     return summaries.reduce((acc, summary) => {
         const domain = summary.employee.domain;
         if (!acc[domain]) {
-            acc[domain] = [];
+          acc[domain] = [];
         }
         acc[domain].push(summary);
         return acc;
@@ -127,59 +127,49 @@ export default function RecapPage() {
     doc.setTextColor(128, 128, 128);
     doc.text(weekPeriod, pageWidth / 2, 30, { align: 'center' });
 
-    let finalY = 40;
-
+    const tableBody = [];
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
-        const domainTotal = summaries.reduce((acc, curr) => acc + (curr.totalPay || 0), 0);
+        // Department Header Row
+        tableBody.push([{ 
+            content: domain, 
+            colSpan: 7, 
+            styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'left' } 
+        }]);
         
-        (doc as any).autoTable({
-            startY: finalY + 5,
-            head: [[{ content: domain, colSpan: 8, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
-            columns: [
-                { header: 'Employé', dataKey: 'name' },
-                { header: 'Salaire/J', dataKey: 'daily' },
-                { header: 'Jours', dataKey: 'days' },
-                { header: 'Base', dataKey: 'base' },
-                { header: 'Primes', dataKey: 'bonus' },
-                { header: 'Avances', dataKey: 'deduction' },
-                { header: 'Remb.', dataKey: 'loan' },
-                { header: 'Paie Nette', dataKey: 'net' },
-            ],
-            body: summaries.map(s => ({
-                name: `${s.employee.firstName} ${s.employee.lastName}`,
-                daily: formatCurrency(s.currentWage),
-                days: s.daysPresent,
-                base: formatCurrency(s.totalHoursPay),
-                bonus: formatCurrency(s.totalBonus),
-                deduction: formatCurrency(s.totalDeduction),
-                loan: formatCurrency(s.loanRepayment),
-                net: formatCurrency(s.totalPay),
-            })),
-            foot: [[
-                { content: 'Total Département', colSpan: 7, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
-                { content: formatCurrency(domainTotal), styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
-            ]],
-            theme: 'striped',
-            headStyles: { halign: 'center', fillColor: [44, 62, 80], fontStyle: 'bold' },
-            footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
-            columnStyles: {
-                daily: { halign: 'right' },
-                days: { halign: 'center' },
-                base: { halign: 'right' },
-                bonus: { halign: 'right' },
-                deduction: { halign: 'right' },
-                loan: { halign: 'right' },
-                net: { halign: 'right', fontStyle: 'bold' },
-            },
-            didDrawPage: function (data: any) {
-                const pageHeight = doc.internal.pageSize.getHeight();
-                doc.setFontSize(9);
-                doc.setTextColor(150);
-                doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, data.settings.margin.left, pageHeight - 10);
-            }
+        // Employee Rows
+        summaries.forEach(s => {
+            tableBody.push([
+                { content: `${s.employee.firstName} ${s.employee.lastName}` },
+                { content: s.daysPresent.toString(), styles: { halign: 'center' } },
+                { content: formatCurrency(s.totalHoursPay), styles: { halign: 'right' } },
+                { content: formatCurrency(s.totalBonus), styles: { halign: 'right' } },
+                { content: formatCurrency(s.totalDeduction), styles: { halign: 'right' } },
+                { content: formatCurrency(s.loanRepayment), styles: { halign: 'right' } },
+                { content: formatCurrency(s.totalPay), styles: { halign: 'right', fontStyle: 'bold' } },
+            ]);
         });
-        finalY = (doc as any).autoTable.previous.finalY;
     });
+
+    (doc as any).autoTable({
+        startY: 40,
+        head: [['Employé', 'Jours', 'Base', 'Primes', 'Avances', 'Remb. Avance', 'Paie Nette']],
+        body: tableBody,
+        theme: 'striped',
+        headStyles: { halign: 'center', fillColor: [44, 62, 80], fontStyle: 'bold' },
+        columnStyles: {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 15 },
+            6: { fontStyle: 'bold' },
+        },
+        didDrawPage: function (data: any) {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            doc.setFontSize(9);
+            doc.setTextColor(150);
+            doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, data.settings.margin.left, pageHeight - 10);
+        }
+    });
+
+    let finalY = (doc as any).autoTable.previous.finalY;
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -188,6 +178,7 @@ export default function RecapPage() {
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
+
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -312,7 +303,7 @@ export default function RecapPage() {
                             </TableBody>
                             <TableFooter>
                                 <TableRow className='bg-secondary/50 hover:bg-secondary/50'>
-                                    <TableCell colSpan={7} className="text-right font-bold text-lg">Total Département</TableCell>
+                                    <TableCell colSpan={6} className="text-right font-bold text-lg">Total Département</TableCell>
                                     <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal)}</TableCell>
                                     <TableCell />
                                 </TableRow>
@@ -341,3 +332,5 @@ export default function RecapPage() {
       </Card>
     </div>
   );
+
+    
