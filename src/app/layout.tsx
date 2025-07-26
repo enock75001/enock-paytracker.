@@ -5,12 +5,19 @@ import { cn } from '@/lib/utils';
 import { EmployeeProvider } from '@/context/employee-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { PageProgressBar } from '@/components/page-progress-bar';
+import { Suspense } from 'react';
 
 
 export const metadata: Metadata = {
   title: 'Enock PayTracker',
   description: 'Employee management and payroll application for multiple companies.',
 };
+
+// This wrapper is needed to suspend the rendering of the progress bar
+// until the client-side navigation is available.
+function SuspenseWrapper({children}: {children: React.ReactNode}) {
+    return <Suspense fallback={null}>{children}</Suspense>
+}
 
 export default function RootLayout({
   children,
@@ -29,7 +36,9 @@ export default function RootLayout({
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <EmployeeProvider>
-            <PageProgressBar />
+            <SuspenseWrapper>
+              <PageProgressBar />
+            </SuspenseWrapper>
             {children}
             <Toaster />
         </EmployeeProvider>
