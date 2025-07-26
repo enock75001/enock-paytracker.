@@ -27,9 +27,13 @@ export default function LogsPage() {
       }
       try {
         setLoading(true);
-        const logsQuery = query(collection(db, 'login_logs'), where("companyId", "==", companyId), orderBy('timestamp', 'desc'), limit(100));
+        const logsQuery = query(collection(db, 'login_logs'), where("companyId", "==", companyId), limit(100));
         const logsSnapshot = await getDocs(logsQuery);
         const logsData = logsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoginLog[];
+        
+        // Sort logs on the client side
+        logsData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        
         setLogs(logsData);
       } catch (error) {
         console.error("Erreur lors de la récupération de l'historique:", error);
