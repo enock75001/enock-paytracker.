@@ -2,11 +2,56 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
-import type { Admin } from './types';
+import { collection, query, where, getDocs, addDoc, doc, updateDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import type { Admin, Company } from './types';
 
-export async function loginAdmin(name: string, pin: string): Promise<(Admin & { id: string }) | null> {
-    const q = query(collection(db, "admins"), where("name", "==", name), where("pin", "==", pin));
+export async function findCompanyByName(companyName: string): Promise<(Company & { id: string }) | null> {
+    const q = query(collection(db, "companies"), where("name", "==", companyName));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+        return null;
+    }
+    const companyDoc = querySnapshot.docs[0];
+    return { id: companyDoc.id, ...companyDoc.data() } as Company & { id: string };
+}
+
+
+export async function registerCompany(companyName: string, adminName: string, adminPin: string): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
+    const existingCompany = await findCompanyByName(companyName);
+    if (existingCompany) {
+        throw new Error("Une entreprise avec ce nom existe déjà.");
+    }
+
+    const batch = writeBatch(db);
+
+    const companyRef = doc(collection(db, "companies"));
+    const newCompany = { name: companyName, superAdminName: adminName };
+    batch.set(companyRef, newCompany);
+
+    const adminRef = doc(collection(db, "admins"));
+    const newAdmin = {
+        companyId: companyRef.id,
+        name: adminName,
+        pin: adminPin,
+        role: 'superadmin'
+    };
+    batch.set(adminRef, newAdmin);
+
+    await batch.commit();
+
+    return {
+        company: { id: companyRef.id, ...newCompany },
+        admin: { id: adminRef.id, ...newAdmin }
+    };
+}
+
+
+export async function loginAdmin(companyId: string, name: string, pin: string): Promise<(Admin & { id: string }) | null> {
+    const q = query(collection(db, "admins"), 
+        where("companyId", "==", companyId),
+        where("name", "==", name), 
+        where("pin", "==", pin)
+    );
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -17,13 +62,13 @@ export async function loginAdmin(name: string, pin: string): Promise<(Admin & { 
     return { id: adminDoc.id, ...adminDoc.data() } as Admin & { id: string };
 }
 
-export async function addAdmin(name: string, pin: string): Promise<void> {
-    const nameExistsQuery = query(collection(db, "admins"), where("name", "==", name));
+export async function addAdmin(companyId: string, name: string, pin: string): Promise<void> {
+    const nameExistsQuery = query(collection(db, "admins"), where("companyId", "==", companyId), where("name", "==", name));
     const nameExistsSnapshot = await getDocs(nameExistsQuery);
     if (!nameExistsSnapshot.empty) {
-        throw new Error("Un administrateur avec ce nom existe déjà.");
+        throw new Error("Un administrateur avec ce nom existe déjà dans cette entreprise.");
     }
-    await addDoc(collection(db, "admins"), { name, pin, role: 'adjoint' });
+    await addDoc(collection(db, "admins"), { companyId, name, pin, role: 'adjoint' });
 }
 
 export async function updateAdminPin(adminId: string, currentPin: string, newPin: string): Promise<void> {

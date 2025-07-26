@@ -2,29 +2,34 @@
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { type Employee, type Department, type ArchivedPayroll, type Admin } from '@/lib/types';
-import { initialDays, mockDepartments, mockEmployees, mockArchives } from '@/lib/data';
+import { initialDays } from '@/lib/data';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where } from 'firebase/firestore';
 
-type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>;
+type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>;
 
 interface EmployeeContextType {
   employees: Employee[];
   departments: Department[];
   archives: ArchivedPayroll[];
   admins: Admin[];
-  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>) => Promise<void>;
+  companyId: string | null;
+  setCompanyId: (companyId: string | null) => void;
+  isLoading: boolean;
+  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>) => Promise<void>;
   updateEmployee: (employeeId: string, data: EmployeeUpdatePayload) => Promise<void>;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => Promise<void>;
   deleteEmployee: (employeeId: string) => Promise<void>;
   transferEmployee: (employeeId: string, newDomain: string) => Promise<void>;
   days: string[];
-  addDepartment: (department: Omit<Department, 'id'>) => Promise<void>;
-  updateDepartment: (originalName: string, updatedDepartment: Omit<Department, 'id'>) => Promise<void>;
+  addDepartment: (department: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
+  updateDepartment: (originalName: string, updatedDepartment: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
   deleteDepartment: (departmentName: string) => Promise<void>;
   startNewWeek: () => Promise<void>;
   fetchAdmins: () => Promise<void>;
   deleteArchive: (archiveId: string) => Promise<void>;
+  fetchDataForCompany: (companyId: string) => Promise<void>;
+  clearData: () => void;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -34,21 +39,32 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [archives, setArchives] = useState<ArchivedPayroll[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const days = initialDays;
 
+  const clearData = useCallback(() => {
+    setEmployees([]);
+    setDepartments([]);
+    setArchives([]);
+    setAdmins([]);
+    setCompanyId(null);
+  }, []);
+
   const fetchAdmins = useCallback(async () => {
-    const adminsQuery = query(collection(db, "admins"));
+    if (!companyId) return;
+    const adminsQuery = query(collection(db, "admins"), where("companyId", "==", companyId));
     const adminsSnapshot = await getDocs(adminsQuery);
     const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
     setAdmins(adminsData);
-  }, []);
+  }, [companyId]);
 
-  const fetchData = useCallback(async () => {
+  const fetchDataForCompany = useCallback(async (companyId: string) => {
+      setLoading(true);
       try {
-          const departmentsQuery = query(collection(db, "departments"));
-          const employeesQuery = query(collection(db, "employees"));
-          const archivesQuery = query(collection(db, "archives"));
+          const departmentsQuery = query(collection(db, "departments"), where("companyId", "==", companyId));
+          const employeesQuery = query(collection(db, "employees"), where("companyId", "==", companyId));
+          const archivesQuery = query(collection(db, "archives"), where("companyId", "==", companyId));
 
           const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, _] = await Promise.all([
               getDocs(departmentsQuery),
@@ -67,76 +83,29 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           setEmployees(safeEmployees);
           setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
       } catch (error) {
-          console.error("Error fetching data:", error);
+          console.error("Error fetching company data:", error);
+      } finally {
+          setLoading(false);
       }
   }, [fetchAdmins]);
 
 
   useEffect(() => {
-    const initializeData = async () => {
-        setLoading(true);
-        const metadataRef = doc(db, "metadata", "initialization");
-        try {
-            const metadataDoc = await getDoc(metadataRef);
-            if (!metadataDoc.exists()) {
-                console.log("Database is empty. Initializing with mock data...");
-                const batch = writeBatch(db);
-
-                // Add default admin
-                const adminRef = doc(collection(db, "admins"));
-                batch.set(adminRef, { name: "Admin", pin: "7624", role: "superadmin" });
-
-                mockDepartments.forEach(dept => {
-                    const docRef = doc(collection(db, "departments"));
-                    batch.set(docRef, { name: dept.name, manager: dept.manager });
-                });
-                mockEmployees.forEach(emp => {
-                    const docRef = doc(collection(db, "employees"));
-                    batch.set(docRef, emp);
-                });
-                 mockArchives.forEach(archive => {
-                    const docRef = doc(collection(db, "archives"));
-                    batch.set(docRef, {
-                        period: archive.period,
-                        totalPayroll: archive.totalPayroll,
-                        departments: archive.departments,
-                    });
-                });
-                
-                batch.set(metadataRef, { initialized: true, timestamp: new Date() });
-                
-                await batch.commit();
-                console.log("Mock data initialized.");
-            } else {
-                // Ensure superadmin PIN is always reset to default on load
-                const superAdminQuery = query(collection(db, "admins"), where("role", "==", "superadmin"));
-                const superAdminSnapshot = await getDocs(superAdminQuery);
-                if (!superAdminSnapshot.empty) {
-                    const superAdminDoc = superAdminSnapshot.docs[0];
-                    if (superAdminDoc.data().pin !== "7624") {
-                        await updateDoc(superAdminDoc.ref, { pin: "7624" });
-                        console.log("Superadmin PIN has been reset to default.");
-                    }
-                } else {
-                     // If superadmin somehow got deleted, re-create it.
-                    await setDoc(doc(collection(db, "admins")), { name: "Admin", pin: "7624", role: "superadmin" });
-                    console.log("Superadmin was missing and has been re-created.");
-                }
-            }
-            await fetchData();
-        } catch (error) {
-            console.error("Error during data initialization:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-    initializeData();
-  }, [fetchData]);
+      const storedCompanyId = sessionStorage.getItem('companyId');
+      if (storedCompanyId) {
+          setCompanyId(storedCompanyId);
+          fetchDataForCompany(storedCompanyId);
+      } else {
+          setLoading(false);
+      }
+  }, [fetchDataForCompany]);
 
 
-  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage'>) => {
+  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>) => {
+    if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
     const newEmployee: Omit<Employee, 'id'> = {
       ...employeeData,
+      companyId,
       registrationDate: new Date().toISOString().split('T')[0],
       attendance: days.reduce((acc, day) => ({ ...acc, [day]: false }), {}),
       photoUrl: employeeData.photoUrl || `https://placehold.co/100x100.png?text=${employeeData.firstName.charAt(0)}${employeeData.lastName.charAt(0)}`,
@@ -147,6 +116,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateEmployee = async (employeeId: string, data: EmployeeUpdatePayload) => {
+    if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
     const docRef = doc(db, "employees", employeeId);
     const { dailyWage, ...restData } = data;
     const employeeToUpdate = employees.find(e => e.id === employeeId);
@@ -194,16 +164,19 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     ));
   }
 
-  const addDepartment = async (department: Omit<Department, 'id'>) => {
+  const addDepartment = async (department: Omit<Department, 'id' | 'companyId'>) => {
+     if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
      const nameExists = departments.some(d => d.name.toLowerCase() === department.name.toLowerCase());
      if(nameExists) {
         throw new Error("Un département avec ce nom existe déjà.");
      }
-    const docRef = await addDoc(collection(db, "departments"), department);
-    setDepartments([...departments, { ...department, id: docRef.id }]);
+    const newDepartment = { ...department, companyId };
+    const docRef = await addDoc(collection(db, "departments"), newDepartment);
+    setDepartments([...departments, { ...newDepartment, id: docRef.id }]);
   };
 
-  const updateDepartment = async (originalName: string, updatedDepartmentData: Omit<Department, 'id'>) => {
+  const updateDepartment = async (originalName: string, updatedDepartmentData: Omit<Department, 'id' | 'companyId'>) => {
+      if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
       const originalDept = departments.find(d => d.name === originalName);
       if(!originalDept || !originalDept.id) return;
 
@@ -216,9 +189,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const oldDeptRef = doc(db, "departments", originalDept.id);
 
       if(isRenaming) {
-        batch.update(oldDeptRef, updatedDepartmentData);
+        batch.update(oldDeptRef, { ...updatedDepartmentData });
         
-        const employeesToUpdateQuery = query(collection(db, 'employees'), where('domain', '==', originalName));
+        const employeesToUpdateQuery = query(collection(db, 'employees'), where('companyId', '==', companyId), where('domain', '==', originalName));
         const employeesToUpdateSnapshot = await getDocs(employeesToUpdateQuery);
         employeesToUpdateSnapshot.forEach(empDoc => {
             batch.update(doc(db, "employees", empDoc.id), { domain: updatedDepartmentData.name });
@@ -228,7 +201,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       }
       
       await batch.commit();
-      await fetchData(); // Refetch all data to ensure consistency
+      fetchDataForCompany(companyId); // Refetch all data to ensure consistency
   };
 
   const deleteDepartment = async (departmentName: string) => {
@@ -244,6 +217,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const startNewWeek = async () => {
+    if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
     const totalPayroll = employees.reduce((total, emp) => {
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
@@ -264,6 +238,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
     const periodId = `Semaine du ${new Date().toLocaleDateString('fr-FR')}`;
     const newArchiveData = {
+        companyId,
         period: periodId,
         totalPayroll,
         departments: Object.entries(departmentTotals).map(([name, data]) => ({ name, ...data })),
@@ -275,7 +250,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     batch.set(archiveRef, newArchiveData);
 
     const updatedEmployeesForState: Employee[] = [];
-    employees.forEach(emp => {
+    const employeesQuery = query(collection(db, "employees"), where("companyId", "==", companyId));
+    const employeesSnapshot = await getDocs(employeesQuery);
+
+    employeesSnapshot.docs.forEach(empDoc => {
+        const emp = { id: empDoc.id, ...empDoc.data() } as Employee;
         const empRef = doc(db, "employees", emp.id);
         const newAttendance = days.reduce((acc, day) => ({ ...acc, [day]: false }), {});
         const newCurrentWeekWage = emp.dailyWage;
@@ -299,18 +278,16 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
 
 
-  const value = { employees, departments, archives, admins, addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, days, addDepartment, updateDepartment, deleteDepartment, startNewWeek, fetchAdmins, deleteArchive };
+  const value = { 
+    employees, departments, archives, admins, companyId, setCompanyId, isLoading: loading,
+    addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, 
+    days, addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
+    fetchAdmins, deleteArchive, fetchDataForCompany, clearData
+  };
   
   return (
     <EmployeeContext.Provider value={value}>
-      {loading ? (
-        <div className="flex h-screen w-full items-center justify-center">
-            <div className="text-center">
-                <p className="text-lg font-semibold">Chargement des données...</p>
-                <p className="text-sm text-muted-foreground">Veuillez patienter.</p>
-            </div>
-        </div>
-      ) : children}
+      {children}
     </EmployeeContext.Provider>
   );
 };

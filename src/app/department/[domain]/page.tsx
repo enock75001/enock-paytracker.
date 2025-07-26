@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -208,7 +207,7 @@ function AttendanceTab({ domain }: { domain: string }) {
             `${employee.firstName} ${employee.lastName}`,
             ...attendanceStatus,
             daysPresent.toString(),
-            `${weeklyPay.toLocaleString('de-DE')} FCFA`
+            `${weeklyPay.toLocaleString('fr-FR')} FCFA`
         ];
     });
 
@@ -218,7 +217,7 @@ function AttendanceTab({ domain }: { domain: string }) {
         body: body,
         foot: [[
             { content: 'Total Département', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } },
-            { content: `${departmentTotalPay.toLocaleString('de-DE')} FCFA`, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: `${departmentTotalPay.toLocaleString('fr-FR')} FCFA`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
         headStyles: { fillColor: [44, 62, 80], halign: 'center', fontStyle: 'bold' },
@@ -292,7 +291,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </Avatar>
                             <div>
                             <div className="font-medium">{employee.firstName} {employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{(employee.currentWeekWage || employee.dailyWage || 0).toLocaleString('de-DE')} FCFA/jour</div>
+                            <div className="text-sm text-muted-foreground">{(employee.currentWeekWage || employee.dailyWage || 0).toLocaleString('fr-FR')} FCFA/jour</div>
                             </div>
                         </div>
                         </TableCell>
@@ -334,47 +333,52 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { departments } = useEmployees();
+  const { departments, isLoading, clearData } = useEmployees();
   
   useEffect(() => {
     const userType = sessionStorage.getItem('userType');
     const departmentName = sessionStorage.getItem('department');
-    if (userType !== 'manager' || departmentName !== domain) {
+    const companyId = sessionStorage.getItem('companyId');
+    if (userType !== 'manager' || departmentName !== domain || !companyId) {
       router.replace('/');
     }
   }, [router, domain]);
 
   const department = departments.find(d => d.name === domain);
 
-  if (!department) {
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <p className="text-lg font-semibold">Chargement...</p>
+        </div>
+    );
+  }
+
+  if (!department && !isLoading) {
       return (
         <div className="flex h-screen w-full items-center justify-center">
             <div className="text-center">
-                <p className="text-lg font-semibold">Chargement ou redirection...</p>
+                <p className="text-lg font-semibold text-destructive">Département non trouvé ou accès non autorisé.</p>
+                <Button className="mt-4" onClick={() => router.push('/')}>Retour</Button>
             </div>
         </div>
       )
   }
 
   const handleLogout = () => {
+    clearData();
     sessionStorage.clear();
-    router.push('/manager-login');
+    router.push('/');
   }
 
   return (
     <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 container mx-auto p-4 md:p-8">
-            <div className="mb-6 flex justify-end">
-                <Button variant="outline" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Déconnexion
-                </Button>
-            </div>
             <div className="mb-4">
                 <h1 className="text-4xl font-bold font-headline">Département : {domain}</h1>
                 <p className="text-muted-foreground">
-                    Interface de présence pour le responsable {department.manager.name}.
+                    Interface de présence pour le responsable {department?.manager.name}.
                 </p>
             </div>
             <Tabs defaultValue="attendance" className="w-full">

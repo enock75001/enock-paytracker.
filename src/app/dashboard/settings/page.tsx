@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { addAdmin, updateAdminPin, deleteAdmin as deleteAdminAction } from '@/lib/auth';
+import { addAdmin as addAdminAction, updateAdminPin, deleteAdmin as deleteAdminAction } from '@/lib/auth';
 
 const adminSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
@@ -53,7 +53,7 @@ const pinSchema = z.object({
 });
 
 export default function SettingsPage() {
-    const { admins, fetchAdmins } = useEmployees();
+    const { admins, fetchAdmins, companyId } = useEmployees();
     const { toast } = useToast();
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
@@ -74,8 +74,9 @@ export default function SettingsPage() {
     });
 
     const onAddAdjointSubmit = async (values: z.infer<typeof adminSchema>) => {
+        if (!companyId) return;
         try {
-            await addAdmin(values.name, values.pin);
+            await addAdminAction(companyId, values.name, values.pin);
             toast({ title: 'Succès', description: 'Administrateur adjoint ajouté.' });
             fetchAdmins();
             setIsFormDialogOpen(false);
@@ -111,7 +112,7 @@ export default function SettingsPage() {
         <div className="flex-1 space-y-8 p-8 pt-6">
             <div>
                 <h2 className="text-3xl font-bold tracking-tight">Paramètres</h2>
-                <p className="text-muted-foreground">Gérez les accès administrateur.</p>
+                <p className="text-muted-foreground">Gérez les accès administrateur de votre entreprise.</p>
             </div>
 
             <Card>

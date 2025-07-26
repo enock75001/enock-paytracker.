@@ -10,45 +10,87 @@ import { Label } from "@/components/ui/label";
 import { useEmployees } from '@/context/employee-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, User, Lock, ArrowLeft } from 'lucide-react';
+import { AlertCircle, User, Lock, ArrowLeft, Building } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { db } from '@/lib/firebase';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import type { Department } from '@/lib/types';
+import { findCompanyByName } from '@/lib/auth';
 
 export default function ManagerLoginPage() {
+    const [companyName, setCompanyName] = useState('');
+    const [departmentsForCompany, setDepartmentsForCompany] = useState<Department[]>([]);
     const [selectedDepartment, setSelectedDepartment] = useState('');
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const { departments } = useEmployees();
     const { toast } = useToast();
+    const { clearData, setCompanyId, fetchDataForCompany } = useEmployees();
 
-    useEffect(() => {
-        // Clear any existing session on login page load
+     useEffect(() => {
+        clearData();
         sessionStorage.clear();
-    }, []);
+    }, [clearData]);
 
-    const selectedManagerName = departments.find(d => d.name === selectedDepartment)?.manager.name;
+    const handleCompanyChange = async (name: string) => {
+        setCompanyName(name);
+        setError('');
+        setDepartmentsForCompany([]);
+        setSelectedDepartment('');
+        setPin('');
+        if (name) {
+            setLoading(true);
+            const company = await findCompanyByName(name);
+            if(company) {
+                 const deptsQuery = query(collection(db, "departments"), where("companyId", "==", company.id));
+                 const deptsSnapshot = await getDocs(deptsQuery);
+                 const depts = deptsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Department[];
+                 setDepartmentsForCompany(depts);
+            } else {
+                setError("Aucune entreprise trouvée avec ce nom.");
+            }
+            setLoading(false);
+        }
+    }
+
+    const selectedManagerName = departmentsForCompany.find(d => d.name === selectedDepartment)?.manager.name;
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
-        if (!selectedDepartment || !pin) {
-            setError("Veuillez sélectionner un département et entrer votre code PIN.");
+        if (!companyName || !selectedDepartment || !pin) {
+            setError("Veuillez sélectionner une entreprise, un département et entrer votre code PIN.");
+            setLoading(false);
             return;
         }
         
-        const department = departments.find(d => d.name === selectedDepartment);
+        const company = await findCompanyByName(companyName);
+        if (!company) {
+            setError("Erreur: entreprise non trouvée.");
+            setLoading(false);
+            return;
+        }
+
+        const department = departmentsForCompany.find(d => d.name === selectedDepartment);
 
         if (department && department.manager.pin === pin) {
             sessionStorage.setItem('userType', 'manager');
             sessionStorage.setItem('department', department.name);
+            sessionStorage.setItem('companyId', company.id);
+            sessionStorage.setItem('companyName', company.name);
+            
+            setCompanyId(company.id);
+            await fetchDataForCompany(company.id);
 
             try {
                 await addDoc(collection(db, "login_logs"), {
+                    companyId: company.id,
+                    companyName: company.name,
                     userName: department.manager.name,
                     userType: 'manager',
                     details: department.name,
@@ -65,8 +107,9 @@ export default function ManagerLoginPage() {
             });
             router.push(`/department/${encodeURIComponent(department.name)}`);
         } else {
-            setError("Code PIN incorrect. Veuillez réessayer.");
+            setError("Code PIN incorrect pour ce département. Veuillez réessayer.");
         }
+        setLoading(false);
     };
 
     return (
@@ -83,13 +126,32 @@ export default function ManagerLoginPage() {
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
                             <div className="space-y-2">
+                                <Label htmlFor="company-name">Nom de l'entreprise</Label>
+                                <div className="relative">
+                                     <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="company-name"
+                                        type="text"
+                                        placeholder="Mon Entreprise SAS"
+                                        value={companyName}
+                                        onChange={(e) => handleCompanyChange(e.target.value)}
+                                        required
+                                        className="pl-8"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
                                 <Label htmlFor="department">Département</Label>
-                                <Select onValueChange={setSelectedDepartment} defaultValue={selectedDepartment}>
+                                <Select 
+                                    onValueChange={setSelectedDepartment} 
+                                    value={selectedDepartment} 
+                                    disabled={!companyName || loading || departmentsForCompany.length === 0}
+                                >
                                     <SelectTrigger id="department">
-                                        <SelectValue placeholder="Sélectionnez votre département" />
+                                        <SelectValue placeholder={loading ? "Chargement..." : "Sélectionnez votre département"} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+                                        {departmentsForCompany.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -125,8 +187,8 @@ export default function ManagerLoginPage() {
                                     <AlertDescription>{error}</AlertDescription>
                                 </Alert>
                             )}
-                            <Button type="submit" className="w-full">
-                                Se connecter
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? 'Chargement...' : 'Se connecter'}
                             </Button>
                             <Button variant="link" asChild className="w-full">
                                 <Link href="/">

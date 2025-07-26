@@ -3,8 +3,15 @@ export type Attendance = {
   [day: string]: boolean;
 };
 
+export interface Company {
+    id: string;
+    name: string;
+    superAdminName: string;
+}
+
 export interface Employee {
   id: string;
+  companyId: string;
   firstName: string;
   lastName:string;
   domain: string;
@@ -20,6 +27,7 @@ export interface Employee {
 
 export interface Department {
   id?: string;
+  companyId: string;
   name: string;
   manager: {
     name: string;
@@ -29,6 +37,7 @@ export interface Department {
 
 export interface ArchivedPayroll {
   id?: string;
+  companyId: string;
   period: string; // e.g., "2024-W25"
   totalPayroll: number;
   departments: {
@@ -40,6 +49,7 @@ export interface ArchivedPayroll {
 
 export interface Admin {
     id: string;
+    companyId: string;
     name: string;
     pin: string;
     role: 'superadmin' | 'adjoint';
@@ -47,6 +57,8 @@ export interface Admin {
 
 export interface LoginLog {
   id?: string;
+  companyId: string;
+  companyName: string;
   userName: string;
   userType: 'admin' | 'manager';
   details: string; // Department name for manager, role for admin

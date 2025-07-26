@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, User, Lock, ArrowLeft, HelpCircle } from 'lucide-react';
+import { AlertCircle, User, Lock, ArrowLeft, HelpCircle, Building } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
-import { loginAdmin } from '@/lib/auth';
+import { loginAdmin, findCompanyByName } from '@/lib/auth';
 import { db } from '@/lib/firebase';
 import { addDoc, collection } from 'firebase/firestore';
+import { useEmployees } from '@/context/employee-provider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,34 +28,54 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export default function AdminLoginPage() {
+    const [companyName, setCompanyName] = useState('');
     const [name, setName] = useState('');
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
+    const { setCompanyId, fetchDataForCompany, clearData } = useEmployees();
 
     useEffect(() => {
+        clearData();
         sessionStorage.clear();
-    }, []);
+    }, [clearData]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
-        if (!name || !pin) {
-            setError("Veuillez entrer le nom et le code PIN.");
+        if (!companyName || !name || !pin) {
+            setError("Veuillez entrer le nom de l'entreprise, votre nom et votre code PIN.");
+            setLoading(false);
             return;
         }
 
         try {
-            const admin = await loginAdmin(name, pin);
+            const company = await findCompanyByName(companyName);
+            if (!company) {
+                setError("Aucune entreprise trouvée avec ce nom.");
+                setLoading(false);
+                return;
+            }
+
+            const admin = await loginAdmin(company.id, name, pin);
             if (admin) {
                 sessionStorage.setItem('userType', 'admin');
                 sessionStorage.setItem('adminName', admin.name);
                 sessionStorage.setItem('adminId', admin.id);
+                sessionStorage.setItem('companyId', company.id);
+                sessionStorage.setItem('companyName', company.name);
+
+                setCompanyId(company.id);
+                await fetchDataForCompany(company.id);
 
                 try {
                     await addDoc(collection(db, "login_logs"), {
+                        companyId: company.id,
+                        companyName: company.name,
                         userName: admin.name,
                         userType: 'admin',
                         details: admin.role === 'superadmin' ? 'Super Administrateur' : 'Adjoint',
@@ -71,10 +92,12 @@ export default function AdminLoginPage() {
                 });
                 router.push(`/dashboard`);
             } else {
-                setError("Nom d'utilisateur ou code PIN incorrect.");
+                setError("Nom d'utilisateur ou code PIN incorrect pour cette entreprise.");
             }
         } catch (err: any) {
             setError(err.message || "Une erreur est survenue.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -91,8 +114,23 @@ export default function AdminLoginPage() {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="company-name">Nom de l'entreprise</Label>
+                                <div className="relative">
+                                    <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="company-name"
+                                        type="text"
+                                        placeholder="Mon Entreprise SAS"
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        required
+                                        className="pl-8"
+                                    />
+                                </div>
+                            </div>
                             <div className="space-y-2">
-                                <Label htmlFor="admin-name">Nom</Label>
+                                <Label htmlFor="admin-name">Votre Nom</Label>
                                 <div className="relative">
                                     <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
@@ -120,7 +158,7 @@ export default function AdminLoginPage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Réinitialisation du Code PIN</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Pour des raisons de sécurité, la réinitialisation du code PIN du super administrateur nécessite une intervention manuelle. Veuillez contacter le support pour obtenir de l'aide.
+                                                   Pour réinitialiser le code PIN, veuillez contacter le super administrateur de votre entreprise. Si vous êtes le super administrateur et que vous avez perdu l'accès, vous devrez contacter le support technique.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -150,8 +188,8 @@ export default function AdminLoginPage() {
                                     <AlertDescription>{error}</AlertDescription>
                                 </Alert>
                             )}
-                            <Button type="submit" className="w-full">
-                                Se connecter
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? 'Connexion...' : 'Se connecter'}
                             </Button>
                             <Button variant="link" asChild className="w-full">
                                 <Link href="/">
@@ -166,3 +204,4 @@ export default function AdminLoginPage() {
         </div>
     );
 }
+

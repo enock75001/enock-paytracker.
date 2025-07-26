@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
@@ -8,7 +9,7 @@ import { PageProgressBar } from '@/components/page-progress-bar';
 
 export const metadata: Metadata = {
   title: 'Enock PayTracker',
-  description: 'Employee management and payroll application.',
+  description: 'Employee management and payroll application for multiple companies.',
 };
 
 export default function RootLayout({
@@ -27,10 +28,10 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        <PageProgressBar />
         <EmployeeProvider>
-          {children}
-          <Toaster />
+            <PageProgressBar />
+            {children}
+            <Toaster />
         </EmployeeProvider>
       </body>
     </html>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -240,18 +239,37 @@ export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee } = useEmployees();
+  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading } = useEmployees();
+  
+   useEffect(() => {
+    const userType = sessionStorage.getItem('userType');
+    const companyId = sessionStorage.getItem('companyId');
+    if (!userType || !companyId) {
+      router.replace('/');
+    }
+  }, [router]);
 
   const employee = employees.find(emp => emp.id === id);
 
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+             <p className="text-lg font-semibold">Chargement des données de l'employé...</p>
+        </div>
+    );
+  }
+
   if (!employee) {
     return (
-        <div className="container mx-auto p-4 md:p-8 text-center">
-            <h1 className="text-2xl font-bold">Employé non trouvé</h1>
-            <p className="text-muted-foreground">L'employé que vous recherchez n'existe pas.</p>
-            <Button asChild className="mt-4">
-                <Link href="/dashboard">Retour au tableau de bord</Link>
-            </Button>
+         <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-1 container mx-auto p-4 md:p-8 text-center">
+                <h1 className="text-2xl font-bold">Employé non trouvé</h1>
+                <p className="text-muted-foreground">L'employé que vous recherchez n'existe pas ou n'appartient pas à votre entreprise.</p>
+                <Button asChild className="mt-4">
+                    <Link href="/dashboard">Retour au tableau de bord</Link>
+                </Button>
+            </main>
         </div>
     );
   }
@@ -291,7 +309,7 @@ export default function EmployeeRecapPage() {
         body: [
             ['Nom Complet', `${employee.firstName} ${employee.lastName}`],
             ['Département', employee.domain],
-            ['Salaire/Jour (cette semaine)', `${(currentWage || 0).toLocaleString('de-DE')} FCFA`],
+            ['Salaire/Jour (cette semaine)', `${(currentWage || 0).toLocaleString('fr-FR')} FCFA`],
         ],
         theme: 'plain',
         styles: { fontSize: 11, cellPadding: 2 },
@@ -338,7 +356,7 @@ export default function EmployeeRecapPage() {
             ['Jours Présents', `${daysPresent} jour(s)`],
             ['Jours Absents', `${days.length - daysPresent} jour(s)`],
             [{ content: 'Total Paie Hebdomadaire', styles: { fontStyle: 'bold', fontSize: 12 } },
-             { content: `${weeklyPay.toLocaleString('de-DE')} FCFA`, styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }],
+             { content: `${weeklyPay.toLocaleString('fr-FR')} FCFA`, styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }],
         ],
         theme: 'grid',
         styles: { fontSize: 11, cellPadding: 3 },
@@ -393,7 +411,7 @@ export default function EmployeeRecapPage() {
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                         <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Domaine:</strong> {employee.domain}</div>
-                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {(employee.dailyWage || 0).toLocaleString('de-DE')} FCFA</div>
+                        <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire Journalier de Base:</strong> {(employee.dailyWage || 0).toLocaleString('fr-FR')} FCFA</div>
                     </div>
                 </div>
                 
@@ -406,7 +424,7 @@ export default function EmployeeRecapPage() {
                         <CardContent className="space-y-4">
                              <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Salaire pour cette semaine:</span>
-                                <span className="font-semibold">{(currentWage || 0).toLocaleString('de-DE')} FCFA / jour</span>
+                                <span className="font-semibold">{(currentWage || 0).toLocaleString('fr-FR')} FCFA / jour</span>
                             </div>
                             <Table>
                                 <TableHeader>
@@ -431,7 +449,7 @@ export default function EmployeeRecapPage() {
                             </Table>
                             <div className="flex justify-between items-center pt-4 border-t">
                                 <span className="font-semibold text-lg">Paie de la semaine:</span>
-                                <span className="font-bold text-2xl text-primary">{(weeklyPay || 0).toLocaleString('de-DE')} FCFA</span>
+                                <span className="font-bold text-2xl text-primary">{(weeklyPay || 0).toLocaleString('fr-FR')} FCFA</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -444,7 +462,7 @@ export default function EmployeeRecapPage() {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <span className="font-semibold">Salaire total estimé:</span>
-                                    <span className="font-bold text-2xl text-primary">{(estimatedTotalEarnings || 0).toLocaleString('de-DE')} FCFA</span>
+                                    <span className="font-bold text-2xl text-primary">{(estimatedTotalEarnings || 0).toLocaleString('fr-FR')} FCFA</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
                                     Basé sur {weeksSinceRegistration} semaines de travail depuis l'inscription, avec une estimation de 5 jours de travail par semaine.

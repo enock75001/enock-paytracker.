@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type LoginLog } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -12,15 +12,22 @@ import { History, Calendar, Clock, User, Briefcase, Shield } from 'lucide-react'
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useEmployees } from '@/context/employee-provider';
 
 export default function LogsPage() {
   const [logs, setLogs] = useState<LoginLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const { companyId } = useEmployees();
 
   useEffect(() => {
     const fetchLogs = async () => {
+      if (!companyId) {
+        setLoading(false);
+        return;
+      }
       try {
-        const logsQuery = query(collection(db, 'login_logs'), orderBy('timestamp', 'desc'), limit(100));
+        setLoading(true);
+        const logsQuery = query(collection(db, 'login_logs'), where("companyId", "==", companyId), orderBy('timestamp', 'desc'), limit(100));
         const logsSnapshot = await getDocs(logsQuery);
         const logsData = logsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as LoginLog[];
         setLogs(logsData);
@@ -32,7 +39,7 @@ export default function LogsPage() {
     };
 
     fetchLogs();
-  }, []);
+  }, [companyId]);
 
   const renderLogDetails = (log: LoginLog) => {
     if (log.userType === 'admin') {
@@ -57,7 +64,7 @@ export default function LogsPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Historique des Connexions</h2>
           <p className="text-muted-foreground">
-            Suivez les accès des responsables et des administrateurs.
+            Suivez les accès des responsables et des administrateurs de votre entreprise.
           </p>
         </div>
       </div>
@@ -68,7 +75,7 @@ export default function LogsPage() {
                 Dernières Activités
             </CardTitle>
             <CardDescription>
-                Liste des 100 dernières connexions enregistrées.
+                Liste des 100 dernières connexions enregistrées pour votre entreprise.
             </CardDescription>
         </CardHeader>
         <CardContent>
