@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,11 @@ export default function AdminLoginPage() {
     const router = useRouter();
     const { toast } = useToast();
 
+    useEffect(() => {
+        // Clear any existing session on login page load
+        sessionStorage.clear();
+    }, []);
+
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -34,6 +39,7 @@ export default function AdminLoginPage() {
         }
 
         if (name === ADMIN_NAME && pin === ADMIN_PIN) {
+            sessionStorage.setItem('userType', 'admin');
             toast({
                 title: "Connexion réussie",
                 description: `Bienvenue, ${name}.`,

@@ -299,6 +299,4 @@ export default function RecapPage() {
       </Card>
     </div>
   );
-
-    
-
+}

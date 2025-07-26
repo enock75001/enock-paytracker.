@@ -75,7 +75,7 @@ export default function ArchivesPage() {
                   <AccordionContent className="p-0">
                     {groupedArchives[year]
                         .map(archive => (
-                            <div key={archive.period} className="border-t p-4">
+                            <div key={archive.id} className="border-t p-4">
                                 <h3 className="font-semibold text-lg">{archive.period}</h3>
                                 <p className="text-muted-foreground mb-2">
                                   Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>

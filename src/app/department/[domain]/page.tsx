@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -17,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, LogOut } from 'lucide-react';
+import { Eye, LogOut, Download } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -41,6 +40,9 @@ import {
 } from '@/components/ui/tabs';
 import { ImagePicker } from '@/components/image-picker';
 import { Header } from '@/components/header';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { useEffect } from 'react';
 
 
 const registerSchema = z.object({
@@ -177,14 +179,86 @@ function AttendanceTab({ domain }: { domain: string }) {
 
   const weekPeriod = `Semaine du ${format(firstDayOfWeek, 'dd MMM', { locale: fr })} au ${format(lastDayOfWeek, 'dd MMM yyyy', { locale: fr })}`;
 
+  const downloadAttendancePdf = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Feuille de Présence & Paie - ${domain}`, pageWidth / 2, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(weekPeriod, pageWidth / 2, 28, { align: 'center' });
+    
+    const head = [['Employé', ...days.map(d => d.substring(0,3)), 'Présents', 'Absents', 'Paie (FCFA)']];
+
+    let departmentTotalPay = 0;
+
+    const body = employeesInDomain.map(employee => {
+        const daysPresent = days.filter(day => employee.attendance[day]).length;
+        const daysAbsent = days.length - daysPresent;
+        const weeklyPay = daysPresent * (employee.currentWeekWage || employee.dailyWage || 0);
+        departmentTotalPay += weeklyPay;
+        const attendanceStatus = days.map(day => employee.attendance[day] ? 'P' : 'A');
+        
+        return [
+            `${employee.firstName} ${employee.lastName}`,
+            ...attendanceStatus,
+            daysPresent.toString(),
+            daysAbsent.toString(),
+            new Intl.NumberFormat('fr-FR').format(weeklyPay)
+        ];
+    });
+
+    (doc as any).autoTable({
+        startY: 35,
+        head: head,
+        body: body,
+        foot: [[
+            { content: 'Total Département', colSpan: 9, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: new Intl.NumberFormat('fr-FR').format(departmentTotalPay) + ' FCFA', styles: { halign: 'right', fontStyle: 'bold' } },
+        ]],
+        theme: 'striped',
+        headStyles: { fillColor: [44, 62, 80], halign: 'center' },
+        footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80] },
+        columnStyles: {
+            0: { fontStyle: 'bold' },
+            1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' },
+            5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' },
+            8: { halign: 'center', fontStyle: 'bold' },
+            9: { halign: 'center', fontStyle: 'bold' },
+            10: { halign: 'right', fontStyle: 'bold' },
+        },
+        didParseCell: function(data: any) {
+            if (data.section === 'body' && data.column.index > 0 && data.column.index < 8) {
+                if (data.cell.raw === 'P') {
+                    data.cell.styles.textColor = [39, 174, 96]; // Green for Present
+                } else {
+                    data.cell.styles.textColor = [192, 57, 43]; // Red for Absent
+                }
+            }
+        }
+    });
+
+    doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   return (
     <Card className="mt-6">
         <CardHeader>
-            <CardTitle className="text-2xl font-bold font-headline capitalize">Feuille de Présence</CardTitle>
-            <CardDescription>
-                {weekPeriod}. Cochez les jours de présence pour les employés du département : <span className="font-semibold">{domain}</span>.
-            </CardDescription>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle className="text-2xl font-bold font-headline capitalize">Feuille de Présence</CardTitle>
+                    <CardDescription>
+                        {weekPeriod}. Cochez les jours de présence pour les employés du département : <span className="font-semibold">{domain}</span>.
+                    </CardDescription>
+                </div>
+                <Button onClick={downloadAttendancePdf}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Télécharger la Présence
+                </Button>
+            </div>
         </CardHeader>
         <CardContent>
             <div className="overflow-x-auto border rounded-lg">
@@ -256,18 +330,29 @@ export default function DepartmentPage() {
   const domain = decodeURIComponent(params.domain as string);
   const { departments } = useEmployees();
   
+  useEffect(() => {
+    const userType = sessionStorage.getItem('userType');
+    const departmentName = sessionStorage.getItem('department');
+    if (userType !== 'manager' || departmentName !== domain) {
+      router.replace('/');
+    }
+  }, [router, domain]);
+
   const department = departments.find(d => d.name === domain);
 
   if (!department) {
       return (
-        <div className="container mx-auto p-4 md:p-8 text-center">
-            <h1 className="text-2xl font-bold">Département non trouvé</h1>
-            <p className="text-muted-foreground">Ce département n'existe pas ou vous n'avez pas la permission de le voir.</p>
-            <Button asChild className="mt-4">
-                <Link href="/manager-login">Retour à la connexion</Link>
-            </Button>
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="text-center">
+                <p className="text-lg font-semibold">Chargement ou redirection...</p>
+            </div>
         </div>
       )
+  }
+
+  const handleLogout = () => {
+    sessionStorage.clear();
+    router.push('/manager-login');
   }
 
   return (
@@ -275,7 +360,7 @@ export default function DepartmentPage() {
         <Header />
         <main className="flex-1 container mx-auto p-4 md:p-8">
             <div className="mb-6 flex justify-end">
-                <Button variant="outline" onClick={() => router.push('/manager-login')}>
+                <Button variant="outline" onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Déconnexion
                 </Button>

@@ -1,1 +1,13 @@
-{}
+{
+  "hosting": {
+    "source": ".",
+    "rewrites": [
+      {
+        "source": "**",
+        "apphosting": {
+          "backendId": "paytracker-gfw4j"
+        }
+      }
+    ]
+  }
+}

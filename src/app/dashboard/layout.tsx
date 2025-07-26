@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import {
@@ -15,10 +14,11 @@ import {
   SidebarProvider,
   SidebarTrigger
 } from "@/components/ui/sidebar";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
 import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings } from 'lucide-react';
 import { Header } from "@/components/header";
+import { useEffect } from "react";
 
 const menuItems = [
     { href: '/dashboard', label: 'Tableau de bord', icon: Home },
@@ -34,6 +34,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const userType = sessionStorage.getItem('userType');
+    if (userType !== 'admin') {
+      router.replace('/');
+    }
+  }, [router]);
 
   return (
     <SidebarProvider>

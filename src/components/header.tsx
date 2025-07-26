@@ -1,7 +1,7 @@
 
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Sheet,
   SheetContent,
@@ -25,6 +25,7 @@ import { useSidebar } from './ui/sidebar';
 
 export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const pathname = usePathname();
+  const router = useRouter();
   const { departments } = useEmployees();
   
   // Determine view type based on URL
@@ -36,6 +37,12 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
   const domain = isManagerPath ? decodeURIComponent(pathname.split('/')[2]) : null;
   const managerName = domain ? departments.find(d => d.name === domain)?.manager.name : null;
 
+
+  const handleLogout = () => {
+    sessionStorage.clear();
+    const destination = isManagerPath ? '/manager-login' : '/admin-login';
+    router.push(destination);
+  };
 
   const renderHomeLink = () => {
     let href = "/";
@@ -92,8 +99,8 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
                          </div>
                        </DropdownMenuLabel>
                        <DropdownMenuSeparator />
-                       <DropdownMenuItem asChild>
-                           <Link href="/admin-login" className="w-full flex items-center"><LogOut className="mr-2 h-4 w-4" />Se Déconnecter</Link>
+                       <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                           <LogOut className="mr-2 h-4 w-4" />Se Déconnecter
                        </DropdownMenuItem>
                      </>
                    ) : (
@@ -105,8 +112,8 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
                          </div>
                        </DropdownMenuLabel>
                        <DropdownMenuSeparator />
-                       <DropdownMenuItem asChild>
-                           <Link href="/manager-login" className="w-full flex items-center"><LogOut className="mr-2 h-4 w-4" />Se Déconnecter</Link>
+                       <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                           <LogOut className="mr-2 h-4 w-4" />Se Déconnecter
                        </DropdownMenuItem>
                      </>
                    )}

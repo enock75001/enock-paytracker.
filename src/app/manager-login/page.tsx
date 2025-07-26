@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,11 @@ export default function ManagerLoginPage() {
     const { departments } = useEmployees();
     const { toast } = useToast();
 
+    useEffect(() => {
+        // Clear any existing session on login page load
+        sessionStorage.clear();
+    }, []);
+
     const selectedManagerName = departments.find(d => d.name === selectedDepartment)?.manager.name;
 
     const handleLogin = (e: React.FormEvent) => {
@@ -37,6 +42,8 @@ export default function ManagerLoginPage() {
         const department = departments.find(d => d.name === selectedDepartment);
 
         if (department && department.manager.pin === pin) {
+            sessionStorage.setItem('userType', 'manager');
+            sessionStorage.setItem('department', department.name);
             toast({
                 title: "Connexion réussie",
                 description: `Bienvenue, ${department.manager.name}.`,
