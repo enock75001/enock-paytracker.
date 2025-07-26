@@ -101,11 +101,12 @@ export interface LoginLog {
 
 export interface ChatMessage {
   id?: string;
-  conversationId: string; // New field to group messages. e.g., 'userId1_userId2'
+  conversationId: string;
+  conversationParticipants: string[]; // e.g. ['userId1', 'userId2']
   senderId: string;
-  receiverId: string; // New field for private messages
+  receiverId: string;
   text: string;
-  timestamp: any; // Can be a server timestamp or a number
+  timestamp: any;
   read: boolean;
 }
 
@@ -118,3 +119,5 @@ export interface OnlineUser {
     departmentName?: string;
     lastSeen: number; // Unix timestamp
 }
+
+    

@@ -145,50 +145,41 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     });
     
     // Listen for chat messages relevant to the current user
-    const sentMessagesQuery = query(collection(db, "messages"), where("senderId", "==", userId));
-    const receivedMessagesQuery = query(collection(db, "messages"), where("receiverId", "==", userId));
-    
-    const processSnapshot = (snapshot: any) => {
-        const newMessages: ChatMessage[] = [];
-        snapshot.forEach((doc: any) => {
-             const data = doc.data();
-             newMessages.push({
-                ...data,
-                id: doc.id,
-                timestamp: data.timestamp instanceof Timestamp ? data.timestamp.toMillis() : data.timestamp,
-            } as ChatMessage);
-        });
+    const messagesQuery = query(
+      collection(db, "messages"),
+      where('conversationParticipants', 'array-contains', userId),
+      orderBy('timestamp', 'asc')
+    );
+
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+        const newMessagesByConversation: ChatMessageMap = {};
         
-        setChatMessages(prev => {
-            const updatedMessages = {...prev};
-            newMessages.forEach(msg => {
-                if (!updatedMessages[msg.conversationId]) {
-                    updatedMessages[msg.conversationId] = [];
-                }
-                // Avoid duplicates
-                if (!updatedMessages[msg.conversationId].some(m => m.id === msg.id)) {
-                    updatedMessages[msg.conversationId].push(msg);
-                }
-            });
+        snapshot.docs.forEach(doc => {
+            const message = {
+                ...doc.data(),
+                id: doc.id,
+                timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
+            } as ChatMessage;
 
-             // Sort messages within each conversation
-            for (const key in updatedMessages) {
-                updatedMessages[key].sort((a, b) => a.timestamp - b.timestamp);
+            if (!newMessagesByConversation[message.conversationId]) {
+                newMessagesByConversation[message.conversationId] = [];
             }
-
-            return updatedMessages;
+            newMessagesByConversation[message.conversationId].push(message);
         });
-    };
 
-    const unsubscribeSent = onSnapshot(sentMessagesQuery, processSnapshot);
-    const unsubscribeReceived = onSnapshot(receivedMessagesQuery, processSnapshot);
+        // This approach replaces the conversation's message list entirely,
+        // ensuring we have the latest state from the DB without merging complexities.
+        setChatMessages(prev => ({
+            ...prev,
+            ...newMessagesByConversation
+        }));
+    });
 
     return () => {
         unsubscribeOnlineUsers();
-        unsubscribeSent();
-        unsubscribeReceived();
+        unsubscribeMessages();
     };
-  }, [companyId, userId]);
+}, [companyId, userId]);
 
   const fetchDataForCompany = useCallback(async (cId: string) => {
       setLoading(true);
@@ -497,8 +488,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const sendMessage = async (text: string, receiverId: string) => {
     if (!userId) throw new Error("User not authenticated.");
     const conversationId = [userId, receiverId].sort().join('_');
+    const conversationParticipants = [userId, receiverId];
     await addDoc(collection(db, 'messages'), {
       conversationId,
+      conversationParticipants,
       senderId: userId,
       receiverId,
       text,
@@ -538,3 +531,5 @@ export const useEmployees = () => {
   }
   return context;
 };
+
+    
