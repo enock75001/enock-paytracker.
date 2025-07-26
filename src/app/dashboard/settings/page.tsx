@@ -70,6 +70,12 @@ function CompanyProfileCard() {
 
     const form = useForm<z.infer<typeof companyProfileSchema>>({
         resolver: zodResolver(companyProfileSchema),
+        defaultValues: {
+            name: '',
+            description: '',
+            logoUrl: '',
+            payPeriod: 'weekly',
+        }
     });
 
     useEffect(() => {
@@ -368,3 +374,5 @@ export default function SettingsPage() {
         </div>
     );
 }
+
+    
