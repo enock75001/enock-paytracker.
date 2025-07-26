@@ -22,7 +22,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Eye, RefreshCw, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Download, Eye, RefreshCw, ArrowDownCircle, ArrowUpCircle, Receipt } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -45,6 +45,7 @@ interface WeeklySummary {
   daysPresent: number;
   totalHoursPay: number;
   totalAdjustments: number;
+  loanRepayment: number;
   totalPay: number;
   totalBonus: number;
   totalDeduction: number;
@@ -55,7 +56,7 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
 };
 
-const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary => {
+const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[]): WeeklySummary => {
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
     const daysPresent = days.filter(day => employee.attendance[day]).length;
     const totalHoursPay = daysPresent * currentWage;
@@ -64,13 +65,17 @@ const calculateWeeklyPay = (employee: Employee, days: string[]): WeeklySummary =
     const totalDeduction = (employee.adjustments || []).filter(adj => adj.type === 'deduction').reduce((acc, adj) => acc + adj.amount, 0);
     const totalAdjustments = totalBonus - totalDeduction;
 
-    const totalPay = totalHoursPay + totalAdjustments;
+    const activeLoan = loans.find(l => l.employeeId === employee.id && l.status === 'active');
+    const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+
+    const totalPay = totalHoursPay + totalAdjustments - loanRepayment;
 
     return {
         employee,
         daysPresent,
         totalHoursPay,
         totalAdjustments,
+        loanRepayment,
         totalPay,
         totalBonus,
         totalDeduction,
@@ -90,8 +95,8 @@ const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, Week
 };
 
 export default function RecapPage() {
-  const { employees, days, startNewWeek, weekPeriod, company } = useEmployees();
-  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days));
+  const { employees, days, startNewWeek, weekPeriod, company, loans } = useEmployees();
+  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days, loans));
   const groupedSummaries = groupSummariesByDomain(weeklySummaries);
   const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
   const { toast } = useToast();
@@ -129,14 +134,15 @@ export default function RecapPage() {
         
         (doc as any).autoTable({
             startY: finalY + 5,
-            head: [[{ content: domain, colSpan: 7, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
+            head: [[{ content: domain, colSpan: 8, styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' } }]],
             columns: [
                 { header: 'Employé', dataKey: 'name' },
-                { header: 'Salaire/Jour', dataKey: 'daily' },
+                { header: 'Salaire/J', dataKey: 'daily' },
                 { header: 'Jours', dataKey: 'days' },
-                { header: 'Paie de Base', dataKey: 'base' },
+                { header: 'Base', dataKey: 'base' },
                 { header: 'Primes', dataKey: 'bonus' },
                 { header: 'Avances', dataKey: 'deduction' },
+                { header: 'Remb.', dataKey: 'loan' },
                 { header: 'Paie Nette', dataKey: 'net' },
             ],
             body: summaries.map(s => ({
@@ -146,10 +152,11 @@ export default function RecapPage() {
                 base: formatCurrency(s.totalHoursPay),
                 bonus: formatCurrency(s.totalBonus),
                 deduction: formatCurrency(s.totalDeduction),
+                loan: formatCurrency(s.loanRepayment),
                 net: formatCurrency(s.totalPay),
             })),
             foot: [[
-                { content: 'Total Département', colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
+                { content: 'Total Département', colSpan: 7, styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
                 { content: formatCurrency(domainTotal), styles: { halign: 'right', fontStyle: 'bold', fontSize: 11 } },
             ]],
             theme: 'striped',
@@ -161,6 +168,7 @@ export default function RecapPage() {
                 base: { halign: 'right' },
                 bonus: { halign: 'right' },
                 deduction: { halign: 'right' },
+                loan: { halign: 'right' },
                 net: { halign: 'right', fontStyle: 'bold' },
             },
             didDrawPage: function (data: any) {
@@ -206,7 +214,7 @@ export default function RecapPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Êtes-vous sûr de vouloir commencer une nouvelle période ?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Cette action est importante : la paie actuelle sera archivée, les présences de tous les employés seront réinitialisées à zéro, et tout changement de salaire prendra effet.
+                    Cette action est importante : la paie actuelle sera archivée, les présences de tous les employés seront réinitialisées à zéro, et tout changement de salaire prendra effet. Les remboursements d'avances seront aussi déduits.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -245,6 +253,7 @@ export default function RecapPage() {
                                     <TableHead className="text-right">Paie de Base</TableHead>
                                     <TableHead className="text-right">Primes</TableHead>
                                     <TableHead className="text-right">Avances</TableHead>
+                                    <TableHead className="text-right">Remb. Avance</TableHead>
                                     <TableHead className="text-right font-bold">Paie Nette</TableHead>
                                     <TableHead className="text-center">Actions</TableHead>
                                 </TableRow>
@@ -281,6 +290,12 @@ export default function RecapPage() {
                                             {formatCurrency(summary.totalDeduction)}
                                         </div>
                                     </TableCell>
+                                     <TableCell className="text-right">
+                                         <div className={cn("flex items-center justify-end gap-1 font-medium", summary.loanRepayment > 0 ? "text-red-400" : "text-muted-foreground")}>
+                                            <Receipt className="h-4 w-4" />
+                                            {formatCurrency(summary.loanRepayment)}
+                                        </div>
+                                    </TableCell>
                                     <TableCell className="text-right font-bold text-lg text-primary">
                                         {formatCurrency(summary.totalPay)}
                                     </TableCell>
@@ -297,7 +312,7 @@ export default function RecapPage() {
                             </TableBody>
                             <TableFooter>
                                 <TableRow className='bg-secondary/50 hover:bg-secondary/50'>
-                                    <TableCell colSpan={5} className="text-right font-bold text-lg">Total Département</TableCell>
+                                    <TableCell colSpan={7} className="text-right font-bold text-lg">Total Département</TableCell>
                                     <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal)}</TableCell>
                                     <TableCell />
                                 </TableRow>

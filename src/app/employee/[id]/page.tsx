@@ -9,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown, GanttChartSquare, History } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown, GanttChartSquare, History, Receipt } from 'lucide-react';
 import { differenceInWeeks, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -210,12 +210,20 @@ function DeleteEmployeeDialog({ employee, deleteEmployee }: { employee: any, del
     const { toast } = useToast();
 
     const handleDelete = async () => {
-        await deleteEmployee(employee.id);
-        toast({
-            title: "Employé Supprimé",
-            description: `${employee.firstName} ${employee.lastName} a été supprimé du système.`,
-        });
-        router.push(`/dashboard/departments`);
+        try {
+            await deleteEmployee(employee.id);
+            toast({
+                title: "Employé Supprimé",
+                description: `${employee.firstName} ${employee.lastName} a été supprimé du système.`,
+            });
+            router.push(`/dashboard/departments`);
+        } catch(e: any) {
+            toast({
+                variant: 'destructive',
+                title: "Action Impossible",
+                description: e.message,
+            });
+        }
     }
 
     return (
@@ -403,7 +411,7 @@ export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading, weekPeriod, company } = useEmployees();
+  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading, weekPeriod, company, loans } = useEmployees();
   
    useEffect(() => {
     const userType = sessionStorage.getItem('userType');
@@ -442,7 +450,11 @@ export default function EmployeeRecapPage() {
   const daysPresent = days.filter(day => employee.attendance[day]).length;
   const basePay = daysPresent * currentWage;
   const totalAdjustments = (employee.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
-  const weeklyPay = basePay + totalAdjustments;
+  
+  const activeLoan = loans.find(l => l.employeeId === employee.id && l.status === 'active');
+  const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+  
+  const weeklyPay = basePay + totalAdjustments - loanRepayment;
   
   const registrationDate = parseISO(employee.registrationDate);
   const weeksSinceRegistration = differenceInWeeks(new Date(), registrationDate);
@@ -487,6 +499,7 @@ export default function EmployeeRecapPage() {
             ['Paie de base (Présence)', `${basePay.toLocaleString('fr-FR')} FCFA`],
             ['Total Primes', `${(employee.adjustments?.filter(a => a.type === 'bonus').reduce((s, a) => s + a.amount, 0) || 0).toLocaleString('fr-FR')} FCFA`],
             ['Total Avances', `${(employee.adjustments?.filter(a => a.type === 'deduction').reduce((s, a) => s + a.amount, 0) || 0).toLocaleString('fr-FR')} FCFA`],
+            ['Remboursement Avance', `${(loanRepayment || 0).toLocaleString('fr-FR')} FCFA`],
         ],
         foot: [[
              { content: 'Total Net à Payer', styles: { fontStyle: 'bold', fontSize: 12 } },
@@ -536,6 +549,9 @@ export default function EmployeeRecapPage() {
                         <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
                         <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
                         <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire/Jour:</strong> {(employee.dailyWage || 0).toLocaleString('fr-FR')} FCFA</div>
+                         {activeLoan && (
+                            <div className="flex items-center gap-3 pt-2 border-t text-amber-500"><Receipt className="h-4 w-4"/> <strong>Avance en cours:</strong> {(activeLoan.balance).toLocaleString('fr-FR')} FCFA</div>
+                         )}
                          <div className="text-xs text-muted-foreground pt-2 border-t">
                             Inscrit le : {format(parseISO(employee.registrationDate), 'dd MMMM yyyy', { locale: fr })}
                         </div>
@@ -598,8 +614,12 @@ export default function EmployeeRecapPage() {
                                         <span className="font-medium">{(basePay || 0).toLocaleString('fr-FR')} FCFA</span>
                                     </div>
                                      <div className="flex justify-between items-center">
-                                        <span>Total Primes / Avances:</span>
+                                        <span>Total Primes / Avances ponctuelles:</span>
                                         <span className={`font-medium ${totalAdjustments > 0 ? 'text-green-400' : totalAdjustments < 0 ? 'text-red-400' : ''}`}>{(totalAdjustments || 0).toLocaleString('fr-FR')} FCFA</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span>Remboursement avance programmée:</span>
+                                        <span className={`font-medium ${loanRepayment > 0 ? 'text-red-400' : ''}`}>-{(loanRepayment || 0).toLocaleString('fr-FR')} FCFA</span>
                                     </div>
                                     <div className="flex justify-between items-center pt-2 border-t text-lg">
                                         <span className="font-semibold">Paie totale de la période:</span>

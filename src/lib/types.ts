@@ -28,6 +28,17 @@ export type Adjustment = {
     reason: string;
 };
 
+export type Loan = {
+  id: string;
+  employeeId: string;
+  amount: number;
+  repaymentAmount: number; // Amount to be deducted each pay period
+  balance: number;
+  startDate: string; // ISO string
+  status: 'active' | 'repaid' | 'paused' | 'cancelled';
+};
+
+
 export interface Employee {
   id: string;
   companyId: string;
@@ -76,6 +87,7 @@ export interface PayStub {
   basePay: number;
   adjustments: Adjustment[]; // Store the actual adjustments for that period
   totalAdjustments: number;
+  loanRepayment: number;
   totalPay: number;
   dailyWageAtTime: number;
 }

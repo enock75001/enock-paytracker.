@@ -1,7 +1,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
@@ -48,6 +48,9 @@ interface EmployeeContextType {
   sendMessage: (text: string, receiverId: string) => Promise<void>;
   userId: string;
   userRole: 'admin' | 'manager' | null;
+  loans: Loan[];
+  addLoan: (loanData: Omit<Loan, 'id' | 'balance' | 'status'>) => Promise<void>;
+  updateLoanStatus: (loanId: string, status: Loan['status']) => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -96,6 +99,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessageMap>({});
+  const [loans, setLoans] = useState<Loan[]>([]);
 
   const [userId, setUserId] = useState('');
   const [userRole, setUserRole] = useState<'admin' | 'manager' | null>(null);
@@ -118,6 +122,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setCompanyId(null);
     setOnlineUsers([]);
     setChatMessages({});
+    setLoans([]);
   }, []);
 
   const fetchAdmins = useCallback(async (cId: string) => {
@@ -151,32 +156,29 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     );
 
     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
-        const newMessagesByConversation: ChatMessageMap = {};
-        
-        snapshot.docs.forEach(doc => {
-            const message = {
-                ...doc.data(),
-                id: doc.id,
-                timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
-            } as ChatMessage;
-
-            if (!newMessagesByConversation[message.conversationId]) {
-                newMessagesByConversation[message.conversationId] = [];
-            }
-            newMessagesByConversation[message.conversationId].push(message);
-        });
-
-        // Sort messages by timestamp for each conversation
-        for (const conversationId in newMessagesByConversation) {
-            newMessagesByConversation[conversationId].sort((a, b) => a.timestamp - b.timestamp);
+      const allMessages = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        timestamp: doc.data().timestamp instanceof Timestamp ? doc.data().timestamp.toMillis() : doc.data().timestamp,
+      })) as ChatMessage[];
+    
+      const newMessagesByConversation: ChatMessageMap = {};
+    
+      allMessages.forEach(message => {
+        if (!newMessagesByConversation[message.conversationId]) {
+          newMessagesByConversation[message.conversationId] = [];
         }
-
-        // This approach replaces the conversation's message list entirely,
-        // ensuring we have the latest state from the DB without merging complexities.
-        setChatMessages(prev => ({
-            ...prev,
-            ...newMessagesByConversation
-        }));
+        newMessagesByConversation[message.conversationId].push(message);
+      });
+    
+      for (const conversationId in newMessagesByConversation) {
+        newMessagesByConversation[conversationId].sort((a, b) => a.timestamp - b.timestamp);
+      }
+    
+      setChatMessages(prev => ({
+        ...prev,
+        ...newMessagesByConversation,
+      }));
     });
 
     return () => {
@@ -202,11 +204,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const departmentsQuery = query(collection(db, "departments"), where("companyId", "==", cId));
           const employeesQuery = query(collection(db, "employees"), where("companyId", "==", cId));
           const archivesQuery = query(collection(db, "archives"), where("companyId", "==", cId));
+          const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId));
 
-          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot] = await Promise.all([
+          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, loansSnapshot] = await Promise.all([
               getDocs(departmentsQuery),
               getDocs(employeesQuery),
               getDocs(archivesQuery),
+              getDocs(loansQuery),
           ]);
           
           await fetchAdmins(cId);
@@ -214,6 +218,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const departmentsData = departmentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Department[];
           const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
           const archivesData = archivesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ArchivedPayroll[];
+          const loansData = loansSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Loan[];
           
           const safeEmployees = employeesData.map(e => {
             const newAttendance = { ...e.attendance };
@@ -229,6 +234,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           setDepartments(departmentsData);
           setEmployees(safeEmployees.sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
           setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
+          setLoans(loansData);
       } catch (error) {
           console.error("Error fetching company data:", error);
           clearData(); 
@@ -308,6 +314,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     if (isManager) {
         throw new Error("Cet employé est manager d'un département. Veuillez d'abord assigner un nouveau manager.");
     }
+    const hasActiveLoan = loans.some(l => l.employeeId === employeeId && l.status === 'active');
+    if (hasActiveLoan) {
+      throw new Error("Cet employé a une avance en cours. Veuillez d'abord régler la situation de l'avance.");
+    }
     await deleteDoc(doc(db, "employees", employeeId));
     setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
   };
@@ -356,24 +366,33 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   
   const startNewWeek = async () => {
     if (!companyId || !company) throw new Error("Aucune entreprise sélectionnée.");
+    
+    const batch = writeBatch(db);
 
     const totalPayroll = employees.reduce((total, emp) => {
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
-        const totalAdjustments = emp.adjustments.reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
-        return total + (daysPresent * weeklyWage) + totalAdjustments;
+        const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+        
+        const activeLoan = loans.find(l => l.employeeId === emp.id && l.status === 'active');
+        const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+        
+        return total + (daysPresent * weeklyWage) + totalAdjustments - loanRepayment;
     }, 0);
-
+    
     const departmentTotals: { [key: string]: { total: number, employeeCount: number } } = {};
-
     employees.forEach(emp => {
         if (!departmentTotals[emp.domain]) {
             departmentTotals[emp.domain] = { total: 0, employeeCount: 0 };
         }
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
-        const totalAdjustments = emp.adjustments.reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
-        departmentTotals[emp.domain].total += (daysPresent * weeklyWage) + totalAdjustments;
+        const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+
+        const activeLoan = loans.find(l => l.employeeId === emp.id && l.status === 'active');
+        const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+        
+        departmentTotals[emp.domain].total += (daysPresent * weeklyWage) + totalAdjustments - loanRepayment;
         departmentTotals[emp.domain].employeeCount += 1;
     });
 
@@ -384,8 +403,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         departments: Object.entries(departmentTotals).map(([name, data]) => ({ name, ...data })),
     };
     
-    const batch = writeBatch(db);
-    
     const archiveRef = doc(collection(db, "archives"));
     batch.set(archiveRef, newArchiveData);
 
@@ -395,12 +412,15 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     for (const emp of employees) {
         const empRef = doc(db, "employees", emp.id);
 
-        // Create Pay Stub
         const daysPresent = days.filter(day => emp.attendance[day]).length;
         const currentWage = emp.currentWeekWage || emp.dailyWage || 0;
         const basePay = daysPresent * currentWage;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
-        const totalPay = basePay + totalAdjustments;
+        
+        const activeLoan = loans.find(l => l.employeeId === emp.id && l.status === 'active');
+        const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+        
+        const totalPay = basePay + totalAdjustments - loanRepayment;
 
         const payStub: Omit<PayStub, 'id'> = {
             companyId,
@@ -413,18 +433,25 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             basePay,
             adjustments: emp.adjustments || [],
             totalAdjustments,
+            loanRepayment,
             totalPay,
         };
         const payStubRef = doc(collection(db, "pay_stubs"));
         batch.set(payStubRef, payStub);
         
-        // Reset employee for next period
+        if (activeLoan && loanRepayment > 0) {
+            const loanRef = doc(db, "loans", activeLoan.id);
+            const newBalance = activeLoan.balance - loanRepayment;
+            const newStatus = newBalance <= 0 ? 'repaid' : 'active';
+            batch.update(loanRef, { balance: newBalance, status: newStatus });
+        }
+        
         const newAttendance = nextPeriodDays.reduce((acc, day) => ({ ...acc, [day]: false }), {});
         const newCurrentWeekWage = emp.dailyWage;
         batch.update(empRef, {
             attendance: newAttendance,
             currentWeekWage: newCurrentWeekWage,
-            adjustments: [], // Clear adjustments for the new period
+            adjustments: [],
         });
     }
     
@@ -504,6 +531,23 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const addLoan = async (loanData: Omit<Loan, 'id' | 'balance' | 'status'>) => {
+    if (!companyId) throw new Error("Company ID is missing");
+    const newLoan: Omit<Loan, 'id'> = {
+      ...loanData,
+      companyId,
+      balance: loanData.amount,
+      status: 'active',
+    };
+    const docRef = await addDoc(collection(db, "loans"), newLoan);
+    setLoans(prev => [...prev, { ...newLoan, id: docRef.id }]);
+  };
+
+  const updateLoanStatus = async (loanId: string, status: Loan['status']) => {
+    const loanRef = doc(db, "loans", loanId);
+    await updateDoc(loanRef, { status });
+    setLoans(prev => prev.map(l => l.id === loanId ? { ...l, status } : l));
+  };
 
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
@@ -519,6 +563,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     sendMessage,
     userId,
     userRole,
+    loans,
+    addLoan,
+    updateLoanStatus,
   };
   
   return (

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History, Users } from 'lucide-react';
+import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History, Users, HandCoins } from 'lucide-react';
 import { Header } from "@/components/header";
 import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
@@ -26,6 +26,7 @@ const menuItems = [
     { href: '/dashboard/employees', label: 'Employés', icon: Users },
     { href: '/dashboard/register', label: 'Enregistrer', icon: UserPlus },
     { href: '/dashboard/recap', label: 'Récapitulatif', icon: FileText },
+    { href: '/dashboard/loans', label: 'Avances', icon: HandCoins },
     { href: '/dashboard/archives', label: 'Archives', icon: Archive },
     { href: '/dashboard/logs', label: 'Historique Connexions', icon: History },
     { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
