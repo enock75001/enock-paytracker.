@@ -87,7 +87,7 @@ function CompanyProfileCard() {
                 payPeriod: company.payPeriod || 'weekly',
             });
         }
-    }, [company, form, isEditing]);
+    }, [company, form]);
 
     const onSubmit = async (values: z.infer<typeof companyProfileSchema>) => {
         await updateCompanyProfile(values);
