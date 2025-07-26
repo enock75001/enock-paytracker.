@@ -147,8 +147,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     // Listen for chat messages relevant to the current user
     const messagesQuery = query(
       collection(db, "messages"),
-      where('conversationParticipants', 'array-contains', userId),
-      orderBy('timestamp', 'asc')
+      where('conversationParticipants', 'array-contains', userId)
     );
 
     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
@@ -166,6 +165,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             }
             newMessagesByConversation[message.conversationId].push(message);
         });
+
+        // Sort messages by timestamp for each conversation
+        for (const conversationId in newMessagesByConversation) {
+            newMessagesByConversation[conversationId].sort((a, b) => a.timestamp - b.timestamp);
+        }
 
         // This approach replaces the conversation's message list entirely,
         // ensuring we have the latest state from the DB without merging complexities.
@@ -531,5 +535,3 @@ export const useEmployees = () => {
   }
   return context;
 };
-
-    
