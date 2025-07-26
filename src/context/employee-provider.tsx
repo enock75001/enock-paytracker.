@@ -1,10 +1,11 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin } from '@/lib/types';
-import { initialDays } from '@/lib/data';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where } from 'firebase/firestore';
+import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>;
 
@@ -13,6 +14,7 @@ interface EmployeeContextType {
   departments: Department[];
   archives: ArchivedPayroll[];
   admins: Admin[];
+  company: Company | null;
   companyId: string | null;
   setCompanyId: (companyId: string | null) => void;
   isLoading: boolean;
@@ -22,6 +24,8 @@ interface EmployeeContextType {
   deleteEmployee: (employeeId: string) => Promise<void>;
   transferEmployee: (employeeId: string, newDomain: string) => Promise<void>;
   days: string[];
+  weekPeriod: string;
+  weekDates: Date[];
   addDepartment: (department: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
   updateDepartment: (originalName: string, updatedDepartment: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
   deleteDepartment: (departmentName: string) => Promise<void>;
@@ -34,71 +38,130 @@ interface EmployeeContextType {
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
+const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly'): { days: string[], period: string, dates: Date[] } => {
+    const today = new Date();
+    let startDate, endDate;
+    let period: string;
+
+    switch (payPeriod) {
+        case 'monthly':
+            startDate = startOfMonth(today);
+            endDate = endOfMonth(today);
+            period = `Mois de ${format(today, 'MMMM yyyy', { locale: fr })}`;
+            break;
+        case 'bi-weekly':
+            const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
+            startDate = startOfThisWeek;
+            endDate = addDays(startOfThisWeek, 13);
+            period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
+            break;
+        case 'weekly':
+        default:
+            startDate = startOfWeek(today, { weekStartsOn: 1 });
+            endDate = endOfWeek(today, { weekStartsOn: 1 });
+            period = `Semaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
+            break;
+    }
+
+    const dates = eachDayOfInterval({ start: startDate, end: endDate });
+    const days = dates.map(date => format(date, 'E', { locale: fr }));
+
+    return { days, period, dates };
+};
+
 export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [archives, setArchives] = useState<ArchivedPayroll[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
+  const [company, setCompany] = useState<Company | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const days = initialDays;
+
+  const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod);
 
   const clearData = useCallback(() => {
     setEmployees([]);
     setDepartments([]);
     setArchives([]);
     setAdmins([]);
+    setCompany(null);
     setCompanyId(null);
   }, []);
 
-  const fetchAdmins = useCallback(async () => {
-    if (!companyId) return;
-    const adminsQuery = query(collection(db, "admins"), where("companyId", "==", companyId));
+  const fetchAdmins = useCallback(async (cId: string) => {
+    if (!cId) return;
+    const adminsQuery = query(collection(db, "admins"), where("companyId", "==", cId));
     const adminsSnapshot = await getDocs(adminsQuery);
     const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
     setAdmins(adminsData);
-  }, [companyId]);
+  }, []);
 
-  const fetchDataForCompany = useCallback(async (companyId: string) => {
+  const fetchDataForCompany = useCallback(async (cId: string) => {
       setLoading(true);
       try {
-          const departmentsQuery = query(collection(db, "departments"), where("companyId", "==", companyId));
-          const employeesQuery = query(collection(db, "employees"), where("companyId", "==", companyId));
-          const archivesQuery = query(collection(db, "archives"), where("companyId", "==", companyId));
+          const companyDocRef = doc(db, 'companies', cId);
+          const companyDocSnap = await getDoc(companyDocRef);
 
-          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, _] = await Promise.all([
+          if (!companyDocSnap.exists()) {
+              throw new Error("Company not found");
+          }
+          const companyData = { id: companyDocSnap.id, ...companyDocSnap.data() } as Company;
+          setCompany(companyData);
+
+          const { days: dynamicDays } = generateDaysAndPeriod(companyData.payPeriod);
+
+          const departmentsQuery = query(collection(db, "departments"), where("companyId", "==", cId));
+          const employeesQuery = query(collection(db, "employees"), where("companyId", "==", cId));
+          const archivesQuery = query(collection(db, "archives"), where("companyId", "==", cId));
+
+          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot] = await Promise.all([
               getDocs(departmentsQuery),
               getDocs(employeesQuery),
               getDocs(archivesQuery),
-              fetchAdmins(),
           ]);
+          
+          await fetchAdmins(cId);
 
           const departmentsData = departmentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Department[];
           const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
           const archivesData = archivesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ArchivedPayroll[];
           
-          const safeEmployees = employeesData.map(e => ({...e, currentWeekWage: e.currentWeekWage || e.dailyWage }));
+          const safeEmployees = employeesData.map(e => {
+            const newAttendance = { ...e.attendance };
+            // Ensure all days for the current period are in the attendance object
+            dynamicDays.forEach(day => {
+                if (!(day in newAttendance)) {
+                    newAttendance[day] = false;
+                }
+            });
+            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, attendance: newAttendance };
+          });
+
 
           setDepartments(departmentsData);
           setEmployees(safeEmployees);
           setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
       } catch (error) {
           console.error("Error fetching company data:", error);
+          clearData(); // Clear data on error to force re-login
       } finally {
           setLoading(false);
       }
-  }, [fetchAdmins]);
+  }, [fetchAdmins, clearData]);
 
 
   useEffect(() => {
       const storedCompanyId = sessionStorage.getItem('companyId');
       if (storedCompanyId) {
           setCompanyId(storedCompanyId);
-          fetchDataForCompany(storedCompanyId);
+          if(!company){ // only fetch if company data is not already loaded
+            fetchDataForCompany(storedCompanyId);
+          }
       } else {
           setLoading(false);
       }
-  }, [fetchDataForCompany]);
+  }, [fetchDataForCompany, company]);
 
 
   const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId'>) => {
@@ -236,10 +299,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         departmentTotals[emp.domain].employeeCount += 1;
     });
 
-    const periodId = `Semaine du ${new Date().toLocaleDateString('fr-FR')}`;
     const newArchiveData = {
         companyId,
-        period: periodId,
+        period: weekPeriod,
         totalPayroll,
         departments: Object.entries(departmentTotals).map(([name, data]) => ({ name, ...data })),
     };
@@ -252,11 +314,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const updatedEmployeesForState: Employee[] = [];
     const employeesQuery = query(collection(db, "employees"), where("companyId", "==", companyId));
     const employeesSnapshot = await getDocs(employeesQuery);
+    
+    const { days: nextPeriodDays } = generateDaysAndPeriod(company?.payPeriod);
 
     employeesSnapshot.docs.forEach(empDoc => {
         const emp = { id: empDoc.id, ...empDoc.data() } as Employee;
         const empRef = doc(db, "employees", emp.id);
-        const newAttendance = days.reduce((acc, day) => ({ ...acc, [day]: false }), {});
+        const newAttendance = nextPeriodDays.reduce((acc, day) => ({ ...acc, [day]: false }), {});
         const newCurrentWeekWage = emp.dailyWage;
         batch.update(empRef, {
             attendance: newAttendance,
@@ -266,9 +330,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     });
     
     await batch.commit();
-
-    setArchives(prev => [{ ...newArchiveData, id: archiveRef.id }, ...prev].sort((a,b) => (b.period || "").localeCompare(a.period || "")));
-    setEmployees(updatedEmployeesForState);
+    
+    if (companyId) {
+        fetchDataForCompany(companyId); // Refetch all data to ensure consistency
+    }
   };
   
   const deleteArchive = async (archiveId: string) => {
@@ -279,10 +344,12 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
 
   const value = { 
-    employees, departments, archives, admins, companyId, setCompanyId, isLoading: loading,
+    employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
     addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, 
-    days, addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
-    fetchAdmins, deleteArchive, fetchDataForCompany, clearData
+    days, weekPeriod, weekDates,
+    addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
+    fetchAdmins: () => companyId ? fetchAdmins(companyId) : Promise.resolve(), 
+    deleteArchive, fetchDataForCompany, clearData
   };
   
   return (

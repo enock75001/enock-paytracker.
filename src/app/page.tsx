@@ -20,6 +20,9 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { payPeriods } from "@/lib/data";
+import type { PayPeriod } from "@/lib/types";
 
 
 export default function LandingPage() {
@@ -73,6 +76,7 @@ function CompanyRegistrationForm() {
     const [companyName, setCompanyName] = useState('');
     const [adminName, setAdminName] = useState('');
     const [adminPin, setAdminPin] = useState('');
+    const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
@@ -84,7 +88,7 @@ function CompanyRegistrationForm() {
         setError('');
         setLoading(true);
 
-        if (!companyName || !adminName || !adminPin) {
+        if (!companyName || !adminName || !adminPin || !payPeriod) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -96,7 +100,7 @@ function CompanyRegistrationForm() {
         }
 
         try {
-            const { company, admin } = await registerCompany(companyName, adminName, adminPin);
+            const { company, admin } = await registerCompany(companyName, adminName, adminPin, payPeriod);
             
             // Log the new company in
             sessionStorage.setItem('userType', 'admin');
@@ -135,6 +139,19 @@ function CompanyRegistrationForm() {
                 <Label htmlFor="admin-pin">Votre code PIN (4 chiffres)</Label>
                 <Input id="admin-pin" type="password" value={adminPin} onChange={e => setAdminPin(e.target.value)} placeholder="••••" maxLength={4} required />
             </div>
+            <div className="space-y-2">
+                <Label htmlFor="pay-period">Période de Paie</Label>
+                <Select onValueChange={(value: PayPeriod) => setPayPeriod(value)} defaultValue={payPeriod}>
+                    <SelectTrigger id="pay-period">
+                        <SelectValue placeholder="Choisir une période de paie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {payPeriods.map(period => (
+                            <SelectItem key={period.value} value={period.value}>{period.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
             {error && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -148,4 +165,3 @@ function CompanyRegistrationForm() {
         </form>
     );
 }
-

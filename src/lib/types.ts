@@ -3,10 +3,13 @@ export type Attendance = {
   [day: string]: boolean;
 };
 
+export type PayPeriod = 'weekly' | 'bi-weekly' | 'monthly';
+
 export interface Company {
     id: string;
     name: string;
     superAdminName: string;
+    payPeriod: PayPeriod;
 }
 
 export interface Employee {

@@ -20,7 +20,7 @@ import { Eye, LogOut, Download } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, startOfWeek, addDays, endOfWeek } from "date-fns"
+import { format, startOfWeek, addDays, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns"
 import { fr } from 'date-fns/locale';
 import {
   Form,
@@ -164,20 +164,11 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
-  const { employees, updateAttendance, days } = useEmployees();
+  const { employees, updateAttendance, days, weekPeriod, weekDates } = useEmployees();
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
   
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
-  
-  const firstDayOfWeek = startOfWeek(today, { weekStartsOn: 1 });
-  const lastDayOfWeek = endOfWeek(today, { weekStartsOn: 1 });
-
-  const weekDates = days.map((_, index) => {
-    return addDays(firstDayOfWeek, index);
-  });
-
-  const weekPeriod = `Semaine du ${format(firstDayOfWeek, 'dd MMM', { locale: fr })} au ${format(lastDayOfWeek, 'dd MMM yyyy', { locale: fr })}`;
 
   const downloadAttendancePdf = () => {
     const doc = new jsPDF();
@@ -216,7 +207,7 @@ function AttendanceTab({ domain }: { domain: string }) {
         head: head,
         body: body,
         foot: [[
-            { content: 'Total Département', colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'Total Département', colSpan: days.length + 1, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: `${departmentTotalPay.toLocaleString('fr-FR')} FCFA`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
@@ -224,13 +215,12 @@ function AttendanceTab({ domain }: { domain: string }) {
         footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
         columnStyles: {
             0: { fontStyle: 'bold' },
-            1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' },
-            5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' },
-            8: { halign: 'center', fontStyle: 'bold' },
-            9: { halign: 'right', fontStyle: 'bold' },
+            [days.length + 1]: { halign: 'center', fontStyle: 'bold' },
+            [days.length + 2]: { halign: 'right', fontStyle: 'bold' },
         },
         didParseCell: function(data: any) {
-            if (data.section === 'body' && data.column.index > 0 && data.column.index < 8) {
+            if (data.section === 'body' && data.column.index > 0 && data.column.index <= days.length) {
+                 data.cell.styles.halign = 'center';
                 if (data.cell.raw === 'P') {
                     data.cell.styles.textColor = [39, 174, 96]; // Green for Present
                 } else {
@@ -270,20 +260,20 @@ function AttendanceTab({ domain }: { domain: string }) {
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead className="w-[250px] min-w-[250px]">Employé</TableHead>
+                    <TableHead className="w-[250px] min-w-[250px] sticky left-0 bg-card z-10">Employé</TableHead>
                     {days.map((day, index) => (
                         <TableHead key={day} className="text-center min-w-[80px]">
                             <div className='font-bold capitalize'>{day}</div>
                             <div className="font-normal text-xs">{format(weekDates[index], 'dd')}</div>
                         </TableHead>
                     ))}
-                    <TableHead className="text-right">Détails</TableHead>
+                    <TableHead className="text-right sticky right-0 bg-card z-10">Détails</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {employeesInDomain.map(employee => (
                     <TableRow key={employee.id}>
-                        <TableCell>
+                        <TableCell className="sticky left-0 bg-card z-10">
                         <div className="flex items-center gap-3">
                             <Avatar>
                             <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
@@ -296,7 +286,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                         </div>
                         </TableCell>
                         {days.map((day, index) => {
-                            const isFutureDay = weekDates[index] > today;
+                            const isToday = isSameDay(weekDates[index], today);
                             return (
                                 <TableCell key={day} className="text-center">
                                     <Checkbox
@@ -305,12 +295,12 @@ function AttendanceTab({ domain }: { domain: string }) {
                                         updateAttendance(employee.id, day, !!checked)
                                     }
                                     aria-label={`Attendance for ${day}`}
-                                    disabled={isFutureDay}
+                                    disabled={!isToday}
                                     />
                                 </TableCell>
                             )
                         })}
-                        <TableCell className="text-right">
+                        <TableCell className="text-right sticky right-0 bg-card z-10">
                             <Link href={`/employee/${employee.id}`} passHref>
                                 <Button variant="ghost" size="icon">
                                     <Eye className="h-4 w-4" />
