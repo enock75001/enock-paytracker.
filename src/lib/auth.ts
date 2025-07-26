@@ -16,7 +16,26 @@ export async function findCompanyByIdentifier(companyIdentifier: string): Promis
 }
 
 
-export async function registerCompany(companyName: string, companyIdentifier: string, adminName: string, adminPin: string, payPeriod: PayPeriod): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
+export async function registerCompany(
+    companyName: string, 
+    companyIdentifier: string, 
+    adminName: string, 
+    adminPin: string, 
+    payPeriod: PayPeriod,
+    registrationCode: string
+): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
+    
+    // Verify registration code
+    const codeQuery = query(collection(db, "registration_codes"), where("code", "==", registrationCode));
+    const codeSnapshot = await getDocs(codeQuery);
+    if (codeSnapshot.empty) {
+        throw new Error("Code d'inscription invalide.");
+    }
+    const codeDoc = codeSnapshot.docs[0];
+    if (codeDoc.data().isUsed) {
+        throw new Error("Ce code d'inscription a déjà été utilisé.");
+    }
+
     const existingCompany = await findCompanyByIdentifier(companyIdentifier);
     if (existingCompany) {
         throw new Error("Une entreprise avec cet identifiant existe déjà.");
@@ -24,14 +43,19 @@ export async function registerCompany(companyName: string, companyIdentifier: st
 
     const batch = writeBatch(db);
 
+    // Mark code as used
+    batch.update(codeDoc.ref, { isUsed: true });
+
     const companyRef = doc(collection(db, "companies"));
     const newCompany = { 
         name: companyName,
         companyIdentifier,
         superAdminName: adminName, 
         payPeriod,
+        payPeriodStartDate: new Date().toISOString(),
         logoUrl: '',
-        description: '' 
+        description: '',
+        registrationDate: new Date().toISOString(),
     };
     batch.set(companyRef, newCompany);
 

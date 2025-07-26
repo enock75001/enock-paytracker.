@@ -14,6 +14,7 @@ export interface Company {
     payPeriodStartDate?: string; // ISO string for the start date of the first pay period
     logoUrl?: string;
     description?: string;
+    registrationDate?: string;
 }
 
 export type Adjustment = {

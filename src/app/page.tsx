@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { registerCompany } from "@/lib/auth";
 import { useEmployees } from "@/context/employee-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, KeyRound } from "lucide-react";
 import {
   Tabs,
   TabsContent,
@@ -78,6 +78,7 @@ function CompanyRegistrationForm() {
     const [adminName, setAdminName] = useState('');
     const [adminPin, setAdminPin] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
+    const [registrationCode, setRegistrationCode] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
@@ -91,7 +92,7 @@ function CompanyRegistrationForm() {
         
         const companyIdentifier = `EPT-${companyIdNumber}`;
 
-        if (!companyName || !companyIdNumber || !adminName || !adminPin || !payPeriod) {
+        if (!companyName || !companyIdNumber || !adminName || !adminPin || !payPeriod || !registrationCode) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -101,9 +102,14 @@ function CompanyRegistrationForm() {
             setLoading(false);
             return;
         }
+        if (registrationCode.length !== 10) {
+            setError("Le code d'inscription doit contenir 10 chiffres.");
+            setLoading(false);
+            return;
+        }
 
         try {
-            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminPin, payPeriod);
+            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminPin, payPeriod, registrationCode);
             
             // Log the new company in
             sessionStorage.setItem('userType', 'admin');
@@ -130,6 +136,13 @@ function CompanyRegistrationForm() {
 
     return (
         <form onSubmit={handleRegister} className="space-y-4 pt-4">
+             <div className="space-y-2">
+                <Label htmlFor="registration-code">Code d'Inscription</Label>
+                <div className="relative">
+                    <KeyRound className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="registration-code" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="Code à 10 chiffres fourni par le propriétaire" required className="pl-8"/>
+                </div>
+            </div>
              <div className="space-y-2">
                 <Label htmlFor="company-name">Nom de l'entreprise</Label>
                 <Input id="company-name" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Mon Entreprise SAS" required />
