@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, Send, X, Users, UserCheck } from 'lucide-react';
+import { MessageSquare, Send, X, Users, UserCheck, Circle } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Separator } from './ui/separator';
 
 interface ChatWidgetProps {
   companyId: string;
@@ -23,7 +24,7 @@ interface ChatWidgetProps {
 export function ChatWidget({ companyId, userId, userName, userRole, departmentName }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
-  const { onlineUsers, chatMessages, sendMessage } = useEmployees();
+  const { onlineUsers, chatMessages, sendMessage, employees, departments } = useEmployees();
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,12 +40,11 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
     setMessage('');
   };
   
-  const getRecipientName = () => {
-      if (userRole === 'admin') return "Responsables";
-      // For manager, find an admin to talk to
-      const admin = onlineUsers.find(u => u.role === 'admin');
-      return admin ? admin.name : "Administrateurs";
-  }
+  const managers = departments
+    .map(dept => employees.find(emp => emp.id === dept.managerId))
+    .filter((emp): emp is NonNullable<typeof emp> => emp != null);
+
+  const isAdmin = userRole === 'admin';
 
   return (
     <>
@@ -64,7 +64,7 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
             <Badge variant="secondary">{onlineUsers.length} en ligne</Badge>
           </CardHeader>
           <CardContent className="flex-1 p-0 flex">
-            <div className="w-1/3 border-r overflow-y-auto p-2">
+            <ScrollArea className="w-1/3 border-r p-2">
                 <h3 className="text-sm font-semibold mb-2 px-2">En Ligne</h3>
                 <ul>
                     {onlineUsers.map(user => (
@@ -77,7 +77,29 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
                         </li>
                     ))}
                 </ul>
-            </div>
+                
+                {isAdmin && managers.length > 0 && (
+                    <>
+                        <Separator className="my-2" />
+                        <h3 className="text-sm font-semibold mb-2 px-2">Tous les Managers</h3>
+                         <ul>
+                            {managers.map(manager => {
+                                const isOnline = onlineUsers.some(u => u.userId === manager.id);
+                                return (
+                                    <li key={manager.id} className="text-xs p-2 rounded-md hover:bg-secondary flex items-center gap-2">
+                                        {isOnline ? <UserCheck className="h-3 w-3 text-green-400"/> : <Circle className="h-2 w-2 text-muted-foreground" />}
+                                        <div>
+                                            <p className="font-medium">{manager.firstName} {manager.lastName}</p>
+                                            <p className="text-muted-foreground">{manager.domain}</p>
+                                        </div>
+                                    </li>
+                                )
+                            })}
+                        </ul>
+                    </>
+                )}
+
+            </ScrollArea>
             <div className="w-2/3 flex flex-col">
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
