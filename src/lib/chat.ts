@@ -9,14 +9,18 @@ export async function updateUserPresence(userData: Omit<OnlineUser, 'userId'>) {
     if (!sessionUserId) return;
     const presenceRef = doc(db, 'online_users', sessionUserId);
     
-    const presenceData: OnlineUser = {
+    const presenceData: Partial<OnlineUser> = { // Use Partial to build the object
         userId: sessionUserId,
         companyId: userData.companyId,
         name: userData.name,
         role: userData.role,
-        departmentName: userData.departmentName,
         lastSeen: Date.now(),
     };
+
+    // Only add departmentName if it exists
+    if (userData.departmentName) {
+        presenceData.departmentName = userData.departmentName;
+    }
 
     await setDoc(presenceRef, presenceData);
 }
