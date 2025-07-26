@@ -114,12 +114,11 @@ export default function ManagerLoginPage() {
             await fetchDataForCompany(company.id);
 
             await updateUserPresence({
-              userId: manager.id,
+              senderId: manager.id,
               companyId: company.id,
               name: `${manager.firstName} ${manager.lastName}`,
               role: 'manager',
               departmentName: department!.name,
-              lastSeen: Date.now(),
             });
 
             try {

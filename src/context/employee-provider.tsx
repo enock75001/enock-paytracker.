@@ -62,9 +62,6 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: s
             break;
         case 'bi-weekly':
              startDate = startOfWeek(today, weekOptions);
-             if (new Date().getDay() > 3) { // After Wednesday, start next week's 2-week period
-                 startDate = addDays(startDate, 7);
-             }
              endDate = addDays(startDate, 13);
              period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
              break;
@@ -145,7 +142,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribeChat = onSnapshot(chatQuery, (snapshot) => {
         const messages: ChatMessage[] = [];
         snapshot.forEach(doc => {
-            messages.push({ ...doc.data(), id: doc.id } as ChatMessage);
+            const data = doc.data();
+            messages.push({
+                ...data,
+                id: doc.id,
+                // Ensure timestamp is a number, converting from Firestore Timestamp if necessary
+                timestamp: data.timestamp instanceof Timestamp ? data.timestamp.toMillis() : data.timestamp,
+            } as ChatMessage);
         });
         setChatMessages(messages);
     });
@@ -465,7 +468,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     if (!companyId) throw new Error("No company selected.");
     await addDoc(collection(db, 'chats'), {
       ...message,
-      timestamp: Date.now(),
+      timestamp: serverTimestamp(),
     });
   };
 

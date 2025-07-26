@@ -87,11 +87,10 @@ export default function AdminLoginPage() {
                 await fetchDataForCompany(company.id);
 
                 await updateUserPresence({
-                    userId: admin.id,
+                    senderId: admin.id,
                     companyId: company.id,
                     name: admin.name,
                     role: 'admin',
-                    lastSeen: Date.now(),
                 });
 
                 try {

@@ -105,11 +105,12 @@ export interface ChatMessage {
   senderName: string;
   senderRole: 'admin' | 'manager';
   text: string;
-  timestamp: number; // Unix timestamp
+  timestamp: any; // Can be a server timestamp or a number
 }
 
 export interface OnlineUser {
-    userId: string; // adminId or employeeId for manager
+    userId: string;
+    senderId?: string; // adminId or employeeId for manager
     companyId: string;
     name: string;
     role: 'admin' | 'manager';
