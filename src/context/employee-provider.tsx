@@ -569,7 +569,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     };
     
   const sendMessage = async (text: string, receiverId: string) => {
-    if (!userId) throw new Error("User not authenticated.");
+    if (!userId) {
+        console.error("Attempted to send message without a userId.");
+        return;
+    };
     const conversationId = [userId, receiverId].sort().join('_');
     const conversationParticipants = [userId, receiverId];
     await addDoc(collection(db, 'messages'), {

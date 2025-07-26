@@ -47,7 +47,7 @@ function ChatWindow({ chatPartner, onClose }: { chatPartner: OpenChat, onClose: 
     
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (message.trim() === '') return;
+        if (message.trim() === '' || !userId) return;
         await sendMessage(message, chatPartner.id);
         setMessage('');
     };
@@ -92,8 +92,9 @@ function ChatWindow({ chatPartner, onClose }: { chatPartner: OpenChat, onClose: 
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Votre message..."
                     autoComplete="off"
+                    disabled={!userId}
                   />
-                  <Button type="submit" size="icon">
+                  <Button type="submit" size="icon" disabled={!userId || !message.trim()}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </form>
