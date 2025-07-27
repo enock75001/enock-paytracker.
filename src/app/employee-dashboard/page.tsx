@@ -12,8 +12,7 @@ import { useEmployees } from '@/context/employee-provider';
 import type { PayStub } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { parseISO } from 'date-fns/esm';
+import { format, parseISO } from 'date-fns';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
