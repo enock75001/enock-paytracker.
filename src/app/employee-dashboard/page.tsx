@@ -8,9 +8,9 @@ import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, BarChart2, FileText, UserCircle, Download } from 'lucide-react';
+import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, BarChart2, FileText, UserCircle, Download, FilePlus } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
-import type { PayStub, Employee } from '@/lib/types';
+import type { PayStub, Employee, AbsenceJustification } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
@@ -20,6 +20,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { ImagePicker } from '@/components/image-picker';
+import { Label } from '@/components/ui/label';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -58,7 +67,7 @@ function EmployeeInfoCard({ employee }: { employee: Employee | undefined }) {
                     <AvatarFallback className="text-3xl">{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="pt-2">
-                    <CardTitle className="text-2xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
+                    <CardTitle className="text-2xl font-headline">{employee.firstName} ${employee.lastName}</CardTitle>
                     <CardDescription className="text-md">{employee.domain}</CardDescription>
                 </div>
             </CardHeader>
@@ -76,10 +85,72 @@ function EmployeeInfoCard({ employee }: { employee: Employee | undefined }) {
     )
 }
 
-function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
-    const { days, loans, weekPeriod } = useEmployees();
+const justificationSchema = z.object({
+  reason: z.string().min(10, { message: 'Veuillez fournir un motif d\'au moins 10 caractères.' }),
+  documentUrl: z.string().optional(),
+});
 
-    if (!employee) return <Card><CardContent className="pt-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
+function JustificationDialog({ employee, day, date, onOpenChange }: { employee: Employee, day: string, date: Date, onOpenChange: (open: boolean) => void }) {
+    const { submitAbsenceJustification } = useEmployees();
+    const { toast } = useToast();
+    
+    const form = useForm<z.infer<typeof justificationSchema>>({
+        resolver: zodResolver(justificationSchema),
+        defaultValues: { reason: '', documentUrl: '' },
+    });
+
+    const onSubmit = async (values: z.infer<typeof justificationSchema>) => {
+        await submitAbsenceJustification({
+            employeeId: employee.id,
+            employeeName: `${employee.firstName} ${employee.lastName}`,
+            departmentName: employee.domain,
+            date: format(date, 'yyyy-MM-dd'),
+            dayName: day,
+            reason: values.reason,
+            documentUrl: values.documentUrl,
+        });
+        toast({ title: 'Succès', description: 'Votre justification a été soumise.' });
+        onOpenChange(false);
+    };
+    
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Justifier l'absence du {day}</DialogTitle>
+                <DialogDescription>
+                    Veuillez expliquer la raison de votre absence. Vous pouvez joindre un document si nécessaire.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField name="reason" control={form.control} render={({ field }) => (
+                        <FormItem><FormLabel>Motif de l'absence</FormLabel><FormControl><Textarea {...field} placeholder="Ex: Rendez-vous médical..." /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField name="documentUrl" control={form.control} render={({ field }) => (
+                        <FormItem>
+                            <Label>Document justificatif (optionnel)</Label>
+                            <FormControl>
+                                <ImagePicker value={field.value ?? ''} onChange={field.onChange} name="Justificatif" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="ghost">Annuler</Button></DialogClose>
+                        <Button type="submit">Soumettre</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    );
+}
+
+function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
+    const { days, loans, weekPeriod, weekDates, justifications } = useEmployees();
+    const [justificationDialogOpen, setJustificationDialogOpen] = useState(false);
+    const [selectedDay, setSelectedDay] = useState<{ day: string; date: Date } | null>(null);
+
+    if (!employee) return <Card><CardContent className="pt-6"><Skeleton className="h-48 w-full" /></CardContent></Card>;
     
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
     const daysPresent = days.filter(day => employee.attendance[day]).length;
@@ -90,6 +161,18 @@ function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
     const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
   
     const weeklyPay = basePay + totalAdjustments - loanRepayment;
+    
+    const handleDayClick = (day: string, date: Date, isAbsent: boolean) => {
+        if (isAbsent) {
+            setSelectedDay({ day, date });
+            setJustificationDialogOpen(true);
+        }
+    }
+    
+    const getJustificationStatusForDay = (date: Date): AbsenceJustification['status'] | null => {
+        const justification = justifications.find(j => j.employeeId === employee.id && j.date === format(date, 'yyyy-MM-dd'));
+        return justification ? justification.status : null;
+    }
 
 
     return (
@@ -100,7 +183,7 @@ function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="border rounded-md">
-                    <Table>
+                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Jour</TableHead>
@@ -108,17 +191,38 @@ function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {days.map(day => (
-                                <TableRow key={day}>
+                            {days.map((day, index) => {
+                                const isAbsent = !employee.attendance[day];
+                                const date = weekDates[index];
+                                const justificationStatus = getJustificationStatusForDay(date);
+                                
+                                return (
+                                <TableRow 
+                                    key={day} 
+                                    onClick={() => handleDayClick(day, date, isAbsent)}
+                                    className={isAbsent ? "cursor-pointer hover:bg-muted/80" : ""}
+                                >
                                     <TableCell>{day}</TableCell>
                                     <TableCell className="text-right">
-                                        {employee.attendance[day] ? 
-                                            <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
-                                            <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
-                                        }
+                                        {isAbsent ? (
+                                            justificationStatus ? (
+                                                 <Badge variant={
+                                                     justificationStatus === 'approved' ? 'default' :
+                                                     justificationStatus === 'rejected' ? 'destructive' : 'secondary'
+                                                 }>{justificationStatus}</Badge>
+                                            ) : (
+                                                 <Badge variant="secondary" className="hover:bg-primary/20">
+                                                    <FilePlus className="mr-1 h-3 w-3" /> Justifier
+                                                 </Badge>
+                                            )
+                                        ) : (
+                                            <Badge variant="outline" className="text-green-400 border-green-400/50">
+                                                <CheckCircle className="mr-1 h-3 w-3"/>Présent
+                                            </Badge>
+                                        )}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 </div>
@@ -141,6 +245,17 @@ function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
                     </div>
                  </div>
             </CardContent>
+            
+            <Dialog open={justificationDialogOpen} onOpenChange={setJustificationDialogOpen}>
+                {selectedDay && (
+                    <JustificationDialog 
+                        employee={employee} 
+                        day={selectedDay.day} 
+                        date={selectedDay.date} 
+                        onOpenChange={setJustificationDialogOpen} 
+                    />
+                )}
+            </Dialog>
         </Card>
     );
 }

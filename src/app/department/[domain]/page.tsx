@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, LogOut, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Eye, LogOut, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -45,6 +45,18 @@ import 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 import { ChatWidget } from '@/components/chat-widget';
 import { Label } from '@/components/ui/label';
+import { type AbsenceJustification } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0 }).format(amount) + ' FCFA';
@@ -419,10 +431,29 @@ function AttendanceTab({ domain }: { domain: string }) {
   )
 }
 
-// Component for Absence Justification
-function JustificationTab({ domain }: { domain: string }) {
-    // This is a placeholder for the new feature.
-    // It would list employees with absences and allow managers to validate them.
+function JustificationTab({ domain, managerName }: { domain: string, managerName: string }) {
+    const { justifications, updateJustificationStatus, weekDates } = useEmployees();
+    const [viewingJustification, setViewingJustification] = useState<AbsenceJustification | null>(null);
+    const { toast } = useToast();
+    
+    const departmentJustifications = justifications.filter(j => j.departmentName === domain);
+
+    const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
+        await updateJustificationStatus(id, status, managerName);
+        toast({
+            title: "Statut mis à jour",
+            description: `La justification a été ${status === 'approved' ? 'approuvée' : 'rejetée'}.`,
+        });
+    };
+
+    const getStatusBadge = (status: AbsenceJustification['status']) => {
+        switch (status) {
+            case 'pending': return <Badge variant="secondary">En attente</Badge>;
+            case 'approved': return <Badge className="bg-green-500/20 text-green-400">Approuvée</Badge>;
+            case 'rejected': return <Badge variant="destructive">Rejetée</Badge>;
+        }
+    };
+
     return (
         <Card className="mt-6">
             <CardHeader>
@@ -430,16 +461,82 @@ function JustificationTab({ domain }: { domain: string }) {
                 <CardDescription>Validez les motifs d'absence soumis par les employés de votre département.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="text-center py-12">
-                    <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">Fonctionnalité en construction</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Bientôt, vous pourrez gérer les justifications d'absence ici.
-                    </p>
-                </div>
+                {departmentJustifications.length === 0 ? (
+                    <div className="text-center py-12">
+                        <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-semibold">Aucune justification en attente</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Aucun employé n'a soumis de justification d'absence pour le moment.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="border rounded-md">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Employé</TableHead>
+                                    <TableHead>Date d'absence</TableHead>
+                                    <TableHead>Statut</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {departmentJustifications.map(j => (
+                                    <TableRow key={j.id}>
+                                        <TableCell className="font-medium">{j.employeeName}</TableCell>
+                                        <TableCell>{j.dayName}</TableCell>
+                                        <TableCell>{getStatusBadge(j.status)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm" onClick={() => setViewingJustification(j)}>
+                                                Voir les détails
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
             </CardContent>
+            {viewingJustification && (
+                 <AlertDialog open={!!viewingJustification} onOpenChange={() => setViewingJustification(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Détails de la Justification</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                De: <strong>{viewingJustification.employeeName}</strong> pour le <strong>{viewingJustification.dayName}</strong>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="space-y-4 py-4">
+                            <p><strong>Motif:</strong></p>
+                            <p className="p-3 bg-secondary rounded-md text-sm">{viewingJustification.reason}</p>
+                            {viewingJustification.documentUrl && (
+                                <div>
+                                    <p className="mb-2"><strong>Document Justificatif:</strong></p>
+                                    <a href={viewingJustification.documentUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                        Voir le document
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                        <AlertDialogFooter>
+                             <Button variant="ghost" onClick={() => setViewingJustification(null)}>Fermer</Button>
+                             {viewingJustification.status === 'pending' && (
+                                <div className="flex gap-2">
+                                     <Button variant="destructive" onClick={() => handleUpdateStatus(viewingJustification.id, 'rejected')}>
+                                        <X className="mr-2 h-4 w-4" /> Rejeter
+                                     </Button>
+                                     <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdateStatus(viewingJustification.id, 'approved')}>
+                                        <Check className="mr-2 h-4 w-4" /> Approuver
+                                     </Button>
+                                </div>
+                             )}
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
         </Card>
-    )
+    );
 }
 
 // Main Page Component
@@ -546,7 +643,7 @@ export default function DepartmentPage() {
                     <AttendanceTab domain={domain} />
                 </TabsContent>
                 <TabsContent value="justifications">
-                    <JustificationTab domain={domain} />
+                    <JustificationTab domain={domain} managerName={sessionData.managerName} />
                 </TabsContent>
                 <TabsContent value="register">
                     <RegisterInDepartment domain={domain} />

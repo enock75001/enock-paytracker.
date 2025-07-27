@@ -2,7 +2,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay } from 'date-fns';
@@ -57,6 +57,9 @@ interface EmployeeContextType {
   markNotificationAsRead: (notificationId: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
   siteSettings: SiteSettings | null;
+  submitAbsenceJustification: (justification: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt'>) => Promise<void>;
+  justifications: AbsenceJustification[];
+  updateJustificationStatus: (justificationId: string, status: 'approved' | 'rejected', reviewedBy: string) => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -110,6 +113,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [chatMessages, setChatMessages] = useState<ChatMessageMap>({});
   const [loans, setLoans] = useState<Loan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [justifications, setJustifications] = useState<AbsenceJustification[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   
   const { sessionData } = useSession();
@@ -139,6 +143,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setChatMessages({});
     setLoans([]);
     setNotifications([]);
+    setJustifications([]);
     setLoading(true);
   }, []);
 
@@ -172,12 +177,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const employeesQuery = query(collection(db, "employees"), where("companyId", "==", cId));
           const archivesQuery = query(collection(db, "archives"), where("companyId", "==", cId));
           const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId));
+          const justificationsQuery = query(collection(db, "justifications"), where("companyId", "==", cId), orderBy("submittedAt", "desc"));
 
-          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, loansSnapshot] = await Promise.all([
+          const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, loansSnapshot, justificationsSnapshot] = await Promise.all([
               getDocs(departmentsQuery),
               getDocs(employeesQuery),
               getDocs(archivesQuery),
               getDocs(loansQuery),
+              getDocs(justificationsQuery),
           ]);
           
           await fetchAdmins(cId);
@@ -186,6 +193,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
           const archivesData = archivesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ArchivedPayroll[];
           const loansData = loansSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Loan[];
+          const justificationsData = justificationsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AbsenceJustification[];
           
           const safeEmployees = employeesData.map(e => {
             const newAttendance = { ...e.attendance };
@@ -202,6 +210,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           setEmployees(safeEmployees.sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
           setArchives(archivesData.sort((a,b) => (b.period || "").localeCompare(a.period || "")));
           setLoans(loansData);
+          setJustifications(justificationsData);
       } catch (error) {
           console.error("Error fetching company data:", error);
           clearData(); 
@@ -622,6 +631,45 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     await updateDoc(loanRef, { status });
     setLoans(prev => prev.map(l => l.id === loanId ? { ...l, status } : l));
   };
+  
+  const submitAbsenceJustification = async (justificationData: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt'>) => {
+    if (!companyId) throw new Error("Company ID is missing");
+    const newJustification: Omit<AbsenceJustification, 'id'> = {
+      ...justificationData,
+      companyId,
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+    };
+    const docRef = await addDoc(collection(db, "justifications"), newJustification);
+    setJustifications(prev => [{...newJustification, id: docRef.id}, ...prev]);
+    
+    createNotificationForAllAdmins({
+        title: "Nouvelle Justification d'Absence",
+        description: `${justificationData.employeeName} a soumis une justification pour le ${justificationData.dayName}.`,
+        link: `/dashboard/departments`, // Link to where manager can approve
+        type: 'info'
+    });
+  };
+
+  const updateJustificationStatus = async (justificationId: string, status: 'approved' | 'rejected', reviewedBy: string) => {
+    const justificationRef = doc(db, "justifications", justificationId);
+    await updateDoc(justificationRef, { 
+        status, 
+        reviewedBy,
+        reviewedAt: new Date().toISOString(),
+    });
+    setJustifications(prev => prev.map(j => j.id === justificationId ? { ...j, status, reviewedBy } : j));
+    
+    const justification = justifications.find(j => j.id === justificationId);
+    if(justification) {
+        createNotificationForAllAdmins({
+            title: `Justification ${status === 'approved' ? 'Approuvée' : 'Rejetée'}`,
+            description: `La justification de ${justification.employeeName} a été ${status === 'approved' ? 'approuvée' : 'rejetée'} par ${reviewedBy}.`,
+            link: `/employee/${justification.employeeId}`,
+            type: status === 'approved' ? 'success' : 'warning'
+        });
+    }
+  };
 
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
@@ -643,7 +691,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     notifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
-    siteSettings
+    siteSettings,
+    submitAbsenceJustification,
+    justifications,
+    updateJustificationStatus
   };
   
   return (

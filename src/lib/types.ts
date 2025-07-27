@@ -93,6 +93,22 @@ export interface PayStub {
   dailyWageAtTime: number;
 }
 
+export type AbsenceJustification = {
+    id: string;
+    employeeId: string;
+    employeeName: string; // For display
+    departmentName: string;
+    companyId: string;
+    date: string; // The specific date of absence (YYYY-MM-DD)
+    dayName: string; // e.g. "Lundi 29"
+    reason: string;
+    documentUrl?: string; // Optional link to a medical note, etc.
+    status: 'pending' | 'approved' | 'rejected';
+    submittedAt: string; // ISO Timestamp
+    reviewedBy?: string; // Manager's name
+    reviewedAt?: string; // ISO Timestamp
+};
+
 
 export interface Admin {
     id: string;
@@ -149,4 +165,3 @@ export interface SiteSettings {
     maintenanceMessage: string;
 }
     
-
