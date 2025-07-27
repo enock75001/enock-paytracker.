@@ -22,6 +22,7 @@ import { useEmployees } from "@/context/employee-provider";
 import { Button } from "@/components/ui/button";
 import { ChatWidget } from "@/components/chat-widget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSession } from "@/hooks/use-session";
 
 const menuGroups = [
     {
@@ -59,29 +60,24 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { isLoading, companyId, siteSettings } = useEmployees();
-  const [companyName, setCompanyName] = useState("Enock PayTracker");
-  const [adminName, setAdminName] = useState("");
-  const [adminId, setAdminId] = useState("");
-  const [userType, setUserType] = useState<"admin" | "manager" | null>(null);
+  const { sessionData, isLoggedIn } = useSession();
+  const { userType, adminName, userId, companyName } = sessionData;
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    const sessionUserType = sessionStorage.getItem('userType');
-    const sessionCompanyId = sessionStorage.getItem('companyId');
-    const sessionAdminId = sessionStorage.getItem('adminId');
-
-    if (sessionUserType !== 'admin' || !sessionCompanyId || !sessionAdminId) {
-      router.replace('/');
+    // We need to wait for the session to be checked on the client
+    if (isLoggedIn === false && isCheckingSession) {
       return;
     }
+    setIsCheckingSession(false);
+    
+    if (userType !== 'admin' || !userId) {
+      router.replace('/admin-login');
+    }
+  }, [userType, userId, isLoggedIn, router, isCheckingSession]);
 
-    setCompanyName(sessionStorage.getItem('companyName') || "Enock PayTracker");
-    setAdminName(sessionStorage.getItem('adminName') || "");
-    setAdminId(sessionAdminId);
-    setUserType(sessionUserType as "admin" | "manager");
-  }, [router]);
 
-
-  if (isLoading) {
+  if (isCheckingSession || isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <div className="text-center">
@@ -162,10 +158,10 @@ export default function DashboardLayout({
       <div className="flex flex-col flex-1">
         <Header variant="sidebar" />
         <SidebarInset>{children}</SidebarInset>
-         {userType === 'admin' && companyId && adminId && (
+         {userType === 'admin' && companyId && userId && (
             <ChatWidget
               companyId={companyId}
-              userId={adminId}
+              userId={userId}
               userName={adminName}
               userRole="admin"
             />

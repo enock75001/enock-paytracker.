@@ -57,6 +57,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useSession } from '@/hooks/use-session';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0 }).format(amount) + ' FCFA';
@@ -571,43 +572,26 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { employees, departments, isLoading, clearData, companyId, siteSettings } = useEmployees();
-  const [sessionData, setSessionData] = useState({
-      managerId: '',
-      managerName: '',
-      userType: ''
-  });
+  const { employees, departments, isLoading, siteSettings } = useEmployees();
+  const { sessionData, isLoggedIn } = useSession();
+  const { userType, managerName, userId, companyId, departmentName } = sessionData;
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  const getManagerName = (managerId: string | null) => {
-      if (!managerId) return null;
-      const manager = employees.find(e => e.id === managerId);
-      return manager ? `${manager.firstName} ${manager.lastName}` : null;
-  };
-  
   useEffect(() => {
-    const userType = sessionStorage.getItem('userType');
-    const departmentName = sessionStorage.getItem('department');
-    const sessionCompanyId = sessionStorage.getItem('companyId');
-    const sessionManagerId = sessionStorage.getItem('managerId');
-
-
-    if (userType !== 'manager' || departmentName !== domain || !sessionCompanyId || !sessionManagerId) {
-      router.replace('/');
+    // We need to wait for the session to be checked on the client
+    if (isLoggedIn === false && isCheckingSession) {
       return;
     }
+    setIsCheckingSession(false);
 
-    setSessionData({
-      managerId: sessionManagerId,
-      managerName: sessionStorage.getItem('managerName') || '',
-      userType: userType,
-    });
-
-  }, [router, domain]);
+    if (userType !== 'manager' || departmentName !== domain || !userId) {
+      router.replace('/manager-login');
+    }
+  }, [userType, userId, isLoggedIn, router, isCheckingSession, departmentName, domain]);
 
   const department = departments.find(d => d.name === domain);
-  const managerName = department ? getManagerName(department.managerId) : 'Chargement...';
 
-  if (isLoading) {
+  if (isCheckingSession || isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <p className="text-lg font-semibold">Chargement...</p>
@@ -644,12 +628,6 @@ export default function DepartmentPage() {
       )
   }
 
-  const handleLogout = () => {
-    clearData();
-    sessionStorage.clear();
-    router.push('/');
-  }
-
   return (
     <div className="flex flex-col min-h-screen">
         <Header />
@@ -670,18 +648,18 @@ export default function DepartmentPage() {
                     <AttendanceTab domain={domain} />
                 </TabsContent>
                 <TabsContent value="justifications">
-                    <JustificationTab domain={domain} managerName={sessionData.managerName} />
+                    <JustificationTab domain={domain} managerName={managerName} />
                 </TabsContent>
                 <TabsContent value="register">
                     <RegisterInDepartment domain={domain} />
                 </TabsContent>
             </Tabs>
         </main>
-         {sessionData.userType === 'manager' && companyId && sessionData.managerId && (
+         {userType === 'manager' && companyId && userId && (
             <ChatWidget
               companyId={companyId}
-              userId={sessionData.managerId}
-              userName={sessionData.managerName}
+              userId={userId}
+              userName={managerName}
               userRole="manager"
               departmentName={domain}
             />

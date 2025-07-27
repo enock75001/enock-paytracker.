@@ -407,6 +407,7 @@ export default function EmployeeDashboardPage() {
     const employee = employees.find(e => e.id === userId);
 
     useEffect(() => {
+        // We need to wait for the session to be checked on the client
         if (isLoggedIn === false && isCheckingSession) {
             return;
         }
@@ -417,12 +418,7 @@ export default function EmployeeDashboardPage() {
         }
     }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
 
-    const handleLogout = () => {
-        sessionStorage.clear();
-        router.push('/');
-    };
-
-    if (isCheckingSession || !isLoggedIn || !userId) {
+    if (isCheckingSession || !isLoggedIn || !userId || !employee) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <p>Vérification de la session...</p>
@@ -457,7 +453,6 @@ export default function EmployeeDashboardPage() {
                         <h1 className="text-3xl font-bold">Mon Espace Employé</h1>
                         <p className="text-muted-foreground">Bienvenue, {employeeName}.</p>
                     </div>
-                    <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2"/>Déconnexion</Button>
                 </div>
 
                 <Tabs defaultValue="dashboard" className="w-full">

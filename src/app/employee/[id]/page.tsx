@@ -60,6 +60,7 @@ import { Header } from '@/components/header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSession } from '@/hooks/use-session';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -415,18 +416,24 @@ export default function EmployeeRecapPage() {
   const router = useRouter();
   const { id } = params;
   const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading, weekPeriod, company, loans } = useEmployees();
+  const { sessionData, isLoggedIn } = useSession();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   
-   useEffect(() => {
-    const userType = sessionStorage.getItem('userType');
-    const companyId = sessionStorage.getItem('companyId');
-    if (!userType || !companyId) {
-      router.replace('/');
+  useEffect(() => {
+    // We need to wait for the session to be checked on the client
+    if (isLoggedIn === false && isCheckingSession) {
+      return;
     }
-  }, [router]);
+    setIsCheckingSession(false);
+
+    if (sessionData.userType !== 'admin') {
+      router.replace('/admin-login');
+    }
+  }, [sessionData, isLoggedIn, router, isCheckingSession]);
 
   const employee = employees.find(emp => emp.id === id);
 
-  if (isLoading) {
+  if (isCheckingSession || isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
              <p className="text-lg font-semibold">Chargement des données de l'employé...</p>
