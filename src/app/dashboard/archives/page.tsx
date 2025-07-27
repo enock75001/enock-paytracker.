@@ -46,6 +46,10 @@ function groupArchivesByYear(archives: ArchivedPayroll[]): Record<string, Archiv
   }, {} as Record<string, ArchivedPayroll[]>);
 };
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+};
+
 export default function ArchivesPage() {
   const { archives, deleteArchive } = useEmployees();
   const { toast } = useToast();
@@ -111,7 +115,7 @@ export default function ArchivesPage() {
                                   <div>
                                     <h3 className="font-semibold text-lg">{archive.period}</h3>
                                     <p className="text-muted-foreground mb-2">
-                                      Total payé : <span className="font-bold text-primary">{new Intl.NumberFormat('fr-FR').format(archive.totalPayroll)} FCFA</span>
+                                      Total payé : <span className="font-bold text-primary">{formatCurrency(archive.totalPayroll)}</span>
                                     </p>
                                   </div>
                                   <AlertDialog>
@@ -147,7 +151,7 @@ export default function ArchivesPage() {
                                             <TableRow key={dept.name}>
                                                 <TableCell>{dept.name}</TableCell>
                                                 <TableCell>{dept.employeeCount}</TableCell>
-                                                <TableCell className="text-right">{new Intl.NumberFormat('fr-FR').format(dept.total)} FCFA</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(dept.total)}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

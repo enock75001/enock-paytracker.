@@ -48,7 +48,7 @@ import { ChatWidget } from '@/components/chat-widget';
 import { FormLabel } from '@/components/ui/form';
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
 
 const registerSchema = z.object({
@@ -249,7 +249,7 @@ function AttendanceTab({ domain }: { domain: string }) {
         head: head,
         body: body,
         foot: [[
-            { content: 'Total Département', colSpan: days.length + 1, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'Total Département', colSpan: days.length + 2, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: `${formatCurrency(departmentTotalPay)}`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
@@ -339,6 +339,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                         </div>
                         </TableCell>
                         {days.map((day, index) => {
+                            if (!weekDates?.[index]) return null;
                             const isToday = isSameDay(weekDates[index], today);
                             return (
                                 <TableCell key={day} className="text-center">
@@ -520,3 +521,4 @@ export default function DepartmentPage() {
     </div>
   );
 }
+

@@ -78,6 +78,9 @@ import { type ArchivedPayroll } from '@/lib/types';
 import { ImagePicker } from '@/components/image-picker';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+};
 
 // Main Page Component
 export default function DashboardPage() {
@@ -106,7 +109,7 @@ export default function DashboardPage() {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{new Intl.NumberFormat('fr-FR').format(weeklyPayroll || 0)} FCFA</div>
+                    <div className="text-2xl font-bold">{formatCurrency(weeklyPayroll || 0)}</div>
                     <p className="text-xs text-muted-foreground">Total à payer pour cette semaine</p>
                 </CardContent>
             </Card>
@@ -177,7 +180,7 @@ export default function DashboardPage() {
                                 <p className="text-sm font-medium leading-none">{employee.firstName} {employee.lastName}</p>
                                 <p className="text-sm text-muted-foreground">{employee.domain}</p>
                             </div>
-                            <div className="ml-auto font-medium">{new Intl.NumberFormat('fr-FR').format(employee.dailyWage || 0)} FCFA</div>
+                            <div className="ml-auto font-medium">{formatCurrency(employee.dailyWage || 0)}</div>
                         </div>
                     ))}
                 </div>

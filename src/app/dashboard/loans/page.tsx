@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -29,7 +30,7 @@ const loanSchema = z.object({
 });
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
 
 export default function LoansPage() {
