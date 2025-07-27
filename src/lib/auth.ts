@@ -15,7 +15,7 @@ export async function findCompanyByIdentifier(companyIdentifier: string): Promis
     const companyData = { id: companyDoc.id, ...companyDoc.data() } as Company & { id: string };
 
     if (companyData.status === 'suspended') {
-        throw new Error("Le compte de cette entreprise est actuellement suspendu.");
+        throw new Error("Le compte de cette entreprise est actuellement suspendu. Veuillez contacter le support.");
     }
     
     return companyData;
