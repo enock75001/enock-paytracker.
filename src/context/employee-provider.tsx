@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { useSession } from '@/hooks/use-session';
@@ -66,7 +66,7 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: s
     let startDate, endDate;
     let period: string;
     
-    const weekOptions = { weekStartsOn: 1 as 0 | 1 | 2 | 3 | 4 | 5 | 6 };
+    const weekOptions = { weekStartsOn: 1 as 0 | 1 | 2 | 3 | 4 | 5 | 6 }; // Monday
 
     switch (payPeriod) {
         case 'monthly':
@@ -87,7 +87,9 @@ const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: s
             break;
     }
 
-    const dates = eachDayOfInterval({ start: startDate, end: endDate });
+    const allDates = eachDayOfInterval({ start: startDate, end: endDate });
+    // getDay() returns 0 for Sunday
+    const dates = allDates.filter(date => getDay(date) !== 0);
     const days = dates.map(date => format(date, 'EEEE dd', { locale: fr }));
 
     return { days, period, dates };
