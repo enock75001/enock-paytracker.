@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,7 +7,7 @@ import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User } from 'lucide-react';
+import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import type { PayStub, Employee } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -72,7 +72,77 @@ function EmployeeInfoCard({ employee }: { employee: Employee | undefined }) {
     )
 }
 
-function PayHistoryTab({ employeeId }: { employeeId: string }) {
+function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
+    const { days, loans, weekPeriod } = useEmployees();
+
+    if (!employee) return <Card><CardContent className="pt-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
+    
+    const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
+    const daysPresent = days.filter(day => employee.attendance[day]).length;
+    const basePay = daysPresent * currentWage;
+    const totalAdjustments = (employee.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+  
+    const activeLoan = loans.find(l => l.employeeId === employee.id && l.status === 'active');
+    const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+  
+    const weeklyPay = basePay + totalAdjustments - loanRepayment;
+
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Paie de la Période Actuelle</CardTitle>
+                <CardDescription>{weekPeriod}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Jour</TableHead>
+                                <TableHead className="text-right">Statut</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {days.map(day => (
+                                <TableRow key={day}>
+                                    <TableCell>{day}</TableCell>
+                                    <TableCell className="text-right">
+                                        {employee.attendance[day] ? 
+                                            <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
+                                            <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
+                                        }
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <div className="space-y-2 pt-4 border-t">
+                     <div className="flex justify-between items-center">
+                        <span>Paie de base ({daysPresent} jours):</span>
+                        <span className="font-medium">{formatCurrency(basePay)}</span>
+                    </div>
+                     <div className="flex justify-between items-center">
+                        <span>Primes / Avances ponctuelles:</span>
+                        <span className={`font-medium ${totalAdjustments > 0 ? 'text-green-400' : totalAdjustments < 0 ? 'text-red-400' : ''}`}>{formatCurrency(totalAdjustments)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span>Remboursement avance programmée:</span>
+                        <span className={`font-medium ${loanRepayment > 0 ? 'text-red-400' : ''}`}>-{formatCurrency(loanRepayment)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t text-lg">
+                        <span className="font-semibold">Total Net Période:</span>
+                        <span className="font-bold text-2xl text-primary">{formatCurrency(weeklyPay)}</span>
+                    </div>
+                 </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+
+function PayHistoryCard({ employeeId }: { employeeId: string }) {
     const { fetchEmployeePayStubs } = useEmployees();
     const [payStubs, setPayStubs] = useState<PayStub[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,24 +158,6 @@ function PayHistoryTab({ employeeId }: { employeeId: string }) {
         loadPayStubs();
     }, [employeeId, fetchEmployeePayStubs]);
 
-    if (loading) {
-        return (
-            <div className="space-y-2 pt-6">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-            </div>
-        )
-    }
-
-    if (payStubs.length === 0) {
-        return (
-            <div className="text-center py-8">
-                <p className="text-muted-foreground">Aucun historique de paie trouvé pour le moment.</p>
-            </div>
-        )
-    }
-    
     return (
         <Card>
             <CardHeader>
@@ -116,26 +168,38 @@ function PayHistoryTab({ employeeId }: { employeeId: string }) {
                 <CardDescription>Liste de toutes vos fiches de paie générées.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="border rounded-md">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Période</TableHead>
-                                <TableHead className="text-right">Paie Nette Reçue</TableHead>
-                                <TableHead className="text-right">Date de Paiement</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {payStubs.map(stub => (
-                                <TableRow key={stub.id}>
-                                    <TableCell className="font-medium">{stub.period}</TableCell>
-                                    <TableCell className="text-right font-bold text-primary">{formatCurrency(stub.totalPay)}</TableCell>
-                                    <TableCell className="text-right">{format(parseISO(stub.payDate), 'dd/MM/yyyy')}</TableCell>
+                 {loading ? (
+                    <div className="space-y-2 pt-6">
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                    </div>
+                ) : payStubs.length === 0 ? (
+                    <div className="text-center py-8">
+                        <p className="text-muted-foreground">Aucun historique de paie trouvé pour le moment.</p>
+                    </div>
+                ) : (
+                    <div className="border rounded-md">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Période</TableHead>
+                                    <TableHead className="text-right">Paie Nette Reçue</TableHead>
+                                    <TableHead className="text-right">Date</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
+                            </TableHeader>
+                            <TableBody>
+                                {payStubs.map(stub => (
+                                    <TableRow key={stub.id}>
+                                        <TableCell className="font-medium">{stub.period}</TableCell>
+                                        <TableCell className="text-right font-bold text-primary">{formatCurrency(stub.totalPay)}</TableCell>
+                                        <TableCell className="text-right">{format(parseISO(stub.payDate), 'dd/MM/yyyy')}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
             </CardContent>
         </Card>
     )
@@ -205,11 +269,12 @@ export default function EmployeeDashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-1 space-y-8">
                         <EmployeeInfoCard employee={employee} />
                     </div>
-                    <div className="lg:col-span-2">
-                        <PayHistoryTab employeeId={userId} />
+                    <div className="lg:col-span-2 space-y-8">
+                        <CurrentPayCard employee={employee} />
+                        <PayHistoryCard employeeId={userId} />
                     </div>
                 </div>
                 
