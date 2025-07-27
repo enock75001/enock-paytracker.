@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, LogOut, Download } from 'lucide-react';
+import { Eye, LogOut, Download, UserPlus, CalendarCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -47,7 +47,7 @@ import { ChatWidget } from '@/components/chat-widget';
 import { Label } from '@/components/ui/label';
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+    return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0 }).format(amount) + ' FCFA';
 };
 
 const registerSchema = z.object({
@@ -515,8 +515,8 @@ export default function DepartmentPage() {
             </div>
             <Tabs defaultValue="attendance" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="attendance">Feuille de Présence</TabsTrigger>
-                    <TabsTrigger value="register">Enregistrer un employé</TabsTrigger>
+                    <TabsTrigger value="attendance"><CalendarCheck className="mr-2"/>Feuille de Présence</TabsTrigger>
+                    <TabsTrigger value="register"><UserPlus className="mr-2"/>Enregistrer un employé</TabsTrigger>
                 </TabsList>
                 <TabsContent value="attendance">
                     <AttendanceTab domain={domain} />

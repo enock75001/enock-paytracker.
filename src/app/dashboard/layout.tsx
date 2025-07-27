@@ -10,10 +10,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History, Users, HandCoins } from 'lucide-react';
+import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History, Users, HandCoins, Server, LineChart } from 'lucide-react';
 import { Header } from "@/components/header";
 import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
@@ -21,17 +23,33 @@ import { Button } from "@/components/ui/button";
 import { ChatWidget } from "@/components/chat-widget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const menuItems = [
-    { href: '/dashboard', label: 'Tableau de bord', icon: Home },
-    { href: '/dashboard/departments', label: 'Départements', icon: Briefcase },
-    { href: '/dashboard/employees', label: 'Employés', icon: Users },
-    { href: '/dashboard/register', label: 'Enregistrer', icon: UserPlus },
-    { href: '/dashboard/recap', label: 'Récapitulatif', icon: FileText },
-    { href: '/dashboard/loans', label: 'Avances sur Salaire', icon: HandCoins },
-    { href: '/dashboard/archives', label: 'Archives', icon: Archive },
-    { href: '/dashboard/logs', label: 'Historique Connexions', icon: History },
-    { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
-];
+const menuGroups = [
+    {
+        label: "Général",
+        items: [
+            { href: '/dashboard', label: 'Tableau de bord', icon: Home },
+            { href: '/dashboard/recap', label: 'Récapitulatif', icon: FileText },
+            { href: '/dashboard/archives', label: 'Archives', icon: Archive },
+        ]
+    },
+    {
+        label: "Gestion",
+        items: [
+            { href: '/dashboard/departments', label: 'Départements', icon: Briefcase },
+            { href: '/dashboard/employees', label: 'Employés', icon: Users },
+            { href: '/dashboard/register', label: 'Enregistrer', icon: UserPlus },
+            { href: '/dashboard/loans', label: 'Avances sur Salaire', icon: HandCoins },
+        ]
+    },
+    {
+        label: "Système",
+        items: [
+            { href: '/dashboard/logs', label: 'Historique', icon: History },
+            { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
+        ]
+    }
+]
+
 
 export default function DashboardLayout({
   children,
@@ -117,24 +135,28 @@ export default function DashboardLayout({
              </Link>
         </SidebarHeader>
         <SidebarContent>
-            <SidebarMenu>
-                {menuItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                         <SidebarMenuButton
-                            asChild
-                            isActive={pathname === item.href}
-                            tooltip={item.label}
-                            size="lg"
-                            className="justify-start gap-4"
-                        >
-                            <Link href={item.href}>
-                                <item.icon className="size-5" />
-                                <span>{item.label}</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                ))}
-            </SidebarMenu>
+            {menuGroups.map(group => (
+                 <SidebarGroup key={group.label}>
+                    <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                    <SidebarMenu>
+                        {group.items.map((item) => (
+                            <SidebarMenuItem key={item.href}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname === item.href}
+                                    tooltip={item.label}
+                                    className="justify-start gap-3"
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon className="size-5" />
+                                        <span>{item.label}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                 </SidebarGroup>
+            ))}
         </SidebarContent>
       </Sidebar>
       <div className="flex flex-col flex-1">

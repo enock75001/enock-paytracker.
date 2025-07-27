@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,7 +8,7 @@ import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle } from 'lucide-react';
+import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, BarChart2, FileText, UserCircle } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import type { PayStub, Employee } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +17,7 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -268,15 +270,22 @@ export default function EmployeeDashboardPage() {
                     <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2"/>Déconnexion</Button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1 space-y-8">
+                <Tabs defaultValue="dashboard" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="dashboard"><UserCircle className="mr-2"/>Mon Profil</TabsTrigger>
+                        <TabsTrigger value="current_pay"><FileText className="mr-2"/>Paie Actuelle</TabsTrigger>
+                        <TabsTrigger value="history"><History className="mr-2"/>Historique</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="dashboard" className="mt-6">
                         <EmployeeInfoCard employee={employee} />
-                    </div>
-                    <div className="lg:col-span-2 space-y-8">
+                    </TabsContent>
+                    <TabsContent value="current_pay" className="mt-6">
                         <CurrentPayCard employee={employee} />
+                    </TabsContent>
+                    <TabsContent value="history" className="mt-6">
                         <PayHistoryCard employeeId={userId} />
-                    </div>
-                </div>
+                    </TabsContent>
+                </Tabs>
                 
             </main>
         </div>
