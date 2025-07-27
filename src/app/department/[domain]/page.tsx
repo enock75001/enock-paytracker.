@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, LogOut, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X } from 'lucide-react';
+import { Eye, LogOut, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X, ShieldQuestion } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -88,7 +88,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
             poste: '',
             domain: domain,
             address: '',
-            dailyWage: 5000,
+            dailyWage: 0,
             phone: '',
             photoUrl: '',
         },
@@ -110,7 +110,6 @@ function RegisterInDepartment({ domain }: { domain: string }) {
         });
         form.reset();
         form.setValue('domain', domain);
-        form.setValue('dailyWage', 5000);
     }
     
     return (
@@ -186,11 +185,16 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
-  const { employees, updateAttendance, days, weekPeriod, weekDates, company } = useEmployees();
+  const { employees, updateAttendance, days, weekPeriod, weekDates, company, justifications } = useEmployees();
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
   
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
+  
+  const getJustificationForDay = (employeeId: string, date: Date): AbsenceJustification | undefined => {
+      const dateString = format(date, 'yyyy-MM-dd');
+      return justifications.find(j => j.employeeId === employeeId && j.date === dateString);
+  }
 
   const downloadAttendancePdf = () => {
     const doc = new jsPDF();
@@ -352,16 +356,27 @@ function AttendanceTab({ domain }: { domain: string }) {
                         {days.map((day, index) => {
                             if (!weekDates?.[index]) return null;
                             const isToday = isSameDay(weekDates[index], today);
+                            const justification = getJustificationForDay(employee.id, weekDates[index]);
+                            const isJustified = justification?.status === 'approved';
+                            
                             return (
                                 <TableCell key={day} className="text-center">
-                                    <Checkbox
-                                    checked={employee.attendance[day]}
-                                    onCheckedChange={(checked) =>
-                                        updateAttendance(employee.id, day, !!checked)
-                                    }
-                                    aria-label={`Attendance for ${day}`}
-                                    disabled={!isToday}
-                                    />
+                                    <div className="flex flex-col items-center justify-center">
+                                        <Checkbox
+                                            checked={employee.attendance[day]}
+                                            onCheckedChange={(checked) =>
+                                                updateAttendance(employee.id, day, !!checked)
+                                            }
+                                            aria-label={`Attendance for ${day}`}
+                                            disabled={!isToday}
+                                        />
+                                         {isJustified && (
+                                            <span className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                                                <ShieldCheck className="h-3 w-3" />
+                                                Justifié
+                                            </span>
+                                        )}
+                                    </div>
                                 </TableCell>
                             )
                         })}
@@ -405,8 +420,10 @@ function AttendanceTab({ domain }: { domain: string }) {
                                 {days.map((day, index) => {
                                     if (!weekDates?.[index]) return null;
                                     const isToday = isSameDay(weekDates[index], today);
+                                    const justification = getJustificationForDay(employee.id, weekDates[index]);
+                                    const isJustified = justification?.status === 'approved';
                                     return (
-                                        <div key={day} className="flex flex-col items-center gap-2 p-2 rounded-md bg-secondary/50">
+                                        <div key={day} className="flex flex-col items-center gap-1 p-2 rounded-md bg-secondary/50">
                                             <Label htmlFor={`${employee.id}-${day}`} className="text-xs font-bold capitalize">{day.split(' ')[0]}</Label>
                                             <Checkbox
                                                 id={`${employee.id}-${day}`}
@@ -418,6 +435,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                                 disabled={!isToday}
                                                 className="h-5 w-5"
                                             />
+                                            {isJustified && <ShieldCheck className="h-3 w-3 text-green-500" />}
                                         </div>
                                     )
                                 })}
@@ -432,25 +450,27 @@ function AttendanceTab({ domain }: { domain: string }) {
 }
 
 function JustificationTab({ domain, managerName }: { domain: string, managerName: string }) {
-    const { justifications, updateJustificationStatus, weekDates } = useEmployees();
+    const { justifications, updateJustificationStatus } = useEmployees();
     const [viewingJustification, setViewingJustification] = useState<AbsenceJustification | null>(null);
     const { toast } = useToast();
     
     const departmentJustifications = justifications.filter(j => j.departmentName === domain);
 
     const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
+        if (!viewingJustification) return;
         await updateJustificationStatus(id, status, managerName);
         toast({
             title: "Statut mis à jour",
             description: `La justification a été ${status === 'approved' ? 'approuvée' : 'rejetée'}.`,
         });
+        setViewingJustification(null); // Close the dialog
     };
 
     const getStatusBadge = (status: AbsenceJustification['status']) => {
         switch (status) {
-            case 'pending': return <Badge variant="secondary">En attente</Badge>;
-            case 'approved': return <Badge className="bg-green-500/20 text-green-400">Approuvée</Badge>;
-            case 'rejected': return <Badge variant="destructive">Rejetée</Badge>;
+            case 'pending': return <Badge variant="secondary" className="flex items-center gap-1"><ShieldQuestion className="h-3 w-3"/>En attente</Badge>;
+            case 'approved': return <Badge className="bg-green-500/20 text-green-400 flex items-center gap-1"><ShieldCheck className="h-3 w-3"/>Approuvée</Badge>;
+            case 'rejected': return <Badge variant="destructive" className="flex items-center gap-1"><ShieldAlert className="h-3 w-3"/>Rejetée</Badge>;
         }
     };
 
@@ -508,14 +528,22 @@ function JustificationTab({ domain, managerName }: { domain: string, managerName
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <div className="space-y-4 py-4">
-                            <p><strong>Motif:</strong></p>
-                            <p className="p-3 bg-secondary rounded-md text-sm">{viewingJustification.reason}</p>
+                            <div>
+                                <p className="font-semibold mb-1">Motif :</p>
+                                <p className="p-3 bg-secondary rounded-md text-sm">{viewingJustification.reason}</p>
+                            </div>
                             {viewingJustification.documentUrl && (
                                 <div>
-                                    <p className="mb-2"><strong>Document Justificatif:</strong></p>
-                                    <a href={viewingJustification.documentUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                    <p className="mb-2 font-semibold">Document Justificatif :</p>
+                                    <a href={viewingJustification.documentUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline flex items-center gap-2">
+                                        <Download className="h-4 w-4" />
                                         Voir le document
                                     </a>
+                                </div>
+                            )}
+                             {viewingJustification.status !== 'pending' && (
+                                <div className="text-xs text-muted-foreground pt-2 border-t">
+                                    {viewingJustification.status === 'approved' ? 'Approuvé' : 'Rejeté'} par {viewingJustification.reviewedBy} le {format(parseISO(viewingJustification.reviewedAt!), 'dd/MM/yyyy HH:mm')}
                                 </div>
                             )}
                         </div>

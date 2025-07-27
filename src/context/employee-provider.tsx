@@ -193,10 +193,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
           const archivesData = archivesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as ArchivedPayroll[];
           const loansData = loansSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Loan[];
-          const justificationsData = justificationsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AbsenceJustification[];
           
-          justificationsData.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-
+          const justificationsData = justificationsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AbsenceJustification[];
+          justificationsData.sort((a, b) => {
+                const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+                const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+                return dateB - dateA;
+            });
+          
           const safeEmployees = employeesData.map(e => {
             const newAttendance = { ...e.attendance };
             dynamicDays.forEach(day => {
@@ -594,7 +598,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         const querySnapshot = await getDocs(q);
         const stubs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
         // Sort manually
-        stubs.sort((a, b) => parseISO(b.payDate).getTime() - parseISO(a.payDate).getTime());
+        stubs.sort((a, b) => {
+          const dateA = a.payDate ? parseISO(a.payDate).getTime() : 0;
+          const dateB = b.payDate ? parseISO(b.payDate).getTime() : 0;
+          return dateB - dateA;
+        });
         return stubs;
     };
     
@@ -634,7 +642,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setLoans(prev => prev.map(l => l.id === loanId ? { ...l, status } : l));
   };
   
-  const submitAbsenceJustification = async (justificationData: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt'>) => {
+  const submitAbsenceJustification = async (justificationData: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt' | 'reviewedAt' | 'reviewedBy'>) => {
     if (!companyId) throw new Error("Company ID is missing");
     const newJustification: Omit<AbsenceJustification, 'id'> = {
       ...justificationData,
@@ -648,29 +656,36 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     createNotificationForAllAdmins({
         title: "Nouvelle Justification d'Absence",
         description: `${justificationData.employeeName} a soumis une justification pour le ${justificationData.dayName}.`,
-        link: `/dashboard/departments`, // Link to where manager can approve
+        link: `/department/${encodeURIComponent(justificationData.departmentName)}`,
         type: 'info'
     });
   };
 
   const updateJustificationStatus = async (justificationId: string, status: 'approved' | 'rejected', reviewedBy: string) => {
+    const justification = justifications.find(j => j.id === justificationId);
+    if (!justification) return;
+
     const justificationRef = doc(db, "justifications", justificationId);
+    
     await updateDoc(justificationRef, { 
         status, 
         reviewedBy,
         reviewedAt: new Date().toISOString(),
     });
-    setJustifications(prev => prev.map(j => j.id === justificationId ? { ...j, status, reviewedBy } : j));
+
+    const updatedJustification = { ...justification, status, reviewedBy };
+    setJustifications(prev => prev.map(j => j.id === justificationId ? updatedJustification : j));
     
-    const justification = justifications.find(j => j.id === justificationId);
-    if(justification) {
-        createNotificationForAllAdmins({
-            title: `Justification ${status === 'approved' ? 'Approuvée' : 'Rejetée'}`,
-            description: `La justification de ${justification.employeeName} a été ${status === 'approved' ? 'approuvée' : 'rejetée'} par ${reviewedBy}.`,
-            link: `/employee/${justification.employeeId}`,
-            type: status === 'approved' ? 'success' : 'warning'
-        });
+    if (status === 'approved') {
+        await updateAttendance(justification.employeeId, justification.dayName, true);
     }
+
+    createNotificationForAllAdmins({
+        title: `Justification ${status === 'approved' ? 'Approuvée' : 'Rejetée'}`,
+        description: `La justification de ${justification.employeeName} a été ${status === 'approved' ? 'approuvée' : 'rejetée'} par ${reviewedBy}.`,
+        link: `/employee/${justification.employeeId}`,
+        type: status === 'approved' ? 'success' : 'warning'
+    });
   };
 
   const value = { 
