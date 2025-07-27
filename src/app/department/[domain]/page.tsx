@@ -29,7 +29,6 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  FormLabel,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +44,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 import { ChatWidget } from '@/components/chat-widget';
+import { Label } from '@/components/ui/label';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -115,7 +115,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                   name="photoUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Photo de l'employé</FormLabel>
+                      <Label>Photo de l'employé</Label>
                       <FormControl>
                          <ImagePicker 
                            value={field.value ?? ''} 
@@ -130,18 +130,18 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="firstName" render={({ field }) => (
-                        <FormItem><FormLabel>Prénom</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Prénom</Label><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="lastName" render={({ field }) => (
-                        <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Nom</Label><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
                  <FormField control={form.control} name="poste" render={({ field }) => (
-                    <FormItem><FormLabel>Poste</FormLabel><FormControl><Input placeholder="Ex: Maçon" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><Label>Poste</Label><FormControl><Input placeholder="Ex: Maçon" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="domain" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Département</FormLabel>
+                        <Label>Département</Label>
                         <FormControl>
                             <Input {...field} readOnly disabled />
                         </FormControl>
@@ -150,17 +150,17 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                 )} />
 
               <FormField control={form.control} name="birthDate" render={({ field }) => (
-                <FormItem><FormLabel>Date de naissance</FormLabel><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>
+                <FormItem><Label>Date de naissance</Label><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>
               )} />
                 <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem><FormLabel>Adresse</FormLabel><FormControl><Input placeholder="123 Rue Principale, Anytown" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><Label>Adresse</Label><FormControl><Input placeholder="123 Rue Principale, Anytown" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} defaultValue={5000} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} defaultValue={5000} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
-                        <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Numéro de téléphone</Label><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
               <Button type="submit">Enregistrer l'employé</Button>
@@ -395,7 +395,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                     const isToday = isSameDay(weekDates[index], today);
                                     return (
                                         <div key={day} className="flex flex-col items-center gap-2 p-2 rounded-md bg-secondary/50">
-                                            <FormLabel htmlFor={`${employee.id}-${day}`} className="text-xs font-bold capitalize">{day.split(' ')[0]}</FormLabel>
+                                            <Label htmlFor={`${employee.id}-${day}`} className="text-xs font-bold capitalize">{day.split(' ')[0]}</Label>
                                             <Checkbox
                                                 id={`${employee.id}-${day}`}
                                                 checked={employee.attendance[day]}
