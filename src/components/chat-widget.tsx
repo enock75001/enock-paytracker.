@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Separator } from './ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn } from '@/lib/utils';
 
 interface ChatWidgetProps {
   companyId: string;
@@ -126,9 +127,10 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
         if (isAlreadyOpen) {
             return prev.filter(c => c.id !== contactId);
         } else {
-            // Limit to 3 open chats
+            // Limit to 3 open chats on desktop, 1 on mobile
+            const maxChats = window.innerWidth < 768 ? 1 : 3;
             const newChats = [...prev, { id: contactId, name: contactName, avatar: contactAvatar }];
-            return newChats.slice(-3);
+            return newChats.slice(-maxChats);
         }
     })
   }
@@ -139,10 +141,17 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
   
   return (
     <>
-      <div className="fixed bottom-0 right-4 z-50 flex items-end gap-4">
+      <div className={cn(
+          "fixed bottom-0 right-0 z-50 flex items-end gap-4 p-4",
+          "md:right-4 md:bottom-4 md:p-0",
+          "max-md:flex-col max-md:inset-0 max-md:items-center max-md:justify-center max-md:bg-black/50",
+          openChats.length === 0 && "max-md:hidden" // Hide overlay on mobile if no chat is open
+      )}>
         {openChats.map(chat => (
             <ChatWindow key={chat.id} chatPartner={chat} onClose={() => closeChat(chat.id)} />
         ))}
+      </div>
+      <div className="fixed bottom-4 right-4 z-40">
         <Card className="w-72 shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between p-3 border-b cursor-pointer" onClick={() => setIsContactListOpen(!isContactListOpen)}>
                 <div className="flex items-center gap-2">
@@ -161,6 +170,7 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
                     <CardContent className="p-2">
                         <ul>
                             {contacts.map(contact => {
+                                if (!contact) return null;
                                 const contactId = contact.id;
                                 const contactName = isAdmin ? `${contact.firstName} ${contact.lastName}` : contact.name;
                                 const contactAvatar = isAdmin ? contact.photoUrl : `https://placehold.co/40x40.png?text=${contactName.charAt(0)}`;

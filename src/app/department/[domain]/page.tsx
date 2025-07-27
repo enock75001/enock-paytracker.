@@ -21,14 +21,13 @@ import { Eye, LogOut, Download } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, startOfWeek, addDays, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns"
+import { format, startOfWeek, addDays, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from "date-fns"
 import { fr } from 'date-fns/locale';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -46,6 +45,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 import { ChatWidget } from '@/components/chat-widget';
+import { FormLabel } from '@/components/ui/form';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
@@ -249,7 +249,7 @@ function AttendanceTab({ domain }: { domain: string }) {
         head: head,
         body: body,
         foot: [[
-            { content: 'Total Département', colSpan: days.length + 2, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'Total Département', colSpan: days.length + 1, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: `${formatCurrency(departmentTotalPay)}`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
@@ -389,7 +389,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             </Link>
                         </CardHeader>
                         <CardContent>
-                             <div className="grid grid-cols-4 gap-2 text-center">
+                             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
                                 {days.map((day, index) => {
                                     if (!weekDates?.[index]) return null;
                                     const isToday = isSameDay(weekDates[index], today);
