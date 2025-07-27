@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useSession } from '@/hooks/use-session';
 
 export default function EmployeeLoginPage() {
-    const [companyIdentifier, setCompanyIdentifier] = useState('');
+    const [companyIdNumber, setCompanyIdNumber] = useState('');
     const [phone, setPhone] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
@@ -38,8 +38,8 @@ export default function EmployeeLoginPage() {
         clearData();
         sessionStorage.clear();
         const rememberedId = localStorage.getItem('rememberedCompanyId');
-        if (rememberedId) {
-            setCompanyIdentifier(rememberedId);
+        if (rememberedId && rememberedId.startsWith('EPT-')) {
+            setCompanyIdNumber(rememberedId.substring(4));
             setRememberMe(true);
         }
     }, [clearData]);
@@ -48,8 +48,9 @@ export default function EmployeeLoginPage() {
         e.preventDefault();
         setError('');
         setLoading(true);
+        const companyIdentifier = `EPT-${companyIdNumber}`;
 
-        if (!companyIdentifier || !phone) {
+        if (!companyIdNumber || !phone) {
             setError("Veuillez entrer l'ID de l'entreprise et votre numéro de téléphone.");
             setLoading(false);
             return;
@@ -109,16 +110,17 @@ export default function EmployeeLoginPage() {
                         <form onSubmit={handleLogin} className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="company-id">ID de l'Entreprise</Label>
-                                <div className="relative">
-                                     <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <div className="flex items-center">
+                                     <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-secondary text-sm h-10">EPT-</span>
                                     <Input
                                         id="company-id"
                                         type="text"
-                                        placeholder="EPT-12345"
-                                        value={companyIdentifier}
-                                        onChange={(e) => setCompanyIdentifier(e.target.value)}
+                                        pattern="[0-9]*"
+                                        placeholder="12345"
+                                        value={companyIdNumber}
+                                        onChange={(e) => setCompanyIdNumber(e.target.value.replace(/\D/g, ''))}
                                         required
-                                        className="pl-8"
+                                        className="rounded-l-none pl-3"
                                     />
                                 </div>
                             </div>
