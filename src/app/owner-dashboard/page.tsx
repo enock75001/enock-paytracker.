@@ -32,6 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useSession } from '@/hooks/use-session';
 
 type CompanyWithAdmins = Company & { admins: Admin[], id: string };
 
@@ -192,6 +193,8 @@ export default function OwnerDashboardPage() {
     const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
     const { toast } = useToast();
+    const { isLoggedIn } = useSession();
+
 
     const fetchData = async () => {
         setLoading(true);
@@ -218,13 +221,12 @@ export default function OwnerDashboardPage() {
     };
 
     useEffect(() => {
-        const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn');
-        if (ownerLoggedIn !== 'true') {
+        if (!isLoggedIn) {
             router.replace('/owner-login');
         } else {
             fetchData();
         }
-    }, [router]);
+    }, [router, isLoggedIn]);
 
 
     const handleGenerateCode = async (isTrial: boolean) => {

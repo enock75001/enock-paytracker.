@@ -165,7 +165,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                 )} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem><Label>Numéro de téléphone</Label><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
@@ -580,7 +580,7 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { departments, isLoading, siteSettings } = useEmployees();
+  const { departments, isLoading, siteSettings, company } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, managerName, userId, companyId, departmentName } = sessionData;
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -597,6 +597,7 @@ export default function DepartmentPage() {
   }, [userType, userId, isLoggedIn, router, isCheckingSession, departmentName, domain]);
 
   const department = departments.find(d => d.name === domain);
+  const isCompanyUnderMaintenance = company?.status === 'suspended';
 
   if (isCheckingSession || isLoading) {
     return (
@@ -606,7 +607,7 @@ export default function DepartmentPage() {
     );
   }
 
-  if (siteSettings?.isUnderMaintenance) {
+  if (siteSettings?.isUnderMaintenance || isCompanyUnderMaintenance) {
       return (
           <div className="flex flex-col min-h-screen">
               <Header />
@@ -616,7 +617,7 @@ export default function DepartmentPage() {
                           <CardTitle className="text-2xl font-headline">Site en Maintenance</CardTitle>
                       </CardHeader>
                       <CardContent>
-                          <p>{siteSettings.maintenanceMessage}</p>
+                          <p>{siteSettings?.maintenanceMessage || "Le compte de cette entreprise est temporairement suspendu."}</p>
                       </CardContent>
                   </Card>
               </main>

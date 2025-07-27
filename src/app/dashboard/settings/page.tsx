@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEmployees } from '@/context/employee-provider';
 import type { Admin, PayPeriod } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit, Trash2, KeyRound, User, Shield, UserCog, Building, Pen, Save } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, KeyRound, User, Shield, UserCog, Building, Pen, Save, Server } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -42,6 +42,7 @@ import { ImagePicker } from '@/components/image-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { payPeriods } from '@/lib/data';
+import { Switch } from '@/components/ui/switch';
 
 const adminSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
@@ -195,6 +196,60 @@ function CompanyProfileCard() {
     )
 }
 
+function CompanyMaintenanceCard() {
+    const { company, updateCompanyStatus, isLoading } = useEmployees();
+    const { toast } = useToast();
+
+    if (!company) return null;
+
+    const isSuspended = company.status === 'suspended';
+
+    const handleToggle = async (checked: boolean) => {
+        const newStatus = checked ? 'suspended' : 'active';
+        try {
+            await updateCompanyStatus(newStatus);
+            toast({
+                title: 'Statut mis à jour',
+                description: `L'entreprise est maintenant ${newStatus === 'suspended' ? 'suspendue' : 'active'}.`
+            });
+        } catch (e: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Erreur',
+                description: e.message || "Impossible de mettre à jour le statut."
+            });
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Server className="h-6 w-6" /> Maintenance de l'Entreprise</CardTitle>
+                <CardDescription>
+                    Suspendez temporairement l'accès à votre entreprise pour tous les utilisateurs (responsables, employés).
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center space-x-4 rounded-md border p-4">
+                    <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                           {isSuspended ? "Entreprise suspendue" : "Entreprise active"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                           {isSuspended ? "Activez pour autoriser à nouveau l'accès." : "Désactivez pour suspendre l'accès."}
+                        </p>
+                    </div>
+                    <Switch
+                        checked={isSuspended}
+                        onCheckedChange={handleToggle}
+                        disabled={isLoading}
+                    />
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function SettingsPage() {
     const { admins, fetchAdmins, companyId } = useEmployees();
     const { toast } = useToast();
@@ -261,6 +316,7 @@ export default function SettingsPage() {
             </div>
 
             <CompanyProfileCard />
+            <CompanyMaintenanceCard />
 
             <Card>
                 <CardHeader>
@@ -383,4 +439,3 @@ export default function SettingsPage() {
         </div>
     );
 }
-

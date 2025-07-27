@@ -5,11 +5,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, FileText, UserCircle, Download, FilePlus } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
-import type { PayStub, Employee, AbsenceJustification } from '@/lib/types';
+import type { PayStub, Employee, AbsenceJustification, Company } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
@@ -415,10 +415,11 @@ export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
     const { employeeName, userId } = sessionData;
-    const { siteSettings, employees } = useEmployees();
+    const { siteSettings, employees, company } = useEmployees();
     const [isCheckingSession, setIsCheckingSession] = useState(true);
     
     const employee = employees.find(e => e.id === userId);
+    const isCompanyUnderMaintenance = company?.status === 'suspended';
 
     useEffect(() => {
         if (isLoggedIn === false && isCheckingSession) {
@@ -439,7 +440,7 @@ export default function EmployeeDashboardPage() {
         );
     }
     
-    if (siteSettings?.isUnderMaintenance) {
+    if (siteSettings?.isUnderMaintenance || isCompanyUnderMaintenance) {
         return (
             <div className="flex flex-col min-h-screen">
                 <Header />
@@ -449,7 +450,7 @@ export default function EmployeeDashboardPage() {
                             <CardTitle className="text-2xl font-headline">Site en Maintenance</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p>{siteSettings.maintenanceMessage}</p>
+                            <p>{siteSettings?.maintenanceMessage || "Le compte de votre entreprise est temporairement suspendu."}</p>
                         </CardContent>
                     </Card>
                 </main>

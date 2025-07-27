@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { Header } from '@/components/header';
 import { findCompanyByIdentifier, loginEmployee } from '@/lib/auth';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useSession } from '@/hooks/use-session';
 
 export default function EmployeeLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
@@ -25,6 +26,13 @@ export default function EmployeeLoginPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { clearData } = useEmployees();
+    const { isLoggedIn } = useSession();
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            router.replace('/employee-dashboard');
+        }
+    }, [isLoggedIn, router]);
 
     useEffect(() => {
         clearData();

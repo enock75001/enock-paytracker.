@@ -18,6 +18,7 @@ import { addDoc, collection } from 'firebase/firestore';
 import { findCompanyByIdentifier, findManagerByPin } from '@/lib/auth';
 import { Checkbox } from '@/components/ui/checkbox';
 import { updateUserPresence } from '@/lib/chat';
+import { useSession } from '@/hooks/use-session';
 
 export default function ManagerLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
@@ -28,6 +29,13 @@ export default function ManagerLoginPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { clearData, setCompanyId, fetchDataForCompany } = useEmployees();
+    const { isLoggedIn } = useSession();
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            router.replace('/dashboard'); // Or a specific manager dashboard if one existed
+        }
+    }, [isLoggedIn, router]);
 
      useEffect(() => {
         clearData();

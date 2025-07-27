@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Checkbox } from '@/components/ui/checkbox';
 import { updateUserPresence } from '@/lib/chat';
+import { useSession } from '@/hooks/use-session';
 
 export default function AdminLoginPage() {
     const [companyIdentifier, setCompanyIdentifier] = useState('');
@@ -39,6 +40,13 @@ export default function AdminLoginPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { setCompanyId, fetchDataForCompany, clearData } = useEmployees();
+    const { isLoggedIn } = useSession();
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            router.replace('/dashboard');
+        }
+    }, [isLoggedIn, router]);
 
     useEffect(() => {
         clearData();
