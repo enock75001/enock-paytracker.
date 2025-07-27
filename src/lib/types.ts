@@ -40,6 +40,15 @@ export type Loan = {
   status: 'active' | 'repaid' | 'paused' | 'cancelled';
 };
 
+export type CareerEvent = {
+    id: string;
+    date: string; // ISO string
+    type: 'hire' | 'transfer' | 'promotion' | 'wage_change';
+    description: string;
+    oldValue?: string | number;
+    newValue?: string | number;
+};
+
 
 export interface Employee {
   id: string;
@@ -57,6 +66,7 @@ export interface Employee {
   photoUrl: string;
   attendance: Attendance;
   adjustments: Adjustment[];
+  careerHistory?: CareerEvent[];
 }
 
 export interface Department {

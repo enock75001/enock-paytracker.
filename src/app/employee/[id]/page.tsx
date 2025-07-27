@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -8,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt, TrendingUp, TrendingDown, Building, Route } from 'lucide-react';
 import { differenceInWeeks, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -38,7 +39,7 @@ import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Department, Employee, Adjustment, PayStub } from '@/lib/types';
+import type { Department, Employee, Adjustment, PayStub, CareerEvent } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -105,7 +106,7 @@ function EditEmployeeDialog({ employee, departments, updateEmployee }: { employe
         });
         toast({
             title: "Succès",
-            description: "Les informations de l'employé ont été mises à jour. Le nouveau salaire prendra effet la semaine prochaine.",
+            description: "Les informations de l'employé ont été mises à jour. Les changements prendront effet la semaine prochaine.",
         });
         setIsOpen(false);
     }
@@ -410,11 +411,62 @@ function PayHistoryTab({ employeeId }: { employeeId: string }) {
     )
 }
 
+function CareerHistoryTab({ careerHistory }: { careerHistory: CareerEvent[] }) {
+    
+    const getIconForEvent = (type: CareerEvent['type']) => {
+        switch (type) {
+            case 'hire': return <PlusCircle className="h-5 w-5 text-green-500" />;
+            case 'promotion': return <TrendingUp className="h-5 w-5 text-blue-500" />;
+            case 'wage_change': return <Wallet className="h-5 w-5 text-amber-500" />;
+            case 'transfer': return <Route className="h-5 w-5 text-purple-500" />;
+            default: return <History className="h-5 w-5" />;
+        }
+    }
+    
+    if (!careerHistory || careerHistory.length === 0) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-muted-foreground">Aucun historique de carrière trouvé.</p>
+            </div>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Historique de Carrière</CardTitle>
+                <CardDescription>Suivi des évolutions professionnelles et salariales.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-6">
+                    {careerHistory.map(event => (
+                        <div key={event.id} className="flex items-start gap-4">
+                            <div className="mt-1">
+                                {getIconForEvent(event.type)}
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-semibold">{format(parseISO(event.date), "d MMMM yyyy 'à' HH:mm", { locale: fr })}</p>
+                                <p className="text-sm text-muted-foreground">{event.description}</p>
+                                {event.oldValue !== undefined && (
+                                    <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
+                                        <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3"/>Ancien: {typeof event.oldValue === 'number' ? formatCurrency(event.oldValue) : event.oldValue}</span>
+                                        <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3"/>Nouveau: {typeof event.newValue === 'number' ? formatCurrency(event.newValue) : event.newValue}</span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading, weekPeriod, company, loans } = useEmployees();
+  const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading, weekPeriod, company, loans, justifications, weekDates } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   
@@ -455,7 +507,11 @@ export default function EmployeeRecapPage() {
   }
 
   const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
-  const daysPresent = days.filter(day => employee.attendance[day]).length;
+  const daysPresent = days.filter(day => {
+    const date = weekDates[days.indexOf(day)];
+    const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
+    return employee.attendance[day] || isJustified;
+  }).length;
   const basePay = daysPresent * currentWage;
   const totalAdjustments = (employee.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
   
@@ -540,7 +596,7 @@ export default function EmployeeRecapPage() {
         startY: finalY + 5,
         head: [['Résumé de Paie', 'Montant']],
         body: [
-            ['Paie de base (jours travaillés)', formatCurrency(basePay)],
+            [`Paie de base (${daysPresent} jours travaillés/justifiés)`, formatCurrency(basePay)],
             ['Total Primes', formatCurrency((employee.adjustments?.filter(a => a.type === 'bonus').reduce((s, a) => s + a.amount, 0) || 0))],
             ['Total Avances', formatCurrency((employee.adjustments?.filter(a => a.type === 'deduction').reduce((s, a) => s + a.amount, 0) || 0))],
             ['Remboursement avance', `-${formatCurrency(loanRepayment)}`],
@@ -621,9 +677,10 @@ export default function EmployeeRecapPage() {
 
             <div className="lg:col-span-2 space-y-8">
                  <Tabs defaultValue="current_period" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="current_period">Période Actuelle</TabsTrigger>
                         <TabsTrigger value="history"><History className="mr-2 h-4 w-4"/>Historique de Paie</TabsTrigger>
+                        <TabsTrigger value="career">Carrière</TabsTrigger>
                     </TabsList>
                     <TabsContent value="current_period">
                         <Card>
@@ -644,22 +701,29 @@ export default function EmployeeRecapPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {days.map(day => (
-                                            <TableRow key={day}>
-                                                <TableCell>{day}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {employee.attendance[day] ? 
-                                                        <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
-                                                        <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
-                                                    }
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {days.map(day => {
+                                            const date = weekDates[days.indexOf(day)];
+                                            const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
+
+                                            return (
+                                                <TableRow key={day}>
+                                                    <TableCell>{day}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {employee.attendance[day] ? 
+                                                            <Badge variant="outline" className="text-green-400 border-green-400/50"><CheckCircle className="mr-1 h-3 w-3"/>Présent</Badge> : 
+                                                            isJustified ?
+                                                            <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30"><CheckCircle className="mr-1 h-3 w-3"/>Justifié</Badge> :
+                                                            <Badge variant="secondary"><XCircle className="mr-1 h-3 w-3"/>Absent</Badge>
+                                                        }
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
                                     </TableBody>
                                 </Table>
                                  <div className="space-y-2 pt-4 border-t">
                                      <div className="flex justify-between items-center">
-                                        <span>Paie de base (jours travaillés):</span>
+                                        <span>Paie de base ({daysPresent} jours payés):</span>
                                         <span className="font-medium">{formatCurrency(basePay)}</span>
                                     </div>
                                      <div className="flex justify-between items-center">
@@ -683,6 +747,9 @@ export default function EmployeeRecapPage() {
                     </TabsContent>
                     <TabsContent value="history">
                        <PayHistoryTab employeeId={employee.id} />
+                    </TabsContent>
+                    <TabsContent value="career">
+                       <CareerHistoryTab careerHistory={employee.careerHistory || []} />
                     </TabsContent>
                 </Tabs>
             </div>

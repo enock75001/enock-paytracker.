@@ -2,7 +2,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay } from 'date-fns';
@@ -10,7 +10,7 @@ import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { useSession } from '@/hooks/use-session';
 
-type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>;
+type EmployeeUpdatePayload = Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments' | 'careerHistory'>;
 
 type ChatMessageMap = {
     [conversationId: string]: ChatMessage[];
@@ -25,7 +25,7 @@ interface EmployeeContextType {
   companyId: string | null;
   setCompanyId: (companyId: string | null) => void;
   isLoading: boolean;
-  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>) => Promise<void>;
+  addEmployee: (employee: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments' | 'careerHistory'>) => Promise<void>;
   updateEmployee: (employeeId: string, data: EmployeeUpdatePayload) => Promise<void>;
   updateAttendance: (employeeId: string, day: string, isPresent: boolean) => Promise<void>;
   deleteEmployee: (employeeId: string) => Promise<void>;
@@ -209,7 +209,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                     newAttendance[day] = false;
                 }
             });
-            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, attendance: newAttendance, adjustments: e.adjustments || [] };
+            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, adjustments: e.adjustments || [], careerHistory: e.careerHistory || [] };
           });
 
 
@@ -319,8 +319,17 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         await batch.commit();
   }
 
-  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments'>) => {
+  const addEmployee = async (employeeData: Omit<Employee, 'id' | 'attendance' | 'registrationDate' | 'currentWeekWage' | 'companyId' | 'adjustments' | 'careerHistory'>) => {
     if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
+
+    const hireEvent: CareerEvent = {
+        id: uuidv4(),
+        date: new Date().toISOString(),
+        type: 'hire',
+        description: `Embauché(e) au poste de ${employeeData.poste} dans le département ${employeeData.domain}.`,
+        newValue: employeeData.dailyWage,
+    };
+
     const newEmployee: Omit<Employee, 'id'> = {
       ...employeeData,
       companyId,
@@ -329,6 +338,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       photoUrl: employeeData.photoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png',
       currentWeekWage: employeeData.dailyWage,
       adjustments: [],
+      careerHistory: [hireEvent],
     };
     const docRef = await addDoc(collection(db, "employees"), newEmployee);
     setEmployees(prev => [...prev, { ...newEmployee, id: docRef.id }].sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
@@ -343,26 +353,46 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
   const updateEmployee = async (employeeId: string, data: EmployeeUpdatePayload) => {
     if (!companyId) throw new Error("Aucune entreprise sélectionnée.");
-    const docRef = doc(db, "employees", employeeId);
-    const { dailyWage, ...restData } = data;
     const employeeToUpdate = employees.find(e => e.id === employeeId);
-    
     if (!employeeToUpdate) return;
-  
-    const updatedData = {
-        ...restData,
-        dailyWage: dailyWage
-    };
+
+    const docRef = doc(db, "employees", employeeId);
+    
+    const newCareerEvents: CareerEvent[] = [];
+    
+    if (data.poste !== employeeToUpdate.poste) {
+        newCareerEvents.push({
+            id: uuidv4(),
+            date: new Date().toISOString(),
+            type: 'promotion',
+            description: `Changement de poste de ${employeeToUpdate.poste} à ${data.poste}.`,
+            oldValue: employeeToUpdate.poste,
+            newValue: data.poste
+        });
+    }
+
+    if (data.dailyWage !== employeeToUpdate.dailyWage) {
+        newCareerEvents.push({
+            id: uuidv4(),
+            date: new Date().toISOString(),
+            type: 'wage_change',
+            description: `Changement de salaire.`,
+            oldValue: employeeToUpdate.dailyWage,
+            newValue: data.dailyWage
+        });
+    }
+
+    const updatedData = { ...data, careerHistory: arrayUnion(...newCareerEvents) };
   
     await updateDoc(docRef, updatedData);
     
-    setEmployees(prev => prev.map(emp =>
-      emp.id === employeeId ? { 
-        ...emp, 
-        ...restData,
-        dailyWage: dailyWage,
-      } : emp
-    ).sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
+    const updatedLocalEmployee = {
+        ...employeeToUpdate,
+        ...data,
+        careerHistory: [...(employeeToUpdate.careerHistory || []), ...newCareerEvents].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    }
+    
+    setEmployees(prev => prev.map(emp => emp.id === employeeId ? updatedLocalEmployee : emp).sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
   };
   
 
@@ -391,10 +421,31 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const transferEmployee = async (employeeId: string, newDomain: string) => {
+     const employeeToUpdate = employees.find(e => e.id === employeeId);
+     if (!employeeToUpdate) return;
+
      const docRef = doc(db, "employees", employeeId);
-     await updateDoc(docRef, { domain: newDomain });
+     
+     const transferEvent: CareerEvent = {
+        id: uuidv4(),
+        date: new Date().toISOString(),
+        type: 'transfer',
+        description: `Transféré(e) du département ${employeeToUpdate.domain} à ${newDomain}.`,
+        oldValue: employeeToUpdate.domain,
+        newValue: newDomain
+     };
+     
+     await updateDoc(docRef, { 
+        domain: newDomain,
+        careerHistory: arrayUnion(transferEvent)
+     });
+
      setEmployees(prev => prev.map(emp =>
-      emp.id === employeeId ? { ...emp, domain: newDomain } : emp
+      emp.id === employeeId ? { 
+        ...emp, 
+        domain: newDomain, 
+        careerHistory: [...(emp.careerHistory || []), transferEvent].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      } : emp
     ));
   }
 
@@ -438,7 +489,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(db);
 
     const totalPayroll = employees.reduce((total, emp) => {
-        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        const daysPresent = days.filter(day => emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
         
@@ -453,7 +504,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         if (!departmentTotals[emp.domain]) {
             departmentTotals[emp.domain] = { total: 0, employeeCount: 0 };
         }
-        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        const daysPresent = days.filter(day => emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
 
@@ -480,7 +531,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     for (const emp of employees) {
         const empRef = doc(db, "employees", emp.id);
 
-        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        const daysPresent = days.filter(day => emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))).length;
         const currentWage = emp.currentWeekWage || emp.dailyWage || 0;
         const basePay = daysPresent * currentWage;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
@@ -668,9 +719,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const updatedJustification = { ...justification, status, reviewedBy };
     setJustifications(prev => prev.map(j => j.id === justificationId ? updatedJustification : j));
     
-    if (status === 'approved') {
-        await updateAttendance(justification.employeeId, justification.dayName, true);
-    }
+    // No longer updating attendance here, the logic in startNewWeek handles it
+    // if (status === 'approved') {
+    //     await updateAttendance(justification.employeeId, justification.dayName, true);
+    // }
 
     createNotificationForAllAdmins({
         title: `Justification ${status === 'approved' ? 'Approuvée' : 'Rejetée'}`,
