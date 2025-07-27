@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,8 +162,11 @@ export default function OwnerDashboardPage() {
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingCompany({ id: company.id, name: company.name, identifier: company.companyIdentifier })}><Pen className="h-4 w-4" /></Button>
                                             </div>
                                         )}
-                                        <CardDescription>
-                                            Super Admin: {company.superAdminName} ({company.superAdminEmail})
+                                        <CardDescription className="flex flex-col gap-1 mt-2">
+                                            <span>Super Admin: {company.superAdminName}</span>
+                                            <a href={`mailto:${company.superAdminEmail}`} className="flex items-center gap-2 text-primary hover:underline">
+                                                <Mail className="h-4 w-4" /> {company.superAdminEmail}
+                                            </a>
                                             {company.status === 'suspended' && <span className="text-destructive font-bold ml-2">(Suspendu)</span>}
                                         </CardDescription>
                                     </div>
