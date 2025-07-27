@@ -8,16 +8,69 @@ import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, History } from 'lucide-react';
+import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
-import type { PayStub } from '@/lib/types';
+import type { PayStub, Employee } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
+
+function EmployeeInfoCard({ employee }: { employee: Employee | undefined }) {
+    const { loans } = useEmployees();
+    const activeLoan = loans.find(l => l.employeeId === employee?.id && l.status === 'active');
+    
+    if (!employee) {
+        return (
+             <Card>
+                <CardContent className="pt-6">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-24 w-24 rounded-full" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-48" />
+                                <Skeleton className="h-4 w-32" />
+                            </div>
+                        </div>
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader className="items-center text-center">
+                <Avatar className="h-24 w-24 border-2 border-primary">
+                    <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
+                    <AvatarFallback className="text-3xl">{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="pt-2">
+                    <CardTitle className="text-2xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
+                    <CardDescription className="text-md">{employee.domain}</CardDescription>
+                </div>
+            </CardHeader>
+            <CardContent className="text-sm space-y-3">
+                 <div className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-muted-foreground" /> <strong>Poste:</strong> {employee.poste}</div>
+                 <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /> <strong>Né(e) le:</strong> {format(parseISO(employee.birthDate), 'dd MMMM yyyy', { locale: fr })}</div>
+                <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> <strong>Téléphone:</strong> {employee.phone}</div>
+                <div className="flex items-center gap-3"><Home className="h-4 w-4 text-muted-foreground" /> <strong>Adresse:</strong> {employee.address}</div>
+                <div className="flex items-center gap-3"><Wallet className="h-4 w-4 text-muted-foreground" /> <strong>Salaire/Jour:</strong> {formatCurrency(employee.dailyWage)}</div>
+                 {activeLoan && (
+                    <div className="flex items-center gap-3 pt-2 border-t text-amber-500"><Receipt className="h-4 w-4"/> <strong>Avance en cours:</strong> {formatCurrency(activeLoan.balance)}</div>
+                 )}
+            </CardContent>
+        </Card>
+    )
+}
 
 function PayHistoryTab({ employeeId }: { employeeId: string }) {
     const { fetchEmployeePayStubs } = useEmployees();
@@ -54,7 +107,7 @@ function PayHistoryTab({ employeeId }: { employeeId: string }) {
     }
     
     return (
-        <Card className="mt-6">
+        <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <History className="h-6 w-6"/>
@@ -92,8 +145,10 @@ export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
     const { employeeName, userId } = sessionData;
-    const { siteSettings } = useEmployees();
+    const { siteSettings, employees } = useEmployees();
     const [isCheckingSession, setIsCheckingSession] = useState(true);
+    
+    const employee = employees.find(e => e.id === userId);
 
     useEffect(() => {
         if (isLoggedIn === false && isCheckingSession) {
@@ -149,7 +204,14 @@ export default function EmployeeDashboardPage() {
                     <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2"/>Déconnexion</Button>
                 </div>
 
-                <PayHistoryTab employeeId={userId} />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                        <EmployeeInfoCard employee={employee} />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <PayHistoryTab employeeId={userId} />
+                    </div>
+                </div>
                 
             </main>
         </div>
