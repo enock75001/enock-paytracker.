@@ -578,11 +578,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         const q = query(
             collection(db, "pay_stubs"), 
             where("companyId", "==", companyId), 
-            where("employeeId", "==", employeeId),
-            orderBy("payDate", "desc")
+            where("employeeId", "==", employeeId)
         );
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
+        const stubs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
+        // Sort manually
+        stubs.sort((a, b) => parseISO(b.payDate).getTime() - parseISO(a.payDate).getTime());
+        return stubs;
     };
     
   const sendMessage = async (text: string, receiverId: string) => {
