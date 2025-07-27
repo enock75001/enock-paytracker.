@@ -60,6 +60,7 @@ interface EmployeeContextType {
   submitAbsenceJustification: (justification: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt'>) => Promise<void>;
   justifications: AbsenceJustification[];
   updateJustificationStatus: (justificationId: string, status: 'approved' | 'rejected', reviewedBy: string) => Promise<void>;
+  updateCompanyStatus: (newStatus: 'active' | 'suspended') => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -679,6 +680,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const updateCompanyStatus = async (newStatus: 'active' | 'suspended') => {
+      if (!companyId) throw new Error("Company ID is missing");
+      const companyRef = doc(db, 'companies', companyId);
+      await updateDoc(companyRef, { status: newStatus });
+      setCompany(prev => prev ? { ...prev, status: newStatus } : null);
+  }
+
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
     addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, 
@@ -702,7 +710,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     siteSettings,
     submitAbsenceJustification,
     justifications,
-    updateJustificationStatus
+    updateJustificationStatus,
+    updateCompanyStatus,
   };
   
   return (

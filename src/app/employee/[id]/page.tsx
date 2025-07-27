@@ -478,13 +478,11 @@ export default function EmployeeRecapPage() {
           console.error("Error adding image to PDF:", e);
       }
       renderPdfContent(doc);
-      doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
     };
 
     img.onerror = () => {
         console.error("Failed to load company logo for PDF.");
         renderPdfContent(doc);
-        doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
     }
   };
 
@@ -566,6 +564,8 @@ export default function EmployeeRecapPage() {
     doc.setTextColor(150);
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, 14, pageHeight - 10);
+    
+    doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
   }
 
   return (
@@ -588,7 +588,7 @@ export default function EmployeeRecapPage() {
                             <AvatarFallback className="text-3xl">{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="pt-2">
-                            <CardTitle className="text-2xl font-headline">{employee.firstName} {employee.lastName}</CardTitle>
+                            <CardTitle className="text-2xl font-headline">{employee.firstName} ${employee.lastName}</CardTitle>
                             <CardDescription className="text-md">{employee.domain}</CardDescription>
                         </div>
                     </CardHeader>

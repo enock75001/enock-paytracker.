@@ -113,18 +113,30 @@ export default function RecapPage() {
 
   const downloadPdf = () => {
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let cursorY = 15;
+    const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
+    const img = new (window as any).Image();
+    img.crossOrigin = "Anonymous";
+    img.src = logoUrl;
 
-    // Header
-    if (company?.logoUrl) {
+    img.onload = () => {
         try {
-            doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
+            doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
         } catch (e) {
             console.error("Erreur d'ajout de l'image:", e);
         }
+        renderPdfContent(doc);
+    };
+
+    img.onerror = () => {
+        console.error("Failed to load company logo for PDF.");
+        renderPdfContent(doc);
     }
-    
+  };
+
+  const renderPdfContent = (doc: jsPDF) => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let cursorY = 15;
+
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);

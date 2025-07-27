@@ -293,13 +293,11 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
                 console.error("Error adding image to PDF:", e);
             }
             renderPayStubContent(doc, stub, employee, company);
-            doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
         };
         
         img.onerror = () => {
             console.error("Failed to load company logo for PDF.");
             renderPayStubContent(doc, stub, employee, company);
-            doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
         };
     };
 
@@ -356,6 +354,7 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
                 }
             },
         });
+        doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
     };
 
     return (
