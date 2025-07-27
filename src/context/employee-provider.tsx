@@ -177,7 +177,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const employeesQuery = query(collection(db, "employees"), where("companyId", "==", cId));
           const archivesQuery = query(collection(db, "archives"), where("companyId", "==", cId));
           const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId));
-          const justificationsQuery = query(collection(db, "justifications"), where("companyId", "==", cId), orderBy("submittedAt", "desc"));
+          const justificationsQuery = query(collection(db, "justifications"), where("companyId", "==", cId));
 
           const [departmentsSnapshot, employeesSnapshot, archivesSnapshot, loansSnapshot, justificationsSnapshot] = await Promise.all([
               getDocs(departmentsQuery),
@@ -195,6 +195,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           const loansData = loansSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Loan[];
           const justificationsData = justificationsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AbsenceJustification[];
           
+          justificationsData.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+
           const safeEmployees = employeesData.map(e => {
             const newAttendance = { ...e.attendance };
             dynamicDays.forEach(day => {
