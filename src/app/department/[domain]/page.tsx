@@ -390,7 +390,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                         <CardContent>
                              <div className="grid grid-cols-4 gap-2 text-center">
                                 {days.map((day, index) => {
-                                    if (!weekDates || !weekDates[index]) return null;
+                                    if (!weekDates?.[index]) return null;
                                     const isToday = isSameDay(weekDates[index], today);
                                     return (
                                         <div key={day} className="flex flex-col items-center gap-2 p-2 rounded-md bg-secondary/50">
