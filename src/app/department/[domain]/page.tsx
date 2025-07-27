@@ -157,7 +157,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                 )} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} defaultValue={5000} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem><Label>Numéro de téléphone</Label><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
