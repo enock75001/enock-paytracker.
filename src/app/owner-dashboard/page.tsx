@@ -193,7 +193,7 @@ export default function OwnerDashboardPage() {
     const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
     const { toast } = useToast();
-    const { isLoggedIn } = useSession();
+    const { sessionData, isLoggedIn } = useSession();
 
 
     const fetchData = async () => {
@@ -221,12 +221,12 @@ export default function OwnerDashboardPage() {
     };
 
     useEffect(() => {
-        if (!isLoggedIn) {
+        if (!isLoggedIn && sessionData.userType !== 'owner') {
             router.replace('/owner-login');
-        } else {
+        } else if (sessionData.userType === 'owner') {
             fetchData();
         }
-    }, [router, isLoggedIn]);
+    }, [router, isLoggedIn, sessionData.userType]);
 
 
     const handleGenerateCode = async (isTrial: boolean) => {
@@ -285,7 +285,7 @@ export default function OwnerDashboardPage() {
             const batch = writeBatch(db);
 
             // Define collections to delete documents from
-            const collectionsToDelete = ['employees', 'departments', 'admins', 'archives', 'login_logs', 'loans', 'pay_stubs', 'notifications', 'messages', 'online_users'];
+            const collectionsToDelete = ['employees', 'departments', 'admins', 'archives', 'login_logs', 'loans', 'pay_stubs', 'notifications', 'messages', 'online_users', 'justifications'];
 
             for (const coll of collectionsToDelete) {
                 const q = query(collection(db, coll), where("companyId", "==", companyId));
@@ -296,6 +296,11 @@ export default function OwnerDashboardPage() {
             // Delete the company document itself
             const companyRef = doc(db, 'companies', companyId);
             batch.delete(companyRef);
+            
+            // Delete associated registration code if any
+            const codeQuery = query(collection(db, 'registration_codes'), where("usedByCompanyId", "==", companyId));
+            const codeSnapshot = await getDocs(codeQuery);
+            codeSnapshot.forEach(doc => batch.delete(doc.ref));
 
             await batch.commit();
 

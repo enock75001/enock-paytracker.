@@ -12,6 +12,7 @@ interface SessionData {
   departmentName: string;
   userId: string | null;
   companyId: string | null;
+  isOwner: boolean;
 }
 
 const initialSessionData: SessionData = {
@@ -23,6 +24,7 @@ const initialSessionData: SessionData = {
   departmentName: '',
   userId: null,
   companyId: null,
+  isOwner: false,
 };
 
 export function useSession() {
@@ -34,19 +36,20 @@ export function useSession() {
     const adminId = sessionStorage.getItem('adminId');
     const managerId = sessionStorage.getItem('managerId');
     const employeeId = sessionStorage.getItem('employeeId');
+    const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn') === 'true';
     
-    // For owner, there's no specific ID, we can just use a placeholder if needed
-    const userId = userType === 'owner' ? 'owner' : (adminId || managerId || employeeId);
+    const userId = ownerLoggedIn ? 'owner' : (adminId || managerId || employeeId);
     
     setSessionData({
       userType,
       adminName: sessionStorage.getItem('adminName') || '',
       companyName: sessionStorage.getItem('companyName') || '',
-      departmentName: sessionStorage.getItem('departmentName') || '', // Corrected key
+      departmentName: sessionStorage.getItem('departmentName') || '',
       managerName: sessionStorage.getItem('managerName') || '',
       employeeName: sessionStorage.getItem('employeeName') || '',
       userId,
       companyId: sessionStorage.getItem('companyId'),
+      isOwner: ownerLoggedIn,
     });
   }, []);
 
@@ -69,6 +72,6 @@ export function useSession() {
 
   return {
     sessionData,
-    isLoggedIn: isClient && !!sessionData.userType,
+    isLoggedIn: isClient && (!!sessionData.userType || sessionData.isOwner),
   };
 }
