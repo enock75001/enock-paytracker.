@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { useSession } from '@/hooks/use-session';
@@ -60,36 +60,53 @@ interface EmployeeContextType {
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
 const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: string): { days: string[], period: string, dates: Date[] } => {
-    const today = startOfDay(new Date());
-    let startDate, endDate;
-    let period: string;
-    
-    // The week starts on Monday for fr locale
-    const weekOptions = { weekStartsOn: 1 as 0 | 1 | 2 | 3 | 4 | 5 | 6 };
+    try {
+        const referenceDate = startDateStr ? parseISO(startDateStr) : new Date();
+        const today = startOfDay(referenceDate);
+        let startDate, endDate;
+        let period: string;
+        
+        const weekOptions = { weekStartsOn: 1 as 0 | 1 | 2 | 3 | 4 | 5 | 6 };
 
-    switch (payPeriod) {
-        case 'monthly':
-            startDate = startOfMonth(today);
-            endDate = endOfMonth(today);
-            period = `Mois de ${format(startDate, 'MMMM yyyy', { locale: fr })}`;
-            break;
-        case 'bi-weekly':
-             startDate = startOfWeek(today, weekOptions);
-             endDate = addDays(startDate, 13);
-             period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
-             break;
-        case 'weekly':
-        default:
-            startDate = startOfWeek(today, weekOptions);
-            endDate = endOfWeek(today, weekOptions);
-            period = `Semaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
-            break;
+        switch (payPeriod) {
+            case 'monthly':
+                startDate = startOfMonth(today);
+                endDate = endOfMonth(today);
+                period = `Mois de ${format(startDate, 'MMMM yyyy', { locale: fr })}`;
+                break;
+            case 'bi-weekly':
+                 startDate = startOfWeek(today, weekOptions);
+                 endDate = addDays(startDate, 13);
+                 period = `Quinzaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
+                 break;
+            case 'weekly':
+            default:
+                startDate = startOfWeek(today, weekOptions);
+                endDate = endOfWeek(today, weekOptions);
+                period = `Semaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
+                break;
+        }
+
+        if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+             throw new Error("Invalid date calculation");
+        }
+
+        const dates = eachDayOfInterval({ start: startDate, end: endDate });
+        const days = dates.map(date => format(date, 'EEEE dd', { locale: fr }));
+
+        return { days, period, dates };
+    } catch (error) {
+        console.error("Error generating days and period:", error);
+        // Fallback to a default weekly period
+        const today = new Date();
+        const weekOptions = { weekStartsOn: 1 as 0 | 1 | 2 | 3 | 4 | 5 | 6 };
+        const startDate = startOfWeek(today, weekOptions);
+        const endDate = endOfWeek(today, weekOptions);
+        const period = `Semaine du ${format(startDate, 'dd MMM', { locale: fr })} au ${format(endDate, 'dd MMM yyyy', { locale: fr })}`;
+        const dates = eachDayOfInterval({ start: startDate, end: endDate });
+        const days = dates.map(date => format(date, 'EEEE dd', { locale: fr }));
+        return { days, period, dates };
     }
-
-    const dates = eachDayOfInterval({ start: startDate, end: endDate });
-    const days = dates.map(date => format(date, 'EEEE dd', { locale: fr }));
-
-    return { days, period, dates };
 };
 
 

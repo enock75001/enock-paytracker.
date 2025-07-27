@@ -47,7 +47,7 @@ import { useEffect, useState } from 'react';
 import { ChatWidget } from '@/components/chat-widget';
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
 };
 
 const registerSchema = z.object({
@@ -248,7 +248,7 @@ function AttendanceTab({ domain }: { domain: string }) {
         head: head,
         body: body,
         foot: [[
-            { content: 'Total Département', colSpan: days.length + 1, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: 'Total Département', colSpan: days.length + 2, styles: { halign: 'right', fontStyle: 'bold' } },
             { content: `${formatCurrency(departmentTotalPay)}`, styles: { halign: 'right', fontStyle: 'bold' } },
         ]],
         theme: 'striped',
@@ -279,6 +279,16 @@ function AttendanceTab({ domain }: { domain: string }) {
 
     doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
+  
+  if (!weekDates || weekDates.length === 0) {
+      return (
+          <Card className="mt-6">
+              <CardContent className="pt-6 text-center">
+                  Chargement des dates de la période...
+              </CardContent>
+          </Card>
+      );
+  }
 
   return (
     <Card className="mt-6">
@@ -380,6 +390,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                         <CardContent>
                              <div className="grid grid-cols-4 gap-2 text-center">
                                 {days.map((day, index) => {
+                                    if (!weekDates || !weekDates[index]) return null;
                                     const isToday = isSameDay(weekDates[index], today);
                                     return (
                                         <div key={day} className="flex flex-col items-center gap-2 p-2 rounded-md bg-secondary/50">
