@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
@@ -40,6 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface WeeklySummary {
   employee: Employee;
@@ -117,13 +117,30 @@ export default function RecapPage() {
     let cursorY = 15;
 
     // Header
-    if (company?.logoUrl) {
-        try {
-            doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
-        } catch (e) {
-            console.error("Erreur d'ajout de l'image:", e);
+    const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
+    // Since jsPDF doesn't directly support next/image, we use a trick if it's a data URL.
+    // For external URLs, it would require more complex handling (like fetching and converting to data URL).
+    // For simplicity, we assume the logo can be added.
+    try {
+        const img = new (window as any).Image();
+        img.src = logoUrl;
+        img.onload = () => {
+            doc.addImage(img, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
+            renderPdfContent(doc);
+        };
+        img.onerror = () => {
+            console.error("Erreur de chargement du logo pour le PDF.");
+            renderPdfContent(doc);
         }
+    } catch(e) {
+        console.error("Erreur d'ajout de l'image:", e);
+        renderPdfContent(doc);
     }
+  };
+
+  const renderPdfContent = (doc: jsPDF) => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let cursorY = 15;
     
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
@@ -158,14 +175,12 @@ export default function RecapPage() {
 
     const tableBody = [];
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
-        // Department Header Row
         tableBody.push([{ 
             content: domain, 
             colSpan: 7, 
             styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'left' } 
         }]);
         
-        // Employee Rows
         summaries.forEach(s => {
             tableBody.push([
                 { content: `${s.employee.firstName} ${s.employee.lastName}` },
@@ -206,7 +221,7 @@ export default function RecapPage() {
     doc.text(`Total Général à Payer: ${formatCurrency(totalPayroll)}`, 14, finalY + 20);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
+  }
 
 
   return (

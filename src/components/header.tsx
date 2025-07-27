@@ -30,6 +30,7 @@ import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from '@/hooks/use-session';
+import Image from 'next/image';
 
 
 function NotificationsDropdown() {
@@ -88,7 +89,7 @@ function NotificationsDropdown() {
 
 export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'}) {
   const router = useRouter();
-  const { clearData } = useEmployees();
+  const { clearData, company } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, adminName, companyName, departmentName, managerName, employeeName } = sessionData;
   
@@ -98,9 +99,11 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
     router.push('/');
   };
 
+  const logoSrc = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
+
   const renderHomeLink = () => (
      <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-        <WalletCards className="h-6 w-6 text-primary" />
+        <Image src={logoSrc} alt="Company Logo" width={32} height={32} className="rounded-sm" />
         <span className="font-headline">Enock PayTracker</span>
       </Link>
   );

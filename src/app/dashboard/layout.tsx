@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ChatWidget } from "@/components/chat-widget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSession } from "@/hooks/use-session";
+import Image from "next/image";
 
 const menuGroups = [
     {
@@ -59,13 +60,12 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoading, companyId, siteSettings } = useEmployees();
+  const { isLoading, companyId, siteSettings, company } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, adminName, userId, companyName } = sessionData;
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    // We need to wait for the session to be checked on the client
     if (isLoggedIn === false && isCheckingSession) {
       return;
     }
@@ -107,8 +107,6 @@ export default function DashboardLayout({
   }
 
   if (!companyId && !isLoading) {
-      // This can happen if the context is loaded but no companyId is set.
-      // Redirecting should be handled by the useEffect, but this is a fallback.
        return (
         <div className="flex h-screen w-full items-center justify-center">
             <div className="text-center">
@@ -126,7 +124,7 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
              <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg">
-                <WalletCards className="h-6 w-6 text-primary" />
+                <Image src={company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png'} alt="Company Logo" width={32} height={32} className="rounded-sm" />
                 <span className="font-headline text-primary">{companyName}</span>
              </Link>
         </SidebarHeader>

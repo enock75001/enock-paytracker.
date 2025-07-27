@@ -49,7 +49,7 @@ interface EmployeeContextType {
   chatMessages: ChatMessageMap;
   sendMessage: (text: string, receiverId: string) => Promise<void>;
   userId: string;
-  userRole: 'admin' | 'manager' | null;
+  userRole: 'admin' | 'manager' | 'employee' | null;
   loans: Loan[];
   addLoan: (loanData: Omit<Loan, 'id' | 'balance' | 'status' | 'companyId'>) => Promise<void>;
   updateLoanStatus: (loanId: string, status: Loan['status']) => Promise<void>;
@@ -196,8 +196,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           
           const justificationsData = justificationsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AbsenceJustification[];
           justificationsData.sort((a, b) => {
-                const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
-                const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+                const dateA = a.submittedAt ? parseISO(a.submittedAt).getTime() : 0;
+                const dateB = b.submittedAt ? parseISO(b.submittedAt).getTime() : 0;
                 return dateB - dateA;
             });
           
@@ -230,7 +230,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setCompanyId(sessionCompanyId);
       fetchDataForCompany(sessionCompanyId);
     } else {
-      // If there's no companyId in session, we are done loading.
       setLoading(false);
     }
   }, [sessionCompanyId, fetchDataForCompany]);
@@ -238,11 +237,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!companyId || !userId) return;
     
-    // Combined listener setup
     const setupListeners = () => {
         const listeners: (() => void)[] = [];
 
-        // Listen for online users
         const onlineUsersQuery = query(collection(db, 'online_users'), where('companyId', '==', companyId));
         listeners.push(onSnapshot(onlineUsersQuery, (snapshot) => {
             const users: OnlineUser[] = [];
@@ -255,7 +252,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             setOnlineUsers(users);
         }));
         
-        // Listen for chat messages
         const messagesQuery = query(collection(db, "messages"), where('conversationParticipants', 'array-contains', userId));
         listeners.push(onSnapshot(messagesQuery, (snapshot) => {
           const allMessages = snapshot.docs.map(doc => ({
@@ -280,13 +276,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
           setChatMessages(prev => ({ ...prev, ...newMessagesByConversation }));
         }));
 
-        // Listen for notifications
         if (userRole === 'admin') {
-            const notificationsQuery = query(collection(db, 'notifications'), where('companyId', '==', companyId));
+            const notificationsQuery = query(collection(db, 'notifications'), where('companyId', '==', companyId), orderBy('createdAt', 'desc'));
             listeners.push(onSnapshot(notificationsQuery, (snapshot) => {
                 const notificationsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Notification[];
-                 
-                 notificationsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                 setNotifications(notificationsData);
             }));
         }
@@ -332,7 +325,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       companyId,
       registrationDate: new Date().toISOString().split('T')[0],
       attendance: days.reduce((acc, day) => ({ ...acc, [day]: false }), {}),
-      photoUrl: employeeData.photoUrl || `https://placehold.co/100x100.png?text=${employeeData.firstName.charAt(0)}${employeeData.lastName.charAt(0)}`,
+      photoUrl: employeeData.photoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png',
       currentWeekWage: employeeData.dailyWage,
       adjustments: [],
     };
@@ -384,7 +377,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const deleteEmployee = async (employeeId: string) => {
-    // Before deleting an employee, check if they are a manager of any department
     const isManager = departments.some(d => d.managerId === employeeId);
     if (isManager) {
         throw new Error("Cet employé est manager d'un département. Veuillez d'abord assigner un nouveau manager.");
@@ -597,7 +589,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         );
         const querySnapshot = await getDocs(q);
         const stubs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as PayStub[];
-        // Sort manually
         stubs.sort((a, b) => {
           const dateA = a.payDate ? parseISO(a.payDate).getTime() : 0;
           const dateB = b.payDate ? parseISO(b.payDate).getTime() : 0;
