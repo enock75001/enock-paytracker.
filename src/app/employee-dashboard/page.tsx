@@ -7,32 +7,110 @@ import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { LogOut, History } from 'lucide-react';
+import { useEmployees } from '@/context/employee-provider';
+import type { PayStub } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { parseISO } from 'date-fns/esm';
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+};
+
+function PayHistoryTab({ employeeId }: { employeeId: string }) {
+    const { fetchEmployeePayStubs } = useEmployees();
+    const [payStubs, setPayStubs] = useState<PayStub[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!employeeId) return;
+        const loadPayStubs = async () => {
+            setLoading(true);
+            const stubs = await fetchEmployeePayStubs(employeeId);
+            setPayStubs(stubs);
+            setLoading(false);
+        };
+        loadPayStubs();
+    }, [employeeId, fetchEmployeePayStubs]);
+
+    if (loading) {
+        return (
+            <div className="space-y-2 pt-6">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+            </div>
+        )
+    }
+
+    if (payStubs.length === 0) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-muted-foreground">Aucun historique de paie trouvé pour le moment.</p>
+            </div>
+        )
+    }
+    
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <History className="h-6 w-6"/>
+                    Historique de Paie
+                </CardTitle>
+                <CardDescription>Liste de toutes vos fiches de paie générées.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Période</TableHead>
+                                <TableHead className="text-right">Paie Nette Reçue</TableHead>
+                                <TableHead className="text-right">Date de Paiement</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {payStubs.map(stub => (
+                                <TableRow key={stub.id}>
+                                    <TableCell className="font-medium">{stub.period}</TableCell>
+                                    <TableCell className="text-right font-bold text-primary">{formatCurrency(stub.totalPay)}</TableCell>
+                                    <TableCell className="text-right">{format(parseISO(stub.payDate), 'dd/MM/yyyy')}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
+    const { employeeName, userId } = sessionData;
     const [isCheckingSession, setIsCheckingSession] = useState(true);
 
     useEffect(() => {
-        // Wait for the session to be hydrated on the client
         if (isLoggedIn === false && isCheckingSession) {
-             // Still loading session
             return;
         }
         setIsCheckingSession(false);
 
-        if (sessionData.userType !== 'employee') {
+        if (sessionData.userType !== 'employee' || !userId) {
             router.replace('/employee-login');
         }
-    }, [sessionData, isLoggedIn, router, isCheckingSession]);
+    }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
 
     const handleLogout = () => {
         sessionStorage.clear();
         router.push('/');
     };
 
-    if (isCheckingSession || !isLoggedIn) {
+    if (isCheckingSession || !isLoggedIn || !userId) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <p>Vérification de la session...</p>
@@ -45,20 +123,15 @@ export default function EmployeeDashboardPage() {
             <Header />
             <main className="flex-1 container mx-auto p-4 md:p-8">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold">Mon Espace Employé</h1>
+                    <div>
+                        <h1 className="text-3xl font-bold">Mon Espace Employé</h1>
+                        <p className="text-muted-foreground">Bienvenue, {employeeName}.</p>
+                    </div>
                     <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2"/>Déconnexion</Button>
                 </div>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Bienvenue, {sessionData.employeeName}</CardTitle>
-                        <CardDescription>
-                           Voici votre tableau de bord personnel. D'autres fonctionnalités arriveront bientôt.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p>Bientôt, vous pourrez consulter ici vos fiches de paie, suivre vos avances et plus encore.</p>
-                    </CardContent>
-                </Card>
+
+                <PayHistoryTab employeeId={userId} />
+                
             </main>
         </div>
     )
