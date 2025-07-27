@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, LogOut, Download, UserPlus, CalendarCheck } from 'lucide-react';
+import { Eye, LogOut, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -419,6 +419,29 @@ function AttendanceTab({ domain }: { domain: string }) {
   )
 }
 
+// Component for Absence Justification
+function JustificationTab({ domain }: { domain: string }) {
+    // This is a placeholder for the new feature.
+    // It would list employees with absences and allow managers to validate them.
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle>Justifications d'Absences</CardTitle>
+                <CardDescription>Validez les motifs d'absence soumis par les employés de votre département.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="text-center py-12">
+                    <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">Fonctionnalité en construction</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Bientôt, vous pourrez gérer les justifications d'absence ici.
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 // Main Page Component
 export default function DepartmentPage() {
   const params = useParams();
@@ -514,12 +537,16 @@ export default function DepartmentPage() {
                 </p>
             </div>
             <Tabs defaultValue="attendance" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="attendance"><CalendarCheck className="mr-2"/>Feuille de Présence</TabsTrigger>
+                    <TabsTrigger value="justifications"><ShieldCheck className="mr-2"/>Justifications</TabsTrigger>
                     <TabsTrigger value="register"><UserPlus className="mr-2"/>Enregistrer un employé</TabsTrigger>
                 </TabsList>
                 <TabsContent value="attendance">
                     <AttendanceTab domain={domain} />
+                </TabsContent>
+                <TabsContent value="justifications">
+                    <JustificationTab domain={domain} />
                 </TabsContent>
                 <TabsContent value="register">
                     <RegisterInDepartment domain={domain} />

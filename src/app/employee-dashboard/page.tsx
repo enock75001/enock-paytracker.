@@ -8,7 +8,7 @@ import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, BarChart2, FileText, UserCircle } from 'lucide-react';
+import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, BarChart2, FileText, UserCircle, Download } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import type { PayStub, Employee } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,8 @@ import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -145,9 +147,10 @@ function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
 
 
 function PayHistoryCard({ employeeId }: { employeeId: string }) {
-    const { fetchEmployeePayStubs } = useEmployees();
+    const { fetchEmployeePayStubs, company, employees } = useEmployees();
     const [payStubs, setPayStubs] = useState<PayStub[]>([]);
     const [loading, setLoading] = useState(true);
+    const employee = employees.find(e => e.id === employeeId);
 
     useEffect(() => {
         if (!employeeId) return;
@@ -159,6 +162,72 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
         };
         loadPayStubs();
     }, [employeeId, fetchEmployeePayStubs]);
+
+    const downloadPayStub = (stub: PayStub) => {
+        if (!employee || !company) return;
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let cursorY = 15;
+
+        // Header
+        if (company?.logoUrl) {
+            try {
+                doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
+            } catch (e) { console.error("Erreur d'ajout de l'image:", e); }
+        }
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text(company.name, pageWidth / 2, cursorY + 7, { align: 'center' });
+        cursorY += 10;
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Fiche de Paie", pageWidth / 2, cursorY, { align: 'center' });
+        cursorY += 5;
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(stub.period, pageWidth / 2, cursorY, { align: 'center' });
+        cursorY += 10;
+
+        (doc as any).autoTable({
+            startY: cursorY,
+            body: [
+                ['Employé:', `${employee.firstName} ${employee.lastName}`],
+                ['Département:', employee.domain],
+                ['Date de paiement:', format(parseISO(stub.payDate), 'dd/MM/yyyy')],
+            ],
+            theme: 'plain',
+            styles: { fontSize: 11, cellPadding: 2 },
+        });
+        
+        let finalY = (doc as any).autoTable.previous.finalY;
+
+        (doc as any).autoTable({
+            startY: finalY + 5,
+            head: [['Description', 'Montant']],
+            body: [
+                [`Paie de base (${stub.daysPresent} jours travaillés)`, formatCurrency(stub.basePay)],
+                ...stub.adjustments.map(adj => [`${adj.type === 'bonus' ? 'Prime' : 'Avance'}: ${adj.reason}`, formatCurrency(adj.amount)]),
+                ['Remboursement avance programmée', `-${formatCurrency(stub.loanRepayment)}`],
+            ],
+            foot: [[
+                 { content: 'Total Net à Payer', styles: { fontStyle: 'bold', fontSize: 12 } },
+                 { content: formatCurrency(stub.totalPay), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right' } }],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [44, 62, 80], textColor: 255, fontStyle: 'bold' },
+            footStyles: { fillColor: [22, 163, 74], textColor: 255 },
+            didParseCell: (data: any) => {
+                if (data.row.section === 'body' && data.column.index === 1) {
+                    data.cell.styles.halign = 'right';
+                }
+            },
+        });
+        
+        doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
+    };
 
     return (
         <Card>
@@ -188,6 +257,7 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
                                     <TableHead>Période</TableHead>
                                     <TableHead className="text-right">Paie Nette Reçue</TableHead>
                                     <TableHead className="text-right">Date</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -196,6 +266,11 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
                                         <TableCell className="font-medium">{stub.period}</TableCell>
                                         <TableCell className="text-right font-bold text-primary">{formatCurrency(stub.totalPay)}</TableCell>
                                         <TableCell className="text-right">{format(parseISO(stub.payDate), 'dd/MM/yyyy')}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => downloadPayStub(stub)}>
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
