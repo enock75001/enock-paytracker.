@@ -32,6 +32,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import {
   Tabs,
@@ -280,7 +281,7 @@ function AttendanceTab({ domain }: { domain: string }) {
     doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
   
-  if (!weekDates || weekDates.length === 0) {
+  if (!weekDates || weekDates.length === 0 || weekDates.length !== days.length) {
       return (
           <Card className="mt-6">
               <CardContent className="pt-6 text-center">
