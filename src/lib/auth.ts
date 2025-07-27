@@ -102,6 +102,22 @@ export async function loginAdmin(companyId: string, name: string, password: stri
     return { id: adminDoc.id, ...adminDoc.data() } as Admin & { id: string };
 }
 
+export async function loginEmployee(companyId: string, phone: string): Promise<Employee | null> {
+    const q = query(collection(db, "employees"), 
+        where("companyId", "==", companyId),
+        where("phone", "==", phone)
+    );
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        return null;
+    }
+    
+    const employeeDoc = querySnapshot.docs[0];
+    return { id: employeeDoc.id, ...employeeDoc.data() } as Employee;
+}
+
+
 export async function findManagerByPin(companyId: string, pin: string): Promise<{ manager: Employee, department: Department }> {
     // The PIN is the manager's phone number
     const employeesQuery = query(

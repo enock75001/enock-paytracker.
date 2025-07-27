@@ -67,6 +67,9 @@ function LoginSelector() {
             <Button asChild variant="secondary" className="w-full h-12 text-lg">
                 <Link href="/manager-login">Connexion Responsable</Link>
             </Button>
+            <Button asChild variant="outline" className="w-full h-12 text-lg">
+                <Link href="/employee-login">Connexion Employé</Link>
+            </Button>
         </div>
     )
 }

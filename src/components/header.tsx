@@ -90,7 +90,7 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
   const router = useRouter();
   const { clearData } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
-  const { userType, adminName, companyName, departmentName, managerName } = sessionData;
+  const { userType, adminName, companyName, departmentName, managerName, employeeName } = sessionData;
   
   const handleLogout = () => {
     clearData();
@@ -104,6 +104,8 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
         <span className="font-headline">Enock PayTracker</span>
       </Link>
   );
+  
+  const displayName = adminName || managerName || employeeName || 'Utilisateur';
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -121,11 +123,11 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                    <Avatar className="h-10 w-10">
                      <AvatarImage
-                       src={`https://placehold.co/40x40.png?text=${adminName?.charAt(0) || managerName?.charAt(0) || 'U'}`}
+                       src={`https://placehold.co/40x40.png?text=${displayName.charAt(0)}`}
                        alt="User avatar"
                        data-ai-hint="user avatar"
                      />
-                     <AvatarFallback>{adminName?.charAt(0) || managerName?.charAt(0) || 'U'}</AvatarFallback>
+                     <AvatarFallback>{displayName.charAt(0) || 'U'}</AvatarFallback>
                    </Avatar>
                  </Button>
                </DropdownMenuTrigger>
@@ -134,7 +136,7 @@ export function Header({variant = 'default'}: {variant?: 'default' | 'sidebar'})
                      <div className="flex flex-col space-y-1">
                        <p className="text-sm font-medium leading-none flex items-center">
                          {userType === 'admin' ? <Shield className="mr-2 h-4 w-4" /> : <User className="mr-2 h-4 w-4" />}
-                         {adminName || managerName || 'Utilisateur'}
+                         {displayName}
                        </p>
                        <p className="text-xs leading-none text-muted-foreground flex items-center">
                          <Building className="mr-2 h-4 w-4" />
