@@ -370,10 +370,9 @@ function AttendanceTab({ domain }: { domain: string }) {
                                             aria-label={`Attendance for ${day}`}
                                             disabled={!isToday}
                                         />
-                                         {isJustified && (
-                                            <span className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                                         {isJustified && employee.attendance[day] && (
+                                            <span className="text-xs text-green-500 mt-1 flex items-center gap-1" title="Absence justifiée et approuvée">
                                                 <ShieldCheck className="h-3 w-3" />
-                                                Justifié
                                             </span>
                                         )}
                                     </div>
@@ -435,7 +434,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                                 disabled={!isToday}
                                                 className="h-5 w-5"
                                             />
-                                            {isJustified && <ShieldCheck className="h-3 w-3 text-green-500" />}
+                                            {isJustified && employee.attendance[day] && <ShieldCheck className="h-3 w-3 text-green-500" title="Absence justifiée" />}
                                         </div>
                                     )
                                 })}
