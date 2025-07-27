@@ -403,7 +403,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                 <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                                <div className="font-medium">{employee.firstName} ${employee.lastName}</div>
                                 <div className="text-sm text-muted-foreground">{formatCurrency(employee.currentWeekWage || employee.dailyWage || 0)}/jour</div>
                                 </div>
                             </div>
