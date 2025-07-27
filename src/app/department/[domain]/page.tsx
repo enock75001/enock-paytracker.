@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Eye, LogOut, Download } from 'lucide-react';
@@ -297,14 +297,15 @@ function AttendanceTab({ domain }: { domain: string }) {
             </div>
         </CardHeader>
         <CardContent>
-            <div className="overflow-x-auto border rounded-lg">
+            {/* Desktop View: Table */}
+            <div className="hidden md:block overflow-x-auto border rounded-lg">
                 <Table>
                 <TableHeader>
                     <TableRow>
                     <TableHead className="w-[250px] min-w-[250px] sticky left-0 bg-card z-10">Employé</TableHead>
                     {days.map((day, index) => (
                         <TableHead key={day} className="text-center min-w-[80px]">
-                            <div className='font-bold capitalize'>{day}</div>
+                            <div className='font-bold capitalize'>{day.split(' ')[0]}</div>
                             <div className="font-normal text-xs">{format(weekDates[index], 'dd')}</div>
                         </TableHead>
                     ))}
@@ -353,6 +354,53 @@ function AttendanceTab({ domain }: { domain: string }) {
                     ))}
                 </TableBody>
                 </Table>
+            </div>
+            {/* Mobile View: Cards */}
+            <div className="md:hidden space-y-4">
+                {employeesInDomain.map(employee => (
+                    <Card key={employee.id} className="w-full">
+                        <CardHeader className="flex flex-row items-center justify-between pb-4">
+                             <div className="flex items-center gap-3">
+                                <Avatar>
+                                <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
+                                <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                                <div className="text-sm text-muted-foreground">{formatCurrency(employee.currentWeekWage || employee.dailyWage || 0)}/jour</div>
+                                </div>
+                            </div>
+                            <Link href={`/employee/${employee.id}`} passHref>
+                                <Button variant="ghost" size="icon">
+                                    <Eye className="h-4 w-4" />
+                                    <span className="sr-only">Voir les détails</span>
+                                </Button>
+                            </Link>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="grid grid-cols-4 gap-2 text-center">
+                                {days.map((day, index) => {
+                                    const isToday = isSameDay(weekDates[index], today);
+                                    return (
+                                        <div key={day} className="flex flex-col items-center gap-2 p-2 rounded-md bg-secondary/50">
+                                            <Label htmlFor={`${employee.id}-${day}`} className="text-xs font-bold capitalize">{day.split(' ')[0]}</Label>
+                                            <Checkbox
+                                                id={`${employee.id}-${day}`}
+                                                checked={employee.attendance[day]}
+                                                onCheckedChange={(checked) =>
+                                                    updateAttendance(employee.id, day, !!checked)
+                                                }
+                                                aria-label={`Attendance for ${day}`}
+                                                disabled={!isToday}
+                                                className="h-5 w-5"
+                                            />
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
       </CardContent>
     </Card>
