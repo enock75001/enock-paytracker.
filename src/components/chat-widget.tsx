@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, Send, X, Users, ChevronUp, ChevronDown, UserCheck, Circle } from 'lucide-react';
+import { MessageSquare, Send, X, Users, ChevronUp, ChevronDown, Circle } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
-import { Badge } from './ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Separator } from './ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import type { Employee } from '@/lib/types';
 
 interface ChatWidgetProps {
   companyId: string;
@@ -80,7 +80,7 @@ function ChatWindow({ chatPartner, onClose }: { chatPartner: OpenChat, onClose: 
                         <p className="text-sm">{msg.text}</p>
                       </div>
                       <span className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(msg.timestamp), 'HH:mm', { locale: fr })}
+                        {msg.timestamp ? format(new Date(msg.timestamp), 'HH:mm', { locale: fr }) : ''}
                       </span>
                     </div>
                   ))}
@@ -110,9 +110,9 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
   const [openChats, setOpenChats] = useState<OpenChat[]>([]);
   const { onlineUsers, employees, departments, admins } = useEmployees();
   
-  const managers = departments
+  const managers: Employee[] = departments
     .map(dept => employees.find(emp => emp.id === dept.managerId))
-    .filter((emp): emp is NonNullable<typeof emp> => emp != null);
+    .filter((emp): emp is Employee => emp != null);
 
   const isAdmin = userRole === 'admin';
   const contacts = isAdmin ? managers : admins;
@@ -120,14 +120,13 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
   const toggleChat = (contact: any) => {
     const contactId = contact.id;
     const contactName = isAdmin ? `${contact.firstName} ${contact.lastName}` : contact.name;
-    const contactAvatar = isAdmin ? contact.photoUrl : undefined;
+    const contactAvatar = isAdmin ? contact.photoUrl : `https://placehold.co/40x40.png?text=${contactName.charAt(0)}`;
 
     setOpenChats(prev => {
         const isAlreadyOpen = prev.some(c => c.id === contactId);
         if (isAlreadyOpen) {
             return prev.filter(c => c.id !== contactId);
         } else {
-            // Limit to 3 open chats on desktop, 1 on mobile
             const maxChats = window.innerWidth < 768 ? 1 : 3;
             const newChats = [...prev, { id: contactId, name: contactName, avatar: contactAvatar }];
             return newChats.slice(-maxChats);
@@ -145,7 +144,7 @@ export function ChatWidget({ companyId, userId, userName, userRole, departmentNa
           "fixed bottom-0 right-0 z-50 flex items-end gap-4 p-4",
           "md:right-4 md:bottom-4 md:p-0",
           "max-md:flex-col max-md:inset-0 max-md:items-center max-md:justify-center max-md:bg-black/50",
-          openChats.length === 0 && "max-md:hidden" // Hide overlay on mobile if no chat is open
+          openChats.length === 0 && "max-md:hidden"
       )}>
         {openChats.map(chat => (
             <ChatWindow key={chat.id} chatPartner={chat} onClose={() => closeChat(chat.id)} />

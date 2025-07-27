@@ -1,10 +1,7 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-body {
-  font-family: 'PT Sans', sans-serif;
-}
 
 @layer base {
   :root {
@@ -84,6 +81,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'PT Sans', sans-serif;
   }
 }
 

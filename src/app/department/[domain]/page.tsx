@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -14,15 +13,14 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, LogOut, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X, ShieldQuestion } from 'lucide-react';
+import { Eye, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X, ShieldQuestion } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, startOfWeek, addDays, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from "date-fns"
-import { fr } from 'date-fns/locale';
+import { format, isSameDay, parseISO } from "date-fns"
 import {
   Form,
   FormControl,
@@ -49,8 +47,6 @@ import { type AbsenceJustification } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -169,7 +165,7 @@ function RegisterInDepartment({ domain }: { domain: string }) {
                 )} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><Label>Salaire Journalier (FCFA)</Label><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="phone" render={({ field }) => (
                         <FormItem><Label>Numéro de téléphone</Label><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
@@ -199,17 +195,31 @@ function AttendanceTab({ domain }: { domain: string }) {
 
   const downloadAttendancePdf = () => {
     const doc = new jsPDF();
+    const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
+    const img = new (window as any).Image();
+    img.crossOrigin = "Anonymous";
+    img.src = logoUrl;
+
+    img.onload = () => {
+        try {
+            doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
+        } catch(e) {
+             console.error("Error adding image to PDF:", e);
+        }
+        renderPdfContent(doc);
+        doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    img.onerror = () => {
+        console.error("Failed to load company logo for PDF.");
+        renderPdfContent(doc);
+        doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
+  };
+
+  const renderPdfContent = (doc: jsPDF) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     let cursorY = 15;
-
-    // Header
-    if (company?.logoUrl) {
-        try {
-            doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
-        } catch(e) {
-             console.error("Erreur d'ajout de l'image:", e);
-        }
-    }
     
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
@@ -293,9 +303,7 @@ function AttendanceTab({ domain }: { domain: string }) {
             doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, data.settings.margin.left, pageHeight - 10);
         }
     });
-
-    doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
+  }
   
   if (!weekDates || weekDates.length === 0 || weekDates.length !== days.length) {
       return (
@@ -349,7 +357,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                             <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
-                            <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                            <div className="font-medium">{employee.firstName} ${employee.lastName}</div>
                             <div className="text-sm text-muted-foreground">{formatCurrency(employee.currentWeekWage || employee.dailyWage || 0)}/jour</div>
                             </div>
                         </div>
@@ -572,13 +580,12 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { employees, departments, isLoading, siteSettings } = useEmployees();
+  const { departments, isLoading, siteSettings } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, managerName, userId, companyId, departmentName } = sessionData;
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    // We need to wait for the session to be checked on the client
     if (isLoggedIn === false && isCheckingSession) {
       return;
     }
@@ -648,7 +655,7 @@ export default function DepartmentPage() {
                     <AttendanceTab domain={domain} />
                 </TabsContent>
                 <TabsContent value="justifications">
-                    <JustificationTab domain={domain} managerName={managerName} />
+                    <JustificationTab domain={domain} managerName={managerName || ''} />
                 </TabsContent>
                 <TabsContent value="register">
                     <RegisterInDepartment domain={domain} />
@@ -659,7 +666,7 @@ export default function DepartmentPage() {
             <ChatWidget
               companyId={companyId}
               userId={userId}
-              userName={managerName}
+              userName={managerName || ''}
               userRole="manager"
               departmentName={domain}
             />

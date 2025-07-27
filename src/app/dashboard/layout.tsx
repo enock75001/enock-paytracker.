@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Home, Briefcase, UserPlus, FileText, Archive, WalletCards, Settings, History, Users, HandCoins, Server, LineChart } from 'lucide-react';
+import { Home, Briefcase, UserPlus, FileText, Archive, HandCoins, Settings, History, Users } from 'lucide-react';
 import { Header } from "@/components/header";
 import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
@@ -156,7 +156,7 @@ export default function DashboardLayout({
       <div className="flex flex-col flex-1">
         <Header variant="sidebar" />
         <SidebarInset>{children}</SidebarInset>
-         {userType === 'admin' && companyId && userId && (
+         {userType === 'admin' && companyId && userId && adminName && (
             <ChatWidget
               companyId={companyId}
               userId={userId}

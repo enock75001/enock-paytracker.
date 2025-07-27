@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { registerCompany } from "@/lib/auth";
 import { useEmployees } from "@/context/employee-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, KeyRound, Phone, Mail, User, Users, FileText, MessageSquare, ArrowLeft } from "lucide-react";
+import { AlertCircle, KeyRound, Phone, Mail, User, ArrowLeft } from "lucide-react";
 import {
   Tabs,
   TabsContent,

@@ -13,8 +13,6 @@ export const metadata: Metadata = {
   description: 'Employee management and payroll application for multiple companies.',
 };
 
-// This wrapper is needed to suspend the rendering of the progress bar
-// until the client-side navigation is available.
 function SuspenseWrapper({children}: {children: React.ReactNode}) {
     return <Suspense fallback={null}>{children}</Suspense>
 }

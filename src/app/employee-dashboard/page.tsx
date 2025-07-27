@@ -1,14 +1,13 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, BarChart2, FileText, UserCircle, Download, FilePlus } from 'lucide-react';
+import { History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, FileText, UserCircle, Download, FilePlus } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import type { PayStub, Employee, AbsenceJustification } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,15 +19,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ImagePicker } from '@/components/image-picker';
 import { Label } from '@/components/ui/label';
+import { ImagePicker } from '@/components/image-picker';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -282,15 +281,32 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
         if (!employee || !company) return;
 
         const doc = new jsPDF();
+        const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
+        const img = new (window as any).Image();
+        img.crossOrigin = "Anonymous";
+        img.src = logoUrl;
+        
+        img.onload = () => {
+            try {
+                 doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
+            } catch(e) {
+                console.error("Error adding image to PDF:", e);
+            }
+            renderPayStubContent(doc, stub, employee, company);
+            doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
+        };
+        
+        img.onerror = () => {
+            console.error("Failed to load company logo for PDF.");
+            renderPayStubContent(doc, stub, employee, company);
+            doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
+        };
+    };
+
+    const renderPayStubContent = (doc: jsPDF, stub: PayStub, employee: Employee, company: Company) => {
         const pageWidth = doc.internal.pageSize.getWidth();
         let cursorY = 15;
 
-        // Header
-        if (company?.logoUrl) {
-            try {
-                doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
-            } catch (e) { console.error("Erreur d'ajout de l'image:", e); }
-        }
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
         doc.text(company.name, pageWidth / 2, cursorY + 7, { align: 'center' });
@@ -340,8 +356,6 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
                 }
             },
         });
-        
-        doc.save(`fiche_paie_${employee.lastName}_${stub.period.replace(/\s/g, '_')}.pdf`);
     };
 
     return (
@@ -407,7 +421,6 @@ export default function EmployeeDashboardPage() {
     const employee = employees.find(e => e.id === userId);
 
     useEffect(() => {
-        // We need to wait for the session to be checked on the client
         if (isLoggedIn === false && isCheckingSession) {
             return;
         }

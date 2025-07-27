@@ -1,13 +1,7 @@
 
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetClose,
-} from '@/components/ui/sheet';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,17 +10,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
-  DropdownMenuSubContent
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Menu, WalletCards, LogOut, User, Shield, PanelLeft, Building, Bell, CheckCheck } from 'lucide-react';
+import { LogOut, User, Shield, PanelLeft, Building, Bell, CheckCheck } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
 import { useSidebar } from './ui/sidebar';
-import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from '@/hooks/use-session';
@@ -77,7 +66,7 @@ function NotificationsDropdown() {
                         <DropdownMenuItem key={n.id} onSelect={() => handleNotificationClick(n)} className={cn("cursor-pointer flex-col items-start gap-1", !n.isRead && "bg-secondary")}>
                             <p className="font-semibold">{n.title}</p>
                             <p className="text-xs text-muted-foreground">{n.description}</p>
-                            <p className="text-xs text-muted-foreground/80">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr })}</p>
+                            <p className="text-xs text-muted-foreground/80">{n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr }) : ''}</p>
                         </DropdownMenuItem>
                     ))
                  )}

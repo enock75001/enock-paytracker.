@@ -14,8 +14,7 @@ import { AlertCircle, Lock, ArrowLeft, Building } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
-import type { Department, Employee } from '@/lib/types';
+import { addDoc, collection } from 'firebase/firestore';
 import { findCompanyByIdentifier, findManagerByPin } from '@/lib/auth';
 import { Checkbox } from '@/components/ui/checkbox';
 import { updateUserPresence } from '@/lib/chat';
@@ -69,7 +68,7 @@ export default function ManagerLoginPage() {
 
             if (manager && department) {
                 sessionStorage.setItem('userType', 'manager');
-                sessionStorage.setItem('department', department.name);
+                sessionStorage.setItem('departmentName', department.name);
                 sessionStorage.setItem('managerId', manager.id);
                 sessionStorage.setItem('managerName', `${manager.firstName} ${manager.lastName}`);
                 sessionStorage.setItem('companyId', company.id);

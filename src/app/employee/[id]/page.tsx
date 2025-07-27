@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -9,8 +8,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, TrendingUp, TrendingDown, GanttChartSquare, History, Receipt } from 'lucide-react';
-import { differenceInWeeks, parseISO, startOfWeek, endOfWeek } from 'date-fns';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt } from 'lucide-react';
+import { differenceInWeeks, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -35,7 +34,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -61,6 +59,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from '@/hooks/use-session';
+import { GanttChartSquare } from 'lucide-react';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -420,7 +419,6 @@ export default function EmployeeRecapPage() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   
   useEffect(() => {
-    // We need to wait for the session to be checked on the client
     if (isLoggedIn === false && isCheckingSession) {
       return;
     }
@@ -466,23 +464,34 @@ export default function EmployeeRecapPage() {
   
   const weeklyPay = basePay + totalAdjustments - loanRepayment;
   
-  const registrationDate = parseISO(employee.registrationDate);
-  const weeksSinceRegistration = differenceInWeeks(new Date(), registrationDate);
-  const estimatedTotalEarnings = weeksSinceRegistration * (5 * employee.dailyWage); 
-
   const downloadWeeklySummary = () => {
     const doc = new jsPDF();
+    const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
+    const img = new (window as any).Image();
+    img.crossOrigin = "Anonymous";
+    img.src = logoUrl;
+
+    img.onload = () => {
+      try {
+        doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
+      } catch (e) {
+          console.error("Error adding image to PDF:", e);
+      }
+      renderPdfContent(doc);
+      doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
+    };
+
+    img.onerror = () => {
+        console.error("Failed to load company logo for PDF.");
+        renderPdfContent(doc);
+        doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
+    }
+  };
+
+  const renderPdfContent = (doc: jsPDF) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     let cursorY = 15;
 
-    // Header
-    if (company?.logoUrl) {
-      try {
-        doc.addImage(company.logoUrl, 'PNG', 14, cursorY, 30, 15, undefined, 'FAST');
-      } catch (e) {
-          console.error("Erreur d'ajout de l'image:", e);
-      }
-    }
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
@@ -557,9 +566,7 @@ export default function EmployeeRecapPage() {
     doc.setTextColor(150);
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, 14, pageHeight - 10);
-    
-    doc.save(`fiche_paie_${employee.lastName}_${employee.firstName}.pdf`);
-  };
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
