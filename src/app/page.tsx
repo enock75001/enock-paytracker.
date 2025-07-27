@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { registerCompany } from "@/lib/auth";
 import { useEmployees } from "@/context/employee-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, KeyRound, Phone, Mail } from "lucide-react";
+import { AlertCircle, KeyRound, Phone, Mail, User } from "lucide-react";
 import {
   Tabs,
   TabsContent,
@@ -100,6 +100,7 @@ function CompanyRegistrationForm() {
     const [companyIdNumber, setCompanyIdNumber] = useState('');
     const [adminName, setAdminName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
+    const [adminPhone, setAdminPhone] = useState('');
     const [adminPassword, setAdminPassword] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
     const [registrationCode, setRegistrationCode] = useState('');
@@ -116,7 +117,7 @@ function CompanyRegistrationForm() {
         
         const companyIdentifier = `EPT-${companyIdNumber}`;
 
-        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !adminPassword || !payPeriod || !registrationCode) {
+        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !adminPhone || !adminPassword || !payPeriod || !registrationCode) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -129,7 +130,7 @@ function CompanyRegistrationForm() {
         }
 
         try {
-            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPassword, payPeriod, registrationCode);
+            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPhone, adminPassword, payPeriod, registrationCode);
             
             // Log the new company in
             sessionStorage.setItem('userType', 'admin');
@@ -195,15 +196,31 @@ function CompanyRegistrationForm() {
             </div>
              <div className="space-y-2">
                 <Label htmlFor="admin-name">Votre nom (Super Administrateur)</Label>
-                <Input id="admin-name" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="John Doe" required />
+                 <div className="relative">
+                    <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="admin-name" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="John Doe" required className="pl-8"/>
+                </div>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="admin-email">Votre Email</Label>
-                <Input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@entreprise.com" required />
+                 <div className="relative">
+                    <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@entreprise.com" required className="pl-8"/>
+                </div>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="admin-phone">Votre Numéro de Téléphone</Label>
+                 <div className="relative">
+                    <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="admin-phone" type="tel" value={adminPhone} onChange={e => setAdminPhone(e.target.value)} placeholder="+2250102030405" required className="pl-8"/>
+                </div>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="admin-password">Votre mot de passe</Label>
-                <Input id="admin-password" type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="••••••••" required />
+                 <div className="relative">
+                    <KeyRound className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="admin-password" type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="••••••••" required className="pl-8"/>
+                </div>
             </div>
             <div className="space-y-2">
                 <Label htmlFor="pay-period">Période de Paie</Label>

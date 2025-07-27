@@ -27,6 +27,7 @@ export async function registerCompany(
     companyIdentifier: string, 
     adminName: string, 
     adminEmail: string,
+    adminPhone: string,
     adminPassword: string, 
     payPeriod: PayPeriod,
     registrationCode: string
@@ -39,9 +40,15 @@ export async function registerCompany(
         throw new Error("Code d'inscription invalide.");
     }
     const codeDoc = codeSnapshot.docs[0];
-    if (codeDoc.data().isUsed) {
+    const codeData = codeDoc.data();
+
+    if (codeData.isUsed) {
         throw new Error("Ce code d'inscription a déjà été utilisé.");
     }
+    if (codeData.expiresAt && new Date(codeData.expiresAt.toDate()) < new Date()) {
+        throw new Error("Ce code d'inscription a expiré.");
+    }
+
 
     const existingCompany = await findCompanyByIdentifier(companyIdentifier).catch(() => null);
     if (existingCompany) {
@@ -49,16 +56,22 @@ export async function registerCompany(
     }
 
     const batch = writeBatch(db);
+    
+    const companyRef = doc(collection(db, "companies"));
 
     // Mark code as used
-    batch.update(codeDoc.ref, { isUsed: true });
+    batch.update(codeDoc.ref, { 
+        isUsed: true,
+        usedByCompanyId: companyRef.id,
+        usedByCompanyName: companyName,
+    });
 
-    const companyRef = doc(collection(db, "companies"));
     const newCompany = { 
         name: companyName,
         companyIdentifier,
         superAdminName: adminName,
         superAdminEmail: adminEmail, 
+        superAdminPhone: adminPhone,
         payPeriod,
         payPeriodStartDate: new Date().toISOString(),
         logoUrl: '',

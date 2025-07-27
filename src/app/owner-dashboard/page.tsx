@@ -5,14 +5,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import type { Company, Admin, SiteSettings } from '@/lib/types';
+import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where, getDoc, deleteDoc, setDoc, Timestamp, orderBy } from 'firebase/firestore';
+import type { Company, Admin, SiteSettings, RegistrationCode } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 type CompanyWithAdmins = Company & { admins: Admin[], id: string };
 
@@ -121,26 +125,77 @@ function MaintenanceCard() {
     );
 }
 
+function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial }: { codes: RegistrationCode[], onGenerate: () => void, onGenerateTrial: () => void }) {
+    const getStatusBadge = (code: RegistrationCode) => {
+        if (code.isUsed) {
+            return <Badge variant="secondary" className="flex items-center gap-1"><Check className="h-3 w-3" />Utilisé</Badge>;
+        }
+        if (code.expiresAt && new Date(code.expiresAt.toDate()) < new Date()) {
+            return <Badge variant="destructive" className="flex items-center gap-1"><Clock className="h-3 w-3" />Expiré</Badge>;
+        }
+        return <Badge className="bg-green-500/20 text-green-400 flex items-center gap-1"><FileKey className="h-3 w-3" />Disponible</Badge>;
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6"/>Gestion des Codes</CardTitle>
+                        <CardDescription>Gérez les codes d'inscription des entreprises.</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button onClick={onGenerate}><PlusCircle className="mr-2"/>Générer un Code</Button>
+                        <Button onClick={onGenerateTrial} variant="outline"><Clock className="mr-2" />Générer un Code d'Essai (2 jours)</Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Code</TableHead>
+                                <TableHead>Statut</TableHead>
+                                <TableHead>Date de Création</TableHead>
+                                <TableHead>Date d'Expiration</TableHead>
+                                <TableHead>Utilisé par</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {codes.length > 0 ? codes.map(code => (
+                                <TableRow key={code.id}>
+                                    <TableCell className="font-mono font-medium">{code.code}</TableCell>
+                                    <TableCell>{getStatusBadge(code)}</TableCell>
+                                    <TableCell>{format(code.createdAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: fr })}</TableCell>
+                                    <TableCell>{code.expiresAt ? format(code.expiresAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: fr }) : 'Jamais'}</TableCell>
+                                    <TableCell>{code.usedByCompanyName || 'N/A'}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">Aucun code généré.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function OwnerDashboardPage() {
     const [companies, setCompanies] = useState<CompanyWithAdmins[]>([]);
+    const [registrationCodes, setRegistrationCodes] = useState<RegistrationCode[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingCompany, setEditingCompany] = useState<{ id: string, name: string, identifier: string } | null>(null);
     const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
     const { toast } = useToast();
 
-    useEffect(() => {
-        const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn');
-        if (ownerLoggedIn !== 'true') {
-            router.replace('/owner-login');
-        } else {
-            fetchData();
-        }
-    }, [router]);
-
     const fetchData = async () => {
         setLoading(true);
+        // Fetch Companies
         const companiesSnapshot = await getDocs(collection(db, 'companies'));
         const companiesData = companiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as (Company & {id: string})[];
         
@@ -151,18 +206,47 @@ export default function OwnerDashboardPage() {
             const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
             companiesWithAdmins.push({ ...company, admins: adminsData });
         }
-
         setCompanies(companiesWithAdmins);
+
+        // Fetch Registration Codes
+        const codesQuery = query(collection(db, 'registration_codes'), orderBy('createdAt', 'desc'));
+        const codesSnapshot = await getDocs(codesQuery);
+        const codesData = codesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as RegistrationCode[];
+        setRegistrationCodes(codesData);
+
         setLoading(false);
     };
 
-    const handleGenerateCode = async () => {
+    useEffect(() => {
+        const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn');
+        if (ownerLoggedIn !== 'true') {
+            router.replace('/owner-login');
+        } else {
+            fetchData();
+        }
+    }, [router]);
+
+
+    const handleGenerateCode = async (isTrial: boolean) => {
         const code = Math.random().toString().slice(2, 12); // 10-digit random number as a string
-        await addDoc(collection(db, 'registration_codes'), { code, isUsed: false, createdAt: new Date() });
+        const codeData: any = { 
+            code, 
+            isUsed: false, 
+            createdAt: Timestamp.now()
+        };
+
+        if (isTrial) {
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 2);
+            codeData.expiresAt = Timestamp.fromDate(expiresAt);
+        }
+
+        await addDoc(collection(db, 'registration_codes'), codeData);
         toast({
             title: 'Code Généré',
             description: `Le nouveau code d'inscription est : ${code}`,
         });
+        fetchData(); // Refresh data
     };
 
     const handleUpdateCompany = async () => {
@@ -238,100 +322,99 @@ export default function OwnerDashboardPage() {
                 </div>
 
                 <MaintenanceCard />
+                <RegistrationCodesCard codes={registrationCodes} onGenerate={() => handleGenerateCode(false)} onGenerateTrial={() => handleGenerateCode(true)} />
 
-                 <Card>
+                <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6"/>Gestion des Entreprises</CardTitle>
-                        <CardDescription>Gérez les entreprises inscrites et générez des codes.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><Building className="h-6 w-6"/>Liste des Entreprises</CardTitle>
+                        <CardDescription>Gérez les entreprises inscrites sur la plateforme.</CardDescription>
                     </CardHeader>
-                     <CardContent>
-                        <Button onClick={handleGenerateCode}><PlusCircle className="mr-2"/>Générer un Code d'Inscription</Button>
-                     </CardContent>
-                 </Card>
-
-
-                <div className="space-y-8">
-                    {companies.map(company => (
-                        <Card key={company.id} className={company.status === 'suspended' ? 'border-destructive bg-destructive/10' : ''}>
-                            <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        {editingCompany?.id === company.id ? (
-                                            <div className="flex items-center gap-2">
-                                                <Input value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value })} className="text-xl font-bold" />
-                                                <Input value={editingCompany.identifier} onChange={(e) => setEditingCompany({...editingCompany, identifier: e.target.value })} className="text-xl font-bold" />
-                                                <Button size="icon" onClick={handleUpdateCompany}><Save className="h-4 w-4"/></Button>
-                                                <Button size="icon" variant="ghost" onClick={() => setEditingCompany(null)}>X</Button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-4">
-                                                <CardTitle className="flex items-center gap-2"><Building className="h-6 w-6"/>{company.name}</CardTitle>
-                                                <span className="text-sm text-muted-foreground">{company.companyIdentifier}</span>
-                                                <Button variant="ghost" size="icon" onClick={() => setEditingCompany({ id: company.id, name: company.name, identifier: company.companyIdentifier })}><Pen className="h-4 w-4" /></Button>
-                                            </div>
-                                        )}
-                                        <CardDescription className="flex flex-col gap-1 mt-2">
-                                            <span>Super Admin: {company.superAdminName}</span>
-                                            <a href={`mailto:${company.superAdminEmail}`} className="flex items-center gap-2 text-primary hover:underline">
-                                                <Mail className="h-4 w-4" /> {company.superAdminEmail}
-                                            </a>
-                                            {company.status === 'suspended' && <span className="text-destructive font-bold ml-2">(Suspendu)</span>}
-                                        </CardDescription>
-                                    </div>
-                                    <span className="text-sm text-muted-foreground">Inscrit le: {company.registrationDate ? new Date(company.registrationDate).toLocaleDateString() : 'N/A'}</span>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-semibold">Administrateurs :</h4>
-                                    <div className="flex gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => handleToggleSuspendCompany(company)}>
-                                            {company.status === 'suspended' ? <PlayCircle className="mr-2 h-4 w-4" /> : <Ban className="mr-2 h-4 w-4" />}
-                                            {company.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
-                                        </Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4"/>Supprimer</Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Supprimer l'entreprise {company.name} ?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Cette action est irréversible et supprimera l'entreprise, ainsi que tous ses employés, départements, archives, et historiques.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteCompany(company.id)}>Confirmer la suppression</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </div>
-                                <ul className="space-y-2">
-                                    {company.admins.map(admin => (
-                                        <li key={admin.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
-                                            <span>{admin.name} ({admin.role})</span>
-                                            <div className="flex items-center gap-2">
-                                            {editingAdmin?.id === admin.id ? (
-                                                 <div className="flex items-center gap-2">
-                                                    <Input type="password" value={editingAdmin.password} onChange={(e) => setEditingAdmin({...editingAdmin, password: e.target.value})} />
-                                                    <Button size="icon" onClick={handleUpdateAdminPassword}><Save className="h-4 w-4"/></Button>
-                                                    <Button size="icon" variant="ghost" onClick={() => setEditingAdmin(null)}>X</Button>
-                                                 </div>
+                    <CardContent className="space-y-8">
+                        {companies.map(company => (
+                            <Card key={company.id} className={company.status === 'suspended' ? 'border-destructive bg-destructive/10' : ''}>
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            {editingCompany?.id === company.id ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Input value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value })} className="text-xl font-bold" />
+                                                    <Input value={editingCompany.identifier} onChange={(e) => setEditingCompany({...editingCompany, identifier: e.target.value })} className="text-xl font-bold" />
+                                                    <Button size="icon" onClick={handleUpdateCompany}><Save className="h-4 w-4"/></Button>
+                                                    <Button size="icon" variant="ghost" onClick={() => setEditingCompany(null)}><X className="h-4 w-4" /></Button>
+                                                </div>
                                             ) : (
-                                                <Button variant="outline" size="sm" onClick={() => setEditingAdmin({id: admin.id, password: ''})}>
-                                                    <KeyRound className="mr-2 h-4 w-4"/> Réinitialiser Mdp
-                                                </Button>
+                                                <div className="flex items-center gap-4">
+                                                    <CardTitle className="flex items-center gap-2">{company.name}</CardTitle>
+                                                    <span className="text-sm text-muted-foreground">{company.companyIdentifier}</span>
+                                                    <Button variant="ghost" size="icon" onClick={() => setEditingCompany({ id: company.id, name: company.name, identifier: company.companyIdentifier })}><Pen className="h-4 w-4" /></Button>
+                                                </div>
                                             )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+                                            <CardDescription className="flex flex-col gap-1 mt-2">
+                                                <span>Super Admin: {company.superAdminName}</span>
+                                                <a href={`mailto:${company.superAdminEmail}`} className="flex items-center gap-2 text-primary hover:underline">
+                                                    <Mail className="h-4 w-4" /> {company.superAdminEmail}
+                                                </a>
+                                                <a href={`tel:${company.superAdminPhone}`} className="flex items-center gap-2 text-primary hover:underline">
+                                                    <Phone className="h-4 w-4" /> {company.superAdminPhone}
+                                                </a>
+                                                {company.status === 'suspended' && <span className="text-destructive font-bold ml-2">(Suspendu)</span>}
+                                            </CardDescription>
+                                        </div>
+                                        <span className="text-sm text-muted-foreground">Inscrit le: {company.registrationDate ? new Date(company.registrationDate).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="font-semibold">Administrateurs :</h4>
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => handleToggleSuspendCompany(company)}>
+                                                {company.status === 'suspended' ? <PlayCircle className="mr-2 h-4 w-4" /> : <Ban className="mr-2 h-4 w-4" />}
+                                                {company.status === 'suspended' ? 'Réactiver' : 'Suspendre'}
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4"/>Supprimer</Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Supprimer l'entreprise {company.name} ?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Cette action est irréversible et supprimera l'entreprise, ainsi que tous ses employés, départements, archives, et historiques.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteCompany(company.id)}>Confirmer la suppression</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </div>
+                                    <ul className="space-y-2">
+                                        {company.admins.map(admin => (
+                                            <li key={admin.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
+                                                <span>{admin.name} ({admin.role})</span>
+                                                <div className="flex items-center gap-2">
+                                                {editingAdmin?.id === admin.id ? (
+                                                     <div className="flex items-center gap-2">
+                                                        <Input type="password" value={editingAdmin.password} onChange={(e) => setEditingAdmin({...editingAdmin, password: e.target.value})} />
+                                                        <Button size="icon" onClick={handleUpdateAdminPassword}><Save className="h-4 w-4"/></Button>
+                                                        <Button size="icon" variant="ghost" onClick={() => setEditingAdmin(null)}><X className="h-4 w-4" /></Button>
+                                                     </div>
+                                                ) : (
+                                                    <Button variant="outline" size="sm" onClick={() => setEditingAdmin({id: admin.id, password: ''})}>
+                                                        <KeyRound className="mr-2 h-4 w-4"/> Réinitialiser Mdp
+                                                    </Button>
+                                                )}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </CardContent>
+                </Card>
             </main>
         </div>
     );

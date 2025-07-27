@@ -12,6 +12,7 @@ export interface Company {
     name: string;
     superAdminName: string;
     superAdminEmail: string;
+    superAdminPhone: string;
     payPeriod: PayPeriod;
     payPeriodStartDate?: string; // ISO string for the start date of the first pay period
     logoUrl?: string;
@@ -164,4 +165,13 @@ export interface SiteSettings {
     isUnderMaintenance: boolean;
     maintenanceMessage: string;
 }
-    
+
+export interface RegistrationCode {
+    id: string;
+    code: string;
+    isUsed: boolean;
+    createdAt: any; // Firestore Timestamp
+    expiresAt?: any; // Firestore Timestamp
+    usedByCompanyId?: string;
+    usedByCompanyName?: string;
+}
