@@ -39,6 +39,10 @@ const registerSchema = z.object({
   photoUrl: z.string().optional(),
 });
 
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
+};
+
 export default function RegisterPage() {
     const { addEmployee, departments } = useEmployees();
     const { toast } = useToast()
@@ -52,7 +56,7 @@ export default function RegisterPage() {
             poste: '',
             domain: '',
             address: '',
-            dailyWage: 5000,
+            dailyWage: 0,
             phone: '',
             photoUrl: '',
         },
@@ -60,6 +64,8 @@ export default function RegisterPage() {
 
     const watchedFirstName = form.watch('firstName');
     const watchedLastName = form.watch('lastName');
+    const watchedDailyWage = form.watch('dailyWage');
+    const monthlyWage = watchedDailyWage * 26; // Assuming 26 working days in a month
 
     async function onSubmit(values: z.infer<typeof registerSchema>) {
         await addEmployee({
@@ -147,10 +153,15 @@ export default function RegisterPage() {
                                 <FormField control={form.control} name="dailyWage" render={({ field }) => (
                                     <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="phone" render={({ field }) => (
-                                    <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                 <div className="space-y-2">
+                                    <FormLabel>Salaire Mensuel (estimation)</FormLabel>
+                                    <Input value={formatCurrency(monthlyWage)} readOnly disabled />
+                                    <p className="text-xs text-muted-foreground">Basé sur 26 jours de travail.</p>
+                                </div>
                             </div>
+                             <FormField control={form.control} name="phone" render={({ field }) => (
+                                <FormItem><FormLabel>Numéro de téléphone</FormLabel><FormControl><Input placeholder="+225 0102030405" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
                         <Button type="submit">Enregistrer l'employé</Button>
                         </form>
                     </Form>

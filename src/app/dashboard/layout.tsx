@@ -26,7 +26,7 @@ const menuItems = [
     { href: '/dashboard/employees', label: 'Employés', icon: Users },
     { href: '/dashboard/register', label: 'Enregistrer', icon: UserPlus },
     { href: '/dashboard/recap', label: 'Récapitulatif', icon: FileText },
-    { href: '/dashboard/loans', label: 'Avances', icon: HandCoins },
+    { href: '/dashboard/loans', label: 'Avances sur Salaire', icon: HandCoins },
     { href: '/dashboard/archives', label: 'Archives', icon: Archive },
     { href: '/dashboard/logs', label: 'Historique Connexions', icon: History },
     { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },

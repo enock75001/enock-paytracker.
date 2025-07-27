@@ -529,7 +529,7 @@ export default function EmployeeRecapPage() {
             ['Paie de base (Présence)', formatCurrency(basePay)],
             ['Total Primes', formatCurrency((employee.adjustments?.filter(a => a.type === 'bonus').reduce((s, a) => s + a.amount, 0) || 0))],
             ['Total Avances', formatCurrency((employee.adjustments?.filter(a => a.type === 'deduction').reduce((s, a) => s + a.amount, 0) || 0))],
-            ['Remboursement Avance', `-${formatCurrency(loanRepayment)}`],
+            ['Remboursement avance', `-${formatCurrency(loanRepayment)}`],
         ],
         foot: [[
              { content: 'Total Net à Payer', styles: { fontStyle: 'bold', fontSize: 12 } },
