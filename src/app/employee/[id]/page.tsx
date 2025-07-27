@@ -526,7 +526,7 @@ export default function EmployeeRecapPage() {
         startY: finalY + 5,
         head: [['Résumé de Paie', 'Montant']],
         body: [
-            ['Paie de base (Présence)', formatCurrency(basePay)],
+            ['Paie de base (jours travaillés)', formatCurrency(basePay)],
             ['Total Primes', formatCurrency((employee.adjustments?.filter(a => a.type === 'bonus').reduce((s, a) => s + a.amount, 0) || 0))],
             ['Total Avances', formatCurrency((employee.adjustments?.filter(a => a.type === 'deduction').reduce((s, a) => s + a.amount, 0) || 0))],
             ['Remboursement avance', `-${formatCurrency(loanRepayment)}`],

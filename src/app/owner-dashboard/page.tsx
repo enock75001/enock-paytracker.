@@ -1,17 +1,18 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where, getDoc, deleteDoc } from 'firebase/firestore';
-import type { Company, Admin } from '@/lib/types';
+import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import type { Company, Admin, SiteSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +24,103 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type CompanyWithAdmins = Company & { admins: Admin[], id: string };
+
+function MaintenanceCard() {
+    const { toast } = useToast();
+    const [settings, setSettings] = useState<SiteSettings | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const settingsRef = doc(db, 'site_settings', 'main');
+            const settingsSnap = await getDoc(settingsRef);
+            if (settingsSnap.exists()) {
+                setSettings(settingsSnap.data() as SiteSettings);
+            } else {
+                setSettings({ isUnderMaintenance: false, maintenanceMessage: "Le site est actuellement en maintenance. Veuillez nous excuser pour la gêne occasionnée. Nous serons de retour bientôt." });
+            }
+            setLoading(false);
+        }
+        fetchSettings();
+    }, []);
+
+    const handleToggleMaintenance = async (checked: boolean) => {
+        if (!settings) return;
+        const newSettings = { ...settings, isUnderMaintenance: checked };
+        setSettings(newSettings);
+        const settingsRef = doc(db, 'site_settings', 'main');
+        await setDoc(settingsRef, newSettings, { merge: true });
+        toast({ title: `Mode maintenance ${checked ? 'activé' : 'désactivé'}` });
+    };
+
+    const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        if (!settings) return;
+        setSettings({ ...settings, maintenanceMessage: e.target.value });
+    };
+
+    const handleSaveMessage = async () => {
+        if (!settings) return;
+        const settingsRef = doc(db, 'site_settings', 'main');
+        await setDoc(settingsRef, { maintenanceMessage: settings.maintenanceMessage }, { merge: true });
+        toast({ title: 'Message de maintenance sauvegardé.' });
+    };
+
+    if (loading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-3/4" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Server className="h-6 w-6" />Contrôle Global du Site</CardTitle>
+                <CardDescription>Gérez l'état global du site pour tous les utilisateurs.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center space-x-4 rounded-md border p-4">
+                    <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">Mode Maintenance</p>
+                        <p className="text-sm text-muted-foreground">
+                            Activez ce mode pour afficher une page de maintenance pour toutes les entreprises.
+                        </p>
+                    </div>
+                    <Switch
+                        checked={settings?.isUnderMaintenance}
+                        onCheckedChange={handleToggleMaintenance}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="maintenance-message">Message de Maintenance</Label>
+                    <Textarea
+                        id="maintenance-message"
+                        value={settings?.maintenanceMessage}
+                        onChange={handleMessageChange}
+                        placeholder="Message à afficher pendant la maintenance..."
+                        disabled={!settings?.isUnderMaintenance}
+                    />
+                    <Button onClick={handleSaveMessage} disabled={!settings?.isUnderMaintenance} size="sm">Sauvegarder le Message</Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function OwnerDashboardPage() {
     const [companies, setCompanies] = useState<CompanyWithAdmins[]>([]);
@@ -133,14 +229,26 @@ export default function OwnerDashboardPage() {
     return (
         <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex-1 container mx-auto p-4 md:p-8">
+            <main className="flex-1 container mx-auto p-4 md:p-8 space-y-8">
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h1 className="text-3xl font-bold">Tableau de Bord Propriétaire</h1>
                         <p className="text-muted-foreground">Gestion des entreprises et des codes d'inscription.</p>
                     </div>
-                    <Button onClick={handleGenerateCode}><PlusCircle className="mr-2"/>Générer un Code</Button>
                 </div>
+
+                <MaintenanceCard />
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6"/>Gestion des Entreprises</CardTitle>
+                        <CardDescription>Gérez les entreprises inscrites et générez des codes.</CardDescription>
+                    </CardHeader>
+                     <CardContent>
+                        <Button onClick={handleGenerateCode}><PlusCircle className="mr-2"/>Générer un Code d'Inscription</Button>
+                     </CardContent>
+                 </Card>
+
 
                 <div className="space-y-8">
                     {companies.map(company => (

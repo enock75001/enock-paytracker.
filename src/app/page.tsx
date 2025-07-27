@@ -26,6 +26,26 @@ import type { PayPeriod } from "@/lib/types";
 
 
 export default function LandingPage() {
+  const { siteSettings } = useEmployees();
+
+  if (siteSettings?.isUnderMaintenance) {
+      return (
+          <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1 flex items-center justify-center container mx-auto p-4">
+                  <Card className="mx-auto max-w-md w-full text-center">
+                      <CardHeader>
+                          <CardTitle className="text-2xl font-headline">Site en Maintenance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                          <p>{siteSettings.maintenanceMessage}</p>
+                      </CardContent>
+                  </Card>
+              </main>
+          </div>
+      )
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
         <Header />

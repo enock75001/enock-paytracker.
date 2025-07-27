@@ -29,9 +29,9 @@ import {
   FormField,
   FormItem,
   FormMessage,
+  FormLabel,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast";
 import {
   Tabs,
@@ -45,7 +45,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 import { ChatWidget } from '@/components/chat-widget';
-import { FormLabel } from '@/components/ui/form';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -396,7 +395,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                                     const isToday = isSameDay(weekDates[index], today);
                                     return (
                                         <div key={day} className="flex flex-col items-center gap-2 p-2 rounded-md bg-secondary/50">
-                                            <Label htmlFor={`${employee.id}-${day}`} className="text-xs font-bold capitalize">{day.split(' ')[0]}</Label>
+                                            <FormLabel htmlFor={`${employee.id}-${day}`} className="text-xs font-bold capitalize">{day.split(' ')[0]}</FormLabel>
                                             <Checkbox
                                                 id={`${employee.id}-${day}`}
                                                 checked={employee.attendance[day]}
@@ -425,7 +424,7 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { employees, departments, isLoading, clearData, companyId } = useEmployees();
+  const { employees, departments, isLoading, clearData, companyId, siteSettings } = useEmployees();
   const [sessionData, setSessionData] = useState({
       managerId: '',
       managerName: '',
@@ -467,6 +466,24 @@ export default function DepartmentPage() {
             <p className="text-lg font-semibold">Chargement...</p>
         </div>
     );
+  }
+
+  if (siteSettings?.isUnderMaintenance) {
+      return (
+          <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1 flex items-center justify-center container mx-auto p-4">
+                  <Card className="mx-auto max-w-md w-full text-center">
+                      <CardHeader>
+                          <CardTitle className="text-2xl font-headline">Site en Maintenance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                          <p>{siteSettings.maintenanceMessage}</p>
+                      </CardContent>
+                  </Card>
+              </main>
+          </div>
+      )
   }
 
   if (!department && !isLoading) {
@@ -521,4 +538,3 @@ export default function DepartmentPage() {
     </div>
   );
 }
-

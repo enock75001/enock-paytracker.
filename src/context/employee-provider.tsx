@@ -1,7 +1,8 @@
 
+
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay } from 'date-fns';
@@ -55,6 +56,7 @@ interface EmployeeContextType {
   notifications: Notification[];
   markNotificationAsRead: (notificationId: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
+  siteSettings: SiteSettings | null;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -108,11 +110,23 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [chatMessages, setChatMessages] = useState<ChatMessageMap>({});
   const [loans, setLoans] = useState<Loan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   
   const { sessionData } = useSession();
   const { userId, userRole, companyId: sessionCompanyId } = sessionData;
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
+
+  useEffect(() => {
+    // Fetch global site settings once
+    const settingsRef = doc(db, 'site_settings', 'main');
+    const unsubscribe = onSnapshot(settingsRef, (doc) => {
+        if (doc.exists()) {
+            setSiteSettings(doc.data() as SiteSettings);
+        }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const clearData = useCallback(() => {
     setEmployees([]);
@@ -626,7 +640,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     updateLoanStatus,
     notifications,
     markNotificationAsRead,
-    markAllNotificationsAsRead
+    markAllNotificationsAsRead,
+    siteSettings
   };
   
   return (

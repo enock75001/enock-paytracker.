@@ -144,4 +144,9 @@ export interface Notification {
   type: 'info' | 'warning' | 'success';
 }
 
+export interface SiteSettings {
+    isUnderMaintenance: boolean;
+    maintenanceMessage: string;
+}
     
+

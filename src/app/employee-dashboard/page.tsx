@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -91,6 +92,7 @@ export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
     const { employeeName, userId } = sessionData;
+    const { siteSettings } = useEmployees();
     const [isCheckingSession, setIsCheckingSession] = useState(true);
 
     useEffect(() => {
@@ -115,6 +117,24 @@ export default function EmployeeDashboardPage() {
                 <p>Vérification de la session...</p>
             </div>
         );
+    }
+    
+    if (siteSettings?.isUnderMaintenance) {
+        return (
+            <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-1 flex items-center justify-center container mx-auto p-4">
+                    <Card className="mx-auto max-w-md w-full text-center">
+                        <CardHeader>
+                            <CardTitle className="text-2xl font-headline">Site en Maintenance</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p>{siteSettings.maintenanceMessage}</p>
+                        </CardContent>
+                    </Card>
+                </main>
+            </div>
+        )
     }
     
     return (

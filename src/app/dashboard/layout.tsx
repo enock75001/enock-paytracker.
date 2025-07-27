@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
 import { Button } from "@/components/ui/button";
 import { ChatWidget } from "@/components/chat-widget";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const menuItems = [
     { href: '/dashboard', label: 'Tableau de bord', icon: Home },
@@ -39,7 +40,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoading, companyId } = useEmployees();
+  const { isLoading, companyId, siteSettings } = useEmployees();
   const [companyName, setCompanyName] = useState("Enock PayTracker");
   const [adminName, setAdminName] = useState("");
   const [adminId, setAdminId] = useState("");
@@ -71,6 +72,24 @@ export default function DashboardLayout({
             </div>
         </div>
       );
+  }
+  
+    if (siteSettings?.isUnderMaintenance) {
+      return (
+          <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1 flex items-center justify-center container mx-auto p-4">
+                  <Card className="mx-auto max-w-md w-full text-center">
+                      <CardHeader>
+                          <CardTitle className="text-2xl font-headline">Site en Maintenance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                          <p>{siteSettings.maintenanceMessage}</p>
+                      </CardContent>
+                  </Card>
+              </main>
+          </div>
+      )
   }
 
   if (!companyId && !isLoading) {
