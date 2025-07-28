@@ -414,7 +414,7 @@ export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
     const { employeeName, userId } = sessionData;
-    const { siteSettings, employees, company } = useEmployees();
+    const { siteSettings, employees, company, isLoading } = useEmployees();
     const [isCheckingSession, setIsCheckingSession] = useState(true);
     
     const employee = employees.find(e => e.id === userId);
@@ -431,10 +431,10 @@ export default function EmployeeDashboardPage() {
         }
     }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
 
-    if (isCheckingSession || !isLoggedIn || !userId || !employee) {
+    if (isCheckingSession || isLoading || (!employee && isLoggedIn)) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
-                <p>Vérification de la session...</p>
+                <p>Chargement de votre espace...</p>
             </div>
         );
     }
@@ -481,7 +481,7 @@ export default function EmployeeDashboardPage() {
                         <CurrentPayCard employee={employee} />
                     </TabsContent>
                     <TabsContent value="history" className="mt-6">
-                        <PayHistoryCard employeeId={userId} />
+                        <PayHistoryCard employeeId={userId!} />
                     </TabsContent>
                 </Tabs>
                 
