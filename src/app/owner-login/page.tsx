@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,13 +22,7 @@ export default function OwnerLoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
-    const { sessionData, isLoggedIn, setSession } = useSession();
-
-    useEffect(() => {
-        if (isLoggedIn && sessionData.userType === 'owner') {
-            router.replace('/owner-dashboard');
-        }
-    }, [sessionData, router, isLoggedIn]);
+    const { setSession } = useSession();
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,7 +30,10 @@ export default function OwnerLoginPage() {
         setError('');
 
         if (password === OWNER_PASSWORD) {
+            // Set the session synchronously
             setSession({ userType: 'owner' });
+            
+            // Show toast and then redirect
             toast({ title: 'Connexion réussie', description: 'Bienvenue, propriétaire.' });
             router.push('/owner-dashboard');
         } else {

@@ -27,11 +27,8 @@ const initialSessionData: SessionData = {
   isOwner: false,
 };
 
-export function useSession() {
-  const [sessionData, setSessionData] = useState<SessionData>(initialSessionData);
-  const [isClient, setIsClient] = useState(false);
-
-  const loadSession = useCallback(() => {
+// This function now lives outside the hook to be callable directly
+const loadSessionFromStorage = (): SessionData => {
     const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | 'employee' | 'owner' | null;
     const adminId = sessionStorage.getItem('adminId');
     const managerId = sessionStorage.getItem('managerId');
@@ -49,7 +46,7 @@ export function useSession() {
         userId = employeeId;
     }
     
-    setSessionData({
+    return {
       userType: ownerLoggedIn ? 'owner' : userType,
       adminName: sessionStorage.getItem('adminName') || '',
       companyName: sessionStorage.getItem('companyName') || '',
@@ -59,14 +56,25 @@ export function useSession() {
       userId,
       companyId: sessionStorage.getItem('companyId'),
       isOwner: ownerLoggedIn,
-    });
+    };
+}
+
+
+export function useSession() {
+  const [sessionData, setSessionData] = useState<SessionData>(initialSessionData);
+  const [isClient, setIsClient] = useState(false);
+
+  const loadSession = useCallback(() => {
+    setSessionData(loadSessionFromStorage());
   }, []);
 
+  // This function will now be synchronous and directly update state
   const setSession = (data: { userType: 'owner' }) => {
       if (data.userType === 'owner') {
           sessionStorage.setItem('ownerLoggedIn', 'true');
           sessionStorage.setItem('userType', 'owner');
-          loadSession(); // Reload session state from storage
+          // Force a state update immediately after setting storage
+          setSessionData(loadSessionFromStorage());
       }
   };
 
