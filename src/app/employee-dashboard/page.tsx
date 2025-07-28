@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -431,7 +432,7 @@ export default function EmployeeDashboardPage() {
         }
     }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
 
-    if (isCheckingSession || isLoading || (!employee && isLoggedIn)) {
+    if (isCheckingSession || isLoading) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <p>Chargement de votre espace...</p>

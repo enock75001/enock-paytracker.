@@ -40,6 +40,7 @@ interface EmployeeContextType {
   fetchAdmins: () => Promise<void>;
   deleteArchive: (archiveId: string) => Promise<void>;
   fetchDataForCompany: (companyId: string) => Promise<void>;
+  fetchDataForEmployee: (companyId: string, employeeId: string) => Promise<void>;
   clearData: () => void;
   updateCompanyProfile: (data: Partial<Omit<Company, 'id' | 'superAdminName'>>) => Promise<void>;
   addAdjustment: (employeeId: string, adjustment: Omit<Adjustment, 'id' | 'date'>) => Promise<void>;
@@ -226,14 +227,68 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       }
   }, [fetchAdmins, clearData]);
 
+   const fetchDataForEmployee = useCallback(async (cId: string, employeeId: string) => {
+    if (!cId || !employeeId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const companyDocRef = doc(db, 'companies', cId);
+      const employeeDocRef = doc(db, 'employees', employeeId);
+
+      const [companyDocSnap, employeeDocSnap] = await Promise.all([
+        getDoc(companyDocRef),
+        getDoc(employeeDocRef),
+      ]);
+
+      if (!companyDocSnap.exists() || !employeeDocSnap.exists()) {
+        throw new Error("Company or Employee not found");
+      }
+      
+      const companyData = { id: companyDocSnap.id, ...companyDocSnap.data() } as Company;
+      setCompany(companyData);
+
+      const employeeData = { id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee;
+      setEmployees([employeeData]);
+      
+      const { days: dynamicDays } = generateDaysAndPeriod(companyData.payPeriod, companyData.payPeriodStartDate);
+
+      // Fetch only data relevant to this employee
+      const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
+      const justificationsQuery = query(collection(db, "justifications"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
+
+      const [loansSnapshot, justificationsSnapshot] = await Promise.all([
+        getDocs(loansQuery),
+        getDocs(justificationsQuery)
+      ]);
+      
+      const loansData = loansSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Loan[];
+      const justificationsData = justificationsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AbsenceJustification[];
+
+      setLoans(loansData);
+      setJustifications(justificationsData);
+
+    } catch (error) {
+      console.error("Error fetching employee data:", error);
+      clearData();
+    } finally {
+      setLoading(false);
+    }
+  }, [clearData]);
+
   useEffect(() => {
-    if (sessionCompanyId) {
+    if (sessionCompanyId && userId && userRole) {
+      if (userRole === 'employee') {
+         fetchDataForEmployee(sessionCompanyId, userId);
+      } else {
+         fetchDataForCompany(sessionCompanyId);
+      }
       setCompanyId(sessionCompanyId);
-      fetchDataForCompany(sessionCompanyId);
     } else {
       setLoading(false);
     }
-  }, [sessionCompanyId, fetchDataForCompany]);
+  }, [sessionCompanyId, userId, userRole, fetchDataForCompany, fetchDataForEmployee]);
 
   useEffect(() => {
     if (!companyId || !userId) return;
@@ -763,7 +818,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     days, weekPeriod, weekDates,
     addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
     fetchAdmins: () => companyId ? fetchAdmins(companyId) : Promise.resolve(), 
-    deleteArchive, fetchDataForCompany, clearData,
+    deleteArchive, fetchDataForCompany, fetchDataForEmployee, clearData,
     updateCompanyProfile, addAdjustment, deleteAdjustment,
     fetchEmployeePayStubs,
     onlineUsers,
@@ -800,4 +855,5 @@ export const useEmployees = () => {
 };
 
     
+
 
