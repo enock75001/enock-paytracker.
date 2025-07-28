@@ -61,6 +61,7 @@ const formatCurrency = (amount: number) => {
 const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[], justifications: any[], weekDates: Date[]): WeeklySummary => {
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
     const daysPresent = days.filter(day => {
+        if (!weekDates || !weekDates[days.indexOf(day)]) return false;
         const date = weekDates[days.indexOf(day)];
         const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
         return employee.attendance[day] || isJustified;

@@ -310,7 +310,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     } else if (userRole === 'employee' && sessionCompanyId && userId) {
       fetchDataForEmployee(sessionCompanyId, userId);
       setCompanyId(sessionCompanyId);
-    } else {
+    } else if (userRole === 'manager' && sessionCompanyId && userId) {
+        fetchDataForCompany(sessionCompanyId);
+        setCompanyId(sessionCompanyId);
+    }
+    else {
         setLoading(false);
     }
   }, [isLoggedIn, sessionCompanyId, userRole, userId, fetchDataForCompany, fetchDataForEmployee]);
@@ -569,7 +573,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(db);
 
     const totalPayroll = employees.reduce((total, emp) => {
-        const daysPresent = days.filter(day => emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))).length;
+        const daysPresent = days.filter(day => {
+            if (!weekDates[days.indexOf(day)]) return false;
+            return emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))
+        }).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
         
@@ -584,7 +591,10 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         if (!departmentTotals[emp.domain]) {
             departmentTotals[emp.domain] = { total: 0, employeeCount: 0 };
         }
-        const daysPresent = days.filter(day => emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))).length;
+        const daysPresent = days.filter(day => {
+             if (!weekDates[days.indexOf(day)]) return false;
+             return emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))
+        }).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
 
@@ -629,7 +639,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     for (const emp of employees) {
         const empRef = doc(db, "employees", emp.id);
 
-        const daysPresent = days.filter(day => emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))).length;
+        const daysPresent = days.filter(day => {
+            if (!weekDates[days.indexOf(day)]) return false;
+            return emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))
+        }).length;
+
         const currentWage = emp.currentWeekWage || emp.dailyWage || 0;
         const basePay = daysPresent * currentWage;
         const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
@@ -814,7 +828,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
         reviewedAt: new Date().toISOString(),
     });
 
-    const updatedJustification = { ...justification, status, reviewedBy };
+    const updatedJustification = { ...justification, status, reviewedBy, reviewedAt: new Date().toISOString() };
     setJustifications(prev => prev.map(j => j.id === justificationId ? updatedJustification : j));
     
     createNotificationForAllAdmins({
