@@ -43,6 +43,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { payPeriods } from '@/lib/data';
 import { Switch } from '@/components/ui/switch';
+import { useSession } from '@/hooks/use-session';
 
 const adminSchema = z.object({
   name: z.string().min(3, "Le nom est requis."),
@@ -252,16 +253,17 @@ function CompanyMaintenanceCard() {
 
 export default function SettingsPage() {
     const { admins, fetchAdmins, companyId } = useEmployees();
+    const { sessionData } = useSession();
     const { toast } = useToast();
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
 
+    const isSuperAdmin = admins.find(a => a.id === sessionData.userId)?.role === 'superadmin';
+
     useEffect(() => {
-      if (typeof window !== 'undefined') {
-        setCurrentAdminId(sessionStorage.getItem('adminId'));
-      }
-    }, []);
+        setCurrentAdminId(sessionData.userId);
+    }, [sessionData.userId]);
 
     const form = useForm({
         resolver: zodResolver(adminSchema),
@@ -316,7 +318,8 @@ export default function SettingsPage() {
             </div>
 
             <CompanyProfileCard />
-            <CompanyMaintenanceCard />
+            
+            {isSuperAdmin && <CompanyMaintenanceCard />}
 
             <Card>
                 <CardHeader>
@@ -360,33 +363,35 @@ export default function SettingsPage() {
                         <CardTitle>Gestion des Administrateurs</CardTitle>
                         <CardDescription>Ajoutez ou supprimez des administrateurs adjoints.</CardDescription>
                     </div>
-                     <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Ajouter un adjoint
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Ajouter un administrateur adjoint</DialogTitle>
-                            </DialogHeader>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onAddAdjointSubmit)} className="space-y-4">
-                                    <FormField name="name" control={form.control} render={({ field }) => (
-                                        <FormItem><FormLabel>Nom de l'adjoint</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                    )} />
-                                    <FormField name="password" control={form.control} render={({ field }) => (
-                                        <FormItem><FormLabel>Mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )} />
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
-                                        <Button type="submit">Sauvegarder</Button>
-                                    </DialogFooter>
-                                </form>
-                            </Form>
-                        </DialogContent>
-                    </Dialog>
+                     {isSuperAdmin && (
+                        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Ajouter un adjoint
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Ajouter un administrateur adjoint</DialogTitle>
+                                </DialogHeader>
+                                <Form {...form}>
+                                    <form onSubmit={form.handleSubmit(onAddAdjointSubmit)} className="space-y-4">
+                                        <FormField name="name" control={form.control} render={({ field }) => (
+                                            <FormItem><FormLabel>Nom de l'adjoint</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField name="password" control={form.control} render={({ field }) => (
+                                            <FormItem><FormLabel>Mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="ghost">Annuler</Button></DialogClose>
+                                            <Button type="submit">Sauvegarder</Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
+                     )}
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -410,7 +415,7 @@ export default function SettingsPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {admin.role !== 'superadmin' && (
+                                        {isSuperAdmin && admin.role !== 'superadmin' && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="destructive" size="icon">

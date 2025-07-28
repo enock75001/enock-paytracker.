@@ -122,10 +122,23 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   
-  const { sessionData } = useSession();
+  const { sessionData, isLoggedIn } = useSession();
   const { userId, userRole, companyId: sessionCompanyId } = sessionData;
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
+  
+  const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
+        if (!companyId) return;
+        const q = query(
+            collection(db, "documents"), 
+            where("companyId", "==", companyId), 
+            where("employeeId", "==", employeeId),
+            orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const docs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Document[];
+        setDocuments(docs);
+  }, [companyId]);
 
   useEffect(() => {
     // Fetch global site settings once
@@ -161,19 +174,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
     setAdmins(adminsData);
   }, []);
-  
-  const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
-        if (!companyId) return;
-        const q = query(
-            collection(db, "documents"), 
-            where("companyId", "==", companyId), 
-            where("employeeId", "==", employeeId),
-            orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const docs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Document[];
-        setDocuments(docs);
-  }, [companyId]);
 
   const fetchDataForCompany = useCallback(async (cId: string) => {
       if (!cId) {
@@ -295,6 +295,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, [clearData, fetchEmployeeDocuments]);
 
   useEffect(() => {
+    if (isLoggedIn === null) return;
+
     if (sessionCompanyId && userRole === 'admin') {
       fetchDataForCompany(sessionCompanyId);
       setCompanyId(sessionCompanyId);
@@ -304,7 +306,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setLoading(false);
     }
-  }, [sessionCompanyId, userRole, userId, fetchDataForCompany, fetchDataForEmployee]);
+  }, [isLoggedIn, sessionCompanyId, userRole, userId, fetchDataForCompany, fetchDataForEmployee]);
 
   useEffect(() => {
     if (!companyId || !userId) return;
@@ -877,7 +879,3 @@ export const useEmployees = () => {
   }
   return context;
 };
-
-
-
-

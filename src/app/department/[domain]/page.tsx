@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -583,6 +584,7 @@ export default function DepartmentPage() {
   const { departments, isLoading, siteSettings, company, fetchDataForCompany } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, managerName, userId, companyId, departmentName } = sessionData;
+  const isCompanyUnderMaintenance = company?.status === 'suspended';
 
   useEffect(() => {
     if (isLoggedIn === null) return;
@@ -601,8 +603,7 @@ export default function DepartmentPage() {
   }, [userType, userId, isLoggedIn, router, departmentName, domain, company, companyId, fetchDataForCompany]);
 
   const department = departments.find(d => d.name === domain);
-  const isCompanyUnderMaintenance = company?.status === 'suspended';
-
+  
   if (isLoggedIn === null || isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center">

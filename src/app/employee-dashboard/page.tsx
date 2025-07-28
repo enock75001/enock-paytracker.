@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -485,20 +486,21 @@ function DocumentsCard({ employeeId }: { employeeId: string }) {
 export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
-    const { employeeName, userId } = sessionData;
+    const { employeeName, userId, companyId } = sessionData;
     const { siteSettings, employees, company, isLoading, fetchDataForEmployee } = useEmployees();
     
     const employee = employees.find(e => e.id === userId);
     const isCompanyUnderMaintenance = company?.status === 'suspended';
-
+    
     useEffect(() => {
-        if (isLoggedIn === null) return; // Wait until session is confirmed
-        if (!isLoggedIn || sessionData.userType !== 'employee') {
+        if (isLoggedIn === null) return;
+        if (!isLoggedIn || sessionData.userType !== 'employee' || !companyId || !userId) {
             router.replace('/employee-login');
-        } else if (sessionData.companyId && sessionData.userId) {
-            fetchDataForEmployee(sessionData.companyId, sessionData.userId);
+        } else {
+             fetchDataForEmployee(companyId, userId);
         }
-    }, [isLoggedIn, sessionData, router, fetchDataForEmployee]);
+    }, [isLoggedIn, sessionData, companyId, userId, router, fetchDataForEmployee]);
+
 
     if (isLoggedIn === null || isLoading || !employee) {
         return (
