@@ -185,3 +185,15 @@ export interface RegistrationCode {
     usedByCompanyId?: string;
     usedByCompanyName?: string;
 }
+
+// Types for Document Management
+export interface Document {
+  id: string;
+  employeeId: string;
+  companyId: string;
+  documentType: 'contract' | 'payslip' | 'other';
+  fileName: string;
+  storagePath: string; // Path in Firebase Storage
+  downloadUrl: string; // Public URL for downloading
+  createdAt: string; // ISO Timestamp
+}

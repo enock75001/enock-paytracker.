@@ -9,7 +9,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt, TrendingUp, TrendingDown, Building, Route } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt, TrendingUp, TrendingDown, Building, Route, FileSignature, Loader2 } from 'lucide-react';
 import { differenceInWeeks, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -61,6 +61,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from '@/hooks/use-session';
 import { GanttChartSquare } from 'lucide-react';
+import { generateContract } from '@/ai/flows/generate-contract-flow';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
@@ -77,6 +78,89 @@ const employeeSchema = z.object({
   phone: z.string().min(9, { message: 'Un numéro de téléphone valide est requis.' }),
   photoUrl: z.string().optional(),
 });
+
+function GenerateContractDialog({ employee, company }: { employee: Employee, company: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [contractText, setContractText] = useState('');
+    const { toast } = useToast();
+
+    const handleGenerate = async () => {
+        setIsLoading(true);
+        setContractText('');
+        try {
+            const result = await generateContract({
+                companyName: company?.name || "Nom de l'entreprise non défini",
+                employeeName: `${employee.firstName} ${employee.lastName}`,
+                employeeAddress: employee.address,
+                employeePoste: employee.poste,
+                monthlyWage: employee.dailyWage * 26, // Estimation
+                hireDate: employee.registrationDate
+            });
+            setContractText(result.contractText);
+        } catch (error) {
+            console.error("Failed to generate contract:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Erreur de Génération',
+                description: 'Impossible de générer le contrat pour le moment.'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const downloadContractPdf = () => {
+        const doc = new jsPDF();
+        
+        // Remove markdown for PDF text
+        const text = contractText
+            .replace(/#\s/g, '')
+            .replace(/##\s/g, '')
+            .replace(/\*\*/g, '');
+
+        doc.setFontSize(12);
+        const splitText = doc.splitTextToSize(text, 180);
+        doc.text(splitText, 15, 20);
+        doc.save(`contrat_${employee.lastName}_${employee.firstName}.pdf`);
+    }
+
+    return (
+         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline"><FileSignature className="mr-2"/>Générer Contrat</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Générer un contrat de travail</DialogTitle>
+                    <DialogDescription>
+                        L'IA va générer un contrat de travail (CDD) basé sur les informations de l'employé.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="flex-1 overflow-y-auto pr-4">
+                     {isLoading && (
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                            <p className="mt-4 text-muted-foreground">Génération du contrat en cours...</p>
+                        </div>
+                     )}
+                     {!isLoading && contractText && (
+                        <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border p-4 whitespace-pre-wrap">
+                            {contractText}
+                        </div>
+                     )}
+                 </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Fermer</Button></DialogClose>
+                     {contractText && !isLoading && <Button onClick={downloadContractPdf}><Download className="mr-2 h-4 w-4"/>Télécharger en PDF</Button>}
+                    <Button onClick={handleGenerate} disabled={isLoading}>
+                       {isLoading ? 'Génération...' : contractText ? 'Régénérer' : 'Générer le contrat'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function EditEmployeeDialog({ employee, departments, updateEmployee }: { employee: Employee, departments: Department[], updateEmployee: Function }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -662,10 +746,13 @@ export default function EmployeeRecapPage() {
                         </div>
                     </CardContent>
                     <CardFooter className="flex-col items-stretch gap-2">
-                        <Button onClick={downloadWeeklySummary} variant="outline">
+                         <div className="flex gap-2 w-full">
+                           <GenerateContractDialog employee={employee} company={company} />
+                           <Button onClick={downloadWeeklySummary} variant="outline" className="w-full">
                             <Download className="mr-2 h-4 w-4"/>
-                            PDF de la Période
-                        </Button>
+                            Fiche de Paie
+                           </Button>
+                         </div>
                         <div className="flex gap-2">
                             <EditEmployeeDialog employee={employee} departments={departments} updateEmployee={updateEmployee} />
                             <TransferEmployeeDialog employee={employee} departments={departments} transferEmployee={transferEmployee} />
