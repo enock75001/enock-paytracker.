@@ -200,6 +200,7 @@ export default function OwnerDashboardPage() {
     const [companies, setCompanies] = useState<CompanyWithAdmins[]>([]);
     const [registrationCodes, setRegistrationCodes] = useState<RegistrationCode[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCheckingSession, setIsCheckingSession] = useState(true);
     const [editingCompany, setEditingCompany] = useState<{ id: string, name: string, identifier: string } | null>(null);
     const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
@@ -230,14 +231,16 @@ export default function OwnerDashboardPage() {
 
         setLoading(false);
     };
-
+    
     useEffect(() => {
-        if (!isLoggedIn || sessionData.userType !== 'owner') {
+        // This effect runs only once on the client to check the session.
+        if (sessionStorage.getItem('userType') !== 'owner') {
              router.replace('/owner-login');
         } else {
+            setIsCheckingSession(false);
             fetchData();
         }
-    }, [router, isLoggedIn, sessionData.userType]);
+    }, [router]);
 
 
     const handleGenerateCode = async (isTrial: boolean) => {
@@ -331,8 +334,8 @@ export default function OwnerDashboardPage() {
     };
 
 
-    if (loading) {
-        return <div className="flex h-screen items-center justify-center">Chargement...</div>;
+    if (isCheckingSession || loading) {
+        return <div className="flex h-screen items-center justify-center">Chargement des données du propriétaire...</div>;
     }
 
     return (
@@ -449,3 +452,5 @@ export default function OwnerDashboardPage() {
         </div>
     );
 }
+
+    

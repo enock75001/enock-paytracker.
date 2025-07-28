@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,9 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Lock } from "lucide-react";
 import { Header } from '@/components/header';
-import { useSession } from '@/hooks/use-session';
 
-// Le mot de passe est maintenant défini ici pour éviter les problèmes d'environnement.
 const OWNER_PASSWORD = "enock@2024";
 
 export default function OwnerLoginPage() {
@@ -22,7 +20,6 @@ export default function OwnerLoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
-    const { setSession } = useSession();
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,10 +27,9 @@ export default function OwnerLoginPage() {
         setError('');
 
         if (password === OWNER_PASSWORD) {
-            // Set the session synchronously
-            setSession({ userType: 'owner' });
-            
-            // Show toast and then redirect
+            // Set session storage and then redirect.
+            // This is a more direct way to handle the session for this specific case.
+            sessionStorage.setItem('userType', 'owner');
             toast({ title: 'Connexion réussie', description: 'Bienvenue, propriétaire.' });
             router.push('/owner-dashboard');
         } else {
@@ -86,3 +82,5 @@ export default function OwnerLoginPage() {
         </div>
     );
 }
+
+    
