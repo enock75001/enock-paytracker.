@@ -17,7 +17,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive, RefreshCw, ServerCrash, CalendarCheck, Home, UserPlus, FileText, Briefcase, DollarSign, BarChart3 } from 'lucide-react';
+import { Download, Users, Eye, UserCog, PlusCircle, Edit, Trash2, Archive, RefreshCw, ServerCrash, CalendarCheck, Home, UserPlus, FileText, Briefcase, DollarSign, BarChart3, Sparkles, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -77,10 +77,91 @@ import { useState } from 'react';
 import { type ArchivedPayroll } from '@/lib/types';
 import { ImagePicker } from '@/components/image-picker';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { generateWeeklyReport } from '@/ai/flows/generate-report-flow';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
+
+function SmartReportCard() {
+    const { employees, days, weekPeriod } = useEmployees();
+    const [isLoading, setIsLoading] = useState(false);
+    const [report, setReport] = useState<string | null>(null);
+    const { toast } = useToast();
+
+    const weeklyPayroll = employees.reduce((total, emp) => {
+        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        const weeklyWage = emp.currentWeekWage || emp.dailyWage;
+        return total + (daysPresent * weeklyWage);
+    }, 0);
+    
+    const recentlyAddedEmployees = employees.filter(e => {
+        const regDate = new Date(e.registrationDate);
+        const today = new Date();
+        const diffDays = (today.getTime() - regDate.getTime()) / (1000 * 3600 * 24);
+        return diffDays <= 7;
+    }).map(e => `${e.firstName} ${e.lastName}`);
+
+    const handleGenerateReport = async () => {
+        setIsLoading(true);
+        setReport(null);
+        try {
+            const result = await generateWeeklyReport({
+                totalEmployees: employees.length,
+                totalPayroll: weeklyPayroll,
+                period: weekPeriod,
+                recentlyAddedEmployees: recentlyAddedEmployees
+            });
+            setReport(result.reportText);
+        } catch (error) {
+            console.error("Failed to generate report:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Erreur de Génération',
+                description: 'Impossible de générer le rapport pour le moment.'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <Card className="col-span-full">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-6 w-6 text-primary" />
+                    Rapport Intelligent de la Semaine
+                </CardTitle>
+                <CardDescription>
+                    Obtenez une analyse rapide de la période actuelle grâce à l'IA.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading && (
+                    <div className="flex flex-col items-center justify-center h-24">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-2 text-muted-foreground">Analyse en cours...</p>
+                    </div>
+                )}
+                {report && (
+                    <div className="prose prose-sm prose-invert max-w-none">
+                        <p>{report}</p>
+                    </div>
+                )}
+                {!report && !isLoading && (
+                    <div className="text-center text-muted-foreground py-4">
+                        Cliquez sur le bouton pour générer une analyse.
+                    </div>
+                )}
+            </CardContent>
+            <CardFooter>
+                 <Button onClick={handleGenerateReport} disabled={isLoading}>
+                    {isLoading ? 'Analyse en cours...' : report ? 'Régénérer le rapport' : 'Analyser la semaine'}
+                </Button>
+            </CardFooter>
+        </Card>
+    )
+}
 
 // Main Page Component
 export default function DashboardPage() {
@@ -135,6 +216,9 @@ export default function DashboardPage() {
             </Card>
         </div>
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+             <div className="col-span-full lg:col-span-7 space-y-4">
+                <SmartReportCard />
+            </div>
             <Card className="col-span-4">
                 <CardHeader>
                     <CardTitle>Vue d'ensemble des départements</CardTitle>
