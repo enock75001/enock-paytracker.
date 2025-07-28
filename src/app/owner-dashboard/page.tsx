@@ -5,13 +5,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, writeBatch, query, where, getDoc, deleteDoc, setDoc, Timestamp, orderBy } from 'firebase/firestore';
-import type { Company, Admin, SiteSettings, RegistrationCode } from '@/lib/types';
+import type { Company, Admin, SiteSettings, RegistrationCode, Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X, RefreshCw } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X, RefreshCw, Users, Code, UserShield } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,9 +29,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from '@/hooks/use-session';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+
 
 type CompanyWithAdmins = Company & { admins: Admin[], id: string };
 
@@ -196,8 +198,103 @@ function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial, onReactivat
     )
 }
 
+function AnalyticsSection({ companies, employees, codes, admins }: { companies: Company[], employees: Employee[], codes: RegistrationCode[], admins: Admin[] }) {
+    const totalCompanies = companies.length;
+    const totalEmployees = employees.length;
+    const activeCodes = codes.filter(c => !c.isUsed && (!c.expiresAt || new Date(c.expiresAt.toDate()) > new Date())).length;
+    const totalAdmins = admins.length;
+
+    const companySignupsByMonth = companies.reduce((acc, company) => {
+        if (company.registrationDate) {
+            const month = format(parseISO(company.registrationDate), 'yyyy-MM');
+            acc[month] = (acc[month] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+
+    const chartData = Object.entries(companySignupsByMonth).map(([month, total]) => ({
+        name: format(parseISO(month + '-01'), 'MMM yyyy', { locale: fr }),
+        total: total,
+    })).sort((a,b) => a.name.localeCompare(b.name));
+
+    return (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Entreprises</CardTitle>
+                    <Building className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalCompanies}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Employés</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalEmployees}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Codes Actifs</CardTitle>
+                    <Code className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{activeCodes}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Admins Totaux</CardTitle>
+                    <UserShield className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{totalAdmins}</div>
+                </CardContent>
+            </Card>
+
+            <Card className="md:col-span-4">
+              <CardHeader>
+                <CardTitle>Inscriptions de Nouvelles Entreprises</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={chartData}>
+                    <XAxis
+                      dataKey="name"
+                      stroke="#888888"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="#888888"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <Bar
+                      dataKey="total"
+                      fill="currentColor"
+                      radius={[4, 4, 0, 0]}
+                      className="fill-primary"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+        </div>
+    )
+}
+
 export default function OwnerDashboardPage() {
     const [companies, setCompanies] = useState<CompanyWithAdmins[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [allAdmins, setAllAdmins] = useState<Admin[]>([]);
     const [registrationCodes, setRegistrationCodes] = useState<RegistrationCode[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -205,7 +302,7 @@ export default function OwnerDashboardPage() {
     const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
     const { toast } = useToast();
-    const { sessionData, isLoggedIn } = useSession();
+    const { sessionData } = useSession();
 
 
     const fetchData = async () => {
@@ -214,12 +311,20 @@ export default function OwnerDashboardPage() {
         const companiesSnapshot = await getDocs(collection(db, 'companies'));
         const companiesData = companiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as (Company & {id: string})[];
         
+        // Fetch All Employees and All Admins
+        const [employeesSnapshot, allAdminsSnapshot] = await Promise.all([
+            getDocs(collection(db, 'employees')),
+            getDocs(collection(db, 'admins')),
+        ]);
+        const employeesData = employeesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Employee[];
+        const allAdminsData = allAdminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
+        setEmployees(employeesData);
+        setAllAdmins(allAdminsData);
+
         const companiesWithAdmins: CompanyWithAdmins[] = [];
         for (const company of companiesData) {
-            const adminsQuery = query(collection(db, "admins"), where("companyId", "==", company.id));
-            const adminsSnapshot = await getDocs(adminsQuery);
-            const adminsData = adminsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Admin[];
-            companiesWithAdmins.push({ ...company, admins: adminsData });
+            const companyAdmins = allAdminsData.filter(admin => admin.companyId === company.id);
+            companiesWithAdmins.push({ ...company, admins: companyAdmins });
         }
         setCompanies(companiesWithAdmins);
 
@@ -233,14 +338,15 @@ export default function OwnerDashboardPage() {
     };
     
     useEffect(() => {
-        // This effect runs only once on the client to check the session.
-        if (sessionStorage.getItem('userType') !== 'owner') {
+        if (sessionData.userType === null) return; 
+
+        if (sessionData.userType !== 'owner') {
              router.replace('/owner-login');
         } else {
             setIsCheckingSession(false);
             fetchData();
         }
-    }, [router]);
+    }, [router, sessionData]);
 
 
     const handleGenerateCode = async (isTrial: boolean) => {
@@ -349,6 +455,7 @@ export default function OwnerDashboardPage() {
                     </div>
                 </div>
 
+                <AnalyticsSection companies={companies} employees={employees} codes={registrationCodes} admins={allAdmins} />
                 <MaintenanceCard />
                 <RegistrationCodesCard 
                     codes={registrationCodes} 
