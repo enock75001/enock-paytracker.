@@ -587,7 +587,7 @@ function CareerHistoryTab({ careerHistory }: { careerHistory: CareerEvent[] }) {
                             <div className="flex-1">
                                 <p className="font-semibold">{format(parseISO(event.date), "d MMMM yyyy 'à' HH:mm", { locale: fr })}</p>
                                 <p className="text-sm text-muted-foreground">{event.description}</p>
-                                {event.oldValue !== undefined && (
+                                {event.oldValue !== undefined && event.newValue !== undefined && (
                                     <p className="text-xs text-muted-foreground/80 flex items-center gap-2">
                                         <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3"/>Ancien: {typeof event.oldValue === 'number' ? formatCurrency(event.oldValue) : event.oldValue}</span>
                                         <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3"/>Nouveau: {typeof event.newValue === 'number' ? formatCurrency(event.newValue) : event.newValue}</span>
@@ -901,4 +901,3 @@ export default function EmployeeRecapPage() {
     </div>
   );
 }
-

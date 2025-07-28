@@ -228,7 +228,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
                     newAttendance[day] = false;
                 }
             });
-            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, adjustments: e.adjustments || [], careerHistory: e.careerHistory || [] };
+            return {...e, currentWeekWage: e.currentWeekWage || e.dailyWage, adjustments: e.adjustments || [], careerHistory: (e.careerHistory || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) };
           });
 
 
@@ -250,7 +250,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       return;
     }
-    setLoading(true);
     try {
       const companyDocRef = doc(db, 'companies', cId);
       const employeeDocRef = doc(db, 'employees', employeeId);
@@ -267,7 +266,11 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const companyData = { id: companyDocSnap.id, ...companyDocSnap.data() } as Company;
       setCompany(companyData);
 
-      const employeeData = { id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee;
+      const employeeDataRaw = { id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee;
+      const employeeData = {
+          ...employeeDataRaw,
+          careerHistory: (employeeDataRaw.careerHistory || []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      };
       setEmployees([employeeData]);
       
       const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
@@ -295,16 +298,20 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, [clearData, fetchEmployeeDocuments]);
 
   useEffect(() => {
-    if (isLoggedIn === null) return;
-
-    if (sessionCompanyId && userRole === 'admin') {
+    if (isLoggedIn === null) {
+      setLoading(true);
+      return;
+    };
+    
+    setLoading(true);
+    if (userRole === 'admin' && sessionCompanyId) {
       fetchDataForCompany(sessionCompanyId);
       setCompanyId(sessionCompanyId);
-    } else if (sessionCompanyId && userId && userRole === 'employee') {
+    } else if (userRole === 'employee' && sessionCompanyId && userId) {
       fetchDataForEmployee(sessionCompanyId, userId);
       setCompanyId(sessionCompanyId);
     } else {
-      setLoading(false);
+        setLoading(false);
     }
   }, [isLoggedIn, sessionCompanyId, userRole, userId, fetchDataForCompany, fetchDataForEmployee]);
 
