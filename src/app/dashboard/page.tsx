@@ -84,13 +84,18 @@ const formatCurrency = (amount: number) => {
 };
 
 function SmartReportCard() {
-    const { employees, days, weekPeriod } = useEmployees();
+    const { employees, days, weekPeriod, justifications, weekDates } = useEmployees();
     const [isLoading, setIsLoading] = useState(false);
     const [report, setReport] = useState<string | null>(null);
     const { toast } = useToast();
 
     const weeklyPayroll = employees.reduce((total, emp) => {
-        const daysPresent = days.filter(day => emp.attendance[day]).length;
+        const daysPresent = days.filter(day => {
+            if (!weekDates || !weekDates[days.indexOf(day)]) return false;
+            const date = weekDates[days.indexOf(day)];
+            const isJustified = justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
+            return emp.attendance[day] || isJustified;
+        }).length;
         const weeklyWage = emp.currentWeekWage || emp.dailyWage;
         return total + (daysPresent * weeklyWage);
     }, 0);
@@ -165,13 +170,8 @@ function SmartReportCard() {
 
 // Main Page Component
 export default function DashboardPage() {
-    const { employees, departments, days } = useEmployees();
+    const { employees, departments, days, weeklyPayroll } = useEmployees();
     const totalEmployees = employees.length;
-    const weeklyPayroll = employees.reduce((total, emp) => {
-        const daysPresent = days.filter(day => emp.attendance[day]).length;
-        const weeklyWage = emp.currentWeekWage || emp.dailyWage;
-        return total + (daysPresent * weeklyWage);
-    }, 0);
 
     const employeesByDept = departments.map(dept => ({
         name: dept.name,

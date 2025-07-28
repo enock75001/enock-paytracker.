@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEmployees } from '@/context/employee-provider';
@@ -39,7 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+import { format } from 'date-fns';
 
 interface WeeklySummary {
   employee: Employee;
@@ -54,12 +55,18 @@ interface WeeklySummary {
 }
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0 }).format(amount) + ' FCFA';
+    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
 
-const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[]): WeeklySummary => {
+const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[], justifications: any[], weekDates: Date[]): WeeklySummary => {
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
-    const daysPresent = days.filter(day => employee.attendance[day]).length;
+    const daysPresent = days.filter(day => {
+        if (!weekDates || !weekDates[days.indexOf(day)]) return false;
+        const date = weekDates[days.indexOf(day)];
+        const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
+        return employee.attendance[day] || isJustified;
+    }).length;
+
     const totalHoursPay = daysPresent * currentWage;
     
     const totalBonus = (employee.adjustments || []).filter(adj => adj.type === 'bonus').reduce((acc, adj) => acc + adj.amount, 0);
@@ -96,10 +103,10 @@ const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, Week
 };
 
 export default function RecapPage() {
-  const { employees, days, startNewWeek, weekPeriod, company, loans } = useEmployees();
-  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days, loans));
+  const { employees, days, startNewWeek, weekPeriod, company, loans, justifications, weekDates, weeklyPayroll } = useEmployees();
+  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days, loans, justifications, weekDates));
   const groupedSummaries = groupSummariesByDomain(weeklySummaries);
-  const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
+  const totalPayroll = weeklyPayroll;
   const { toast } = useToast();
 
   const handleStartNewWeek = () => {
@@ -114,32 +121,29 @@ export default function RecapPage() {
   const downloadPdf = () => {
     const doc = new jsPDF();
     const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
-    
     const img = new (window as any).Image();
-    img.src = logoUrl;
     img.crossOrigin = "Anonymous";
-    
+    img.src = logoUrl;
+
     img.onload = () => {
-      try {
-        doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
-      } catch (e) {
-        console.error("Error adding image to PDF:", e);
-      }
-      renderPdfContent(doc);
-      doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
+        try {
+            doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
+        } catch (e) {
+            console.error("Erreur d'ajout de l'image:", e);
+        }
+        renderPdfContent(doc);
     };
 
     img.onerror = () => {
-      console.error("Failed to load company logo for PDF.");
-      renderPdfContent(doc);
-      doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
-    };
+        console.error("Failed to load company logo for PDF.");
+        renderPdfContent(doc);
+    }
   };
 
   const renderPdfContent = (doc: jsPDF) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     let cursorY = 15;
-    
+
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
@@ -173,12 +177,14 @@ export default function RecapPage() {
 
     const tableBody = [];
     Object.entries(groupedSummaries).forEach(([domain, summaries]) => {
+        // Department Header Row
         tableBody.push([{ 
             content: domain, 
             colSpan: 7, 
             styles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'left' } 
         }]);
         
+        // Employee Rows
         summaries.forEach(s => {
             tableBody.push([
                 { content: `${s.employee.firstName} ${s.employee.lastName}` },
@@ -217,7 +223,9 @@ export default function RecapPage() {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
     doc.text(`Total Général à Payer: ${formatCurrency(totalPayroll)}`, 14, finalY + 20);
-  }
+
+    doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
 
   return (

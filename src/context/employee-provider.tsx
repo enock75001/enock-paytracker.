@@ -1,7 +1,7 @@
 
 
 'use client';
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent, Document } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
@@ -33,6 +33,7 @@ interface EmployeeContextType {
   days: string[];
   weekPeriod: string;
   weekDates: Date[];
+  weeklyPayroll: number;
   addDepartment: (department: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
   updateDepartment: (departmentId: string, updatedDepartment: Omit<Department, 'id' | 'companyId'>) => Promise<void>;
   deleteDepartment: (departmentId: string) => Promise<void>;
@@ -70,9 +71,19 @@ interface EmployeeContextType {
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
 const generateDaysAndPeriod = (payPeriod: PayPeriod = 'weekly', startDateStr?: string): { days: string[], period: string, dates: Date[] } => {
-    const referenceDate = startDateStr ? parseISO(startDateStr) : new Date();
-    // Fallback to today if the parsed date is invalid
-    const today = startOfDay(isNaN(referenceDate.getTime()) ? new Date() : referenceDate);
+    let referenceDate;
+    if (startDateStr) {
+        // Handle both ISO string and Firestore Timestamp-like objects
+        if (typeof startDateStr === 'string') {
+            referenceDate = parseISO(startDateStr);
+        } else if (startDateStr && typeof (startDateStr as any).toDate === 'function') {
+            referenceDate = (startDateStr as any).toDate();
+        }
+    }
+    
+    // Fallback to today if the parsed date is invalid or not provided
+    const today = startOfDay(!referenceDate || isNaN(referenceDate.getTime()) ? new Date() : referenceDate);
+
     let startDate, endDate;
     let period: string;
     
@@ -126,6 +137,24 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const { userId, userRole, companyId: sessionCompanyId } = sessionData;
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
+  
+  const weeklyPayroll = useMemo(() => {
+    return employees.reduce((total, emp) => {
+        const daysPresent = days.filter(day => {
+            if (!weekDates[days.indexOf(day)]) return false;
+            const date = weekDates[days.indexOf(day)];
+            const isJustified = justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
+            return emp.attendance[day] || isJustified;
+        }).length;
+        const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
+        const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
+        
+        const activeLoan = loans.find(l => l.employeeId === emp.id && l.status === 'active');
+        const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
+        
+        return total + (daysPresent * weeklyWage) + totalAdjustments - loanRepayment;
+    }, 0);
+  }, [employees, days, weekDates, justifications, loans]);
   
   const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
         if (!companyId) return;
@@ -250,6 +279,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       return;
     }
+    setLoading(true);
     try {
       const companyDocRef = doc(db, 'companies', cId);
       const employeeDocRef = doc(db, 'employees', employeeId);
@@ -571,20 +601,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     if (!companyId || !company) throw new Error("Aucune entreprise sélectionnée.");
     
     const batch = writeBatch(db);
-
-    const totalPayroll = employees.reduce((total, emp) => {
-        const daysPresent = days.filter(day => {
-            if (!weekDates[days.indexOf(day)]) return false;
-            return emp.attendance[day] || (justifications.some(j => j.employeeId === emp.id && j.status === 'approved' && j.date === format(weekDates[days.indexOf(day)], 'yyyy-MM-dd')))
-        }).length;
-        const weeklyWage = emp.currentWeekWage || emp.dailyWage || 0;
-        const totalAdjustments = (emp.adjustments || []).reduce((acc, adj) => adj.type === 'bonus' ? acc + adj.amount : acc - adj.amount, 0);
-        
-        const activeLoan = loans.find(l => l.employeeId === emp.id && l.status === 'active');
-        const loanRepayment = activeLoan ? Math.min(activeLoan.balance, activeLoan.repaymentAmount) : 0;
-        
-        return total + (daysPresent * weeklyWage) + totalAdjustments - loanRepayment;
-    }, 0);
     
     const departmentTotals: { [key: string]: { total: number, employeeCount: number } } = {};
     employees.forEach(emp => {
@@ -608,7 +624,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const newArchiveData = {
         companyId,
         period: weekPeriod,
-        totalPayroll,
+        totalPayroll: weeklyPayroll,
         departments: Object.entries(departmentTotals).map(([name, data]) => ({ name, ...data })),
     };
     
@@ -616,7 +632,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     batch.set(archiveRef, newArchiveData);
 
     const companyRef = doc(db, 'companies', companyId);
-    const currentStartDate = company.payPeriodStartDate ? parseISO(company.payPeriodStartDate) : new Date();
+    
+    let currentStartDate;
+    if (company.payPeriodStartDate) {
+        currentStartDate = typeof company.payPeriodStartDate === 'string' ? parseISO(company.payPeriodStartDate) : (company.payPeriodStartDate as any).toDate();
+    } else {
+        currentStartDate = new Date();
+    }
+
     let nextStartDate;
 
     switch (company.payPeriod) {
@@ -624,14 +647,14 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
             nextStartDate = addMonths(startOfMonth(currentStartDate), 1);
             break;
         case 'bi-weekly':
-            nextStartDate = addDays(currentStartDate, 14);
+            nextStartDate = addDays(startOfWeek(currentStartDate, { weekStartsOn: 1 }), 14);
             break;
         case 'weekly':
         default:
-            nextStartDate = addDays(currentStartDate, 7);
+            nextStartDate = addDays(startOfWeek(currentStartDate, { weekStartsOn: 1 }), 7);
             break;
     }
-    batch.update(companyRef, { payPeriodStartDate: nextStartDate.toISOString() });
+    batch.update(companyRef, { payPeriodStartDate: Timestamp.fromDate(nextStartDate) });
 
     const { days: nextPeriodDays } = generateDaysAndPeriod(company.payPeriod, nextStartDate.toISOString());
     const payDate = new Date().toISOString();
@@ -859,7 +882,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
     addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, 
-    days, weekPeriod, weekDates,
+    days, weekPeriod, weekDates, weeklyPayroll,
     addDepartment, updateDepartment, deleteDepartment, startNewWeek, 
     fetchAdmins: () => companyId ? fetchAdmins(companyId) : Promise.resolve(), 
     deleteArchive, fetchDataForCompany, fetchDataForEmployee, clearData,
