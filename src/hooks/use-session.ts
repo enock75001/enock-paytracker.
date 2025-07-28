@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -33,17 +32,15 @@ export function useSession() {
   const [isClient, setIsClient] = useState(false);
 
   const loadSession = useCallback(() => {
-    // We must read all values from sessionStorage inside this callback
     const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | 'employee' | 'owner' | null;
     const adminId = sessionStorage.getItem('adminId');
     const managerId = sessionStorage.getItem('managerId');
     const employeeId = sessionStorage.getItem('employeeId');
     const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn') === 'true';
     
-    // Determine userId based on what's available
     let userId = null;
     if (ownerLoggedIn) {
-        userId = 'owner'; // Special static ID for the owner
+        userId = 'owner';
     } else if (userType === 'admin') {
         userId = adminId;
     } else if (userType === 'manager') {
@@ -65,14 +62,20 @@ export function useSession() {
     });
   }, []);
 
+  const setSession = (data: { userType: 'owner' }) => {
+      if (data.userType === 'owner') {
+          sessionStorage.setItem('ownerLoggedIn', 'true');
+          sessionStorage.setItem('userType', 'owner');
+          loadSession(); // Reload session state from storage
+      }
+  };
+
   useEffect(() => {
-    // This effect runs only once on the client-side
     setIsClient(true);
     loadSession();
 
-    // Listen to storage changes to keep session in sync across tabs
     const handleStorageChange = (event: StorageEvent) => {
-        if (event.key && event.key.startsWith('genkit')) return; // Ignore genkit flow state changes
+        if (event.key && event.key.startsWith('genkit')) return;
         loadSession();
     };
 
@@ -86,5 +89,6 @@ export function useSession() {
   return {
     sessionData,
     isLoggedIn: isClient && (!!sessionData.userId || sessionData.isOwner),
+    setSession,
   };
 }
