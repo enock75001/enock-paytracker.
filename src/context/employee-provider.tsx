@@ -162,6 +162,19 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setAdmins(adminsData);
   }, []);
   
+  const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
+        if (!companyId) return;
+        const q = query(
+            collection(db, "documents"), 
+            where("companyId", "==", companyId), 
+            where("employeeId", "==", employeeId),
+            orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const docs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Document[];
+        setDocuments(docs);
+  }, [companyId]);
+
   const fetchDataForCompany = useCallback(async (cId: string) => {
       if (!cId) {
           setLoading(false);
@@ -242,6 +255,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const companyDocRef = doc(db, 'companies', cId);
       const employeeDocRef = doc(db, 'employees', employeeId);
 
+      // Fetch company and employee in parallel
       const [companyDocSnap, employeeDocSnap] = await Promise.all([
         getDoc(companyDocRef),
         getDoc(employeeDocRef),
@@ -257,9 +271,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const employeeData = { id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee;
       setEmployees([employeeData]);
       
-      const { days: dynamicDays } = generateDaysAndPeriod(companyData.payPeriod, companyData.payPeriodStartDate);
-
-      // Fetch only data relevant to this employee
+      // Fetch data relevant to this employee in parallel
       const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
       const justificationsQuery = query(collection(db, "justifications"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
 
@@ -273,6 +285,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
       setLoans(loansData);
       setJustifications(justificationsData);
+      
+      // Fetch documents after other data is loaded
       await fetchEmployeeDocuments(employeeId);
 
     } catch (error) {
@@ -281,7 +295,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [clearData]);
+  }, [clearData, fetchEmployeeDocuments]);
 
   useEffect(() => {
     if (sessionCompanyId && userId && userRole) {
@@ -823,19 +837,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setDocuments(prev => [{...newDocument, id: docRef.id}, ...prev]);
   };
   
-  const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
-        if (!companyId) return;
-        const q = query(
-            collection(db, "documents"), 
-            where("companyId", "==", companyId), 
-            where("employeeId", "==", employeeId),
-            orderBy("createdAt", "desc")
-        );
-        const querySnapshot = await getDocs(q);
-        const docs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Document[];
-        setDocuments(docs);
-  }, [companyId]);
-
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
     addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, 
@@ -880,4 +881,5 @@ export const useEmployees = () => {
   }
   return context;
 };
+
 
