@@ -112,17 +112,36 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
 
     const downloadContractPdf = () => {
         const doc = new jsPDF();
+        const logoUrl = company?.logoUrl;
         
-        // Remove markdown for PDF text
-        const text = contractText
-            .replace(/#\s/g, '')
-            .replace(/##\s/g, '')
-            .replace(/\*\*/g, '');
+        const renderPdf = (logoImage?: HTMLImageElement) => {
+            if (logoImage) {
+                doc.addImage(logoImage, 'PNG', 15, 15, 30, 15);
+            }
+            // Remove markdown for PDF text
+            const text = contractText
+                .replace(/#\s/g, '')
+                .replace(/##\s/g, '')
+                .replace(/\*\*/g, '');
 
-        doc.setFontSize(12);
-        const splitText = doc.splitTextToSize(text, 180);
-        doc.text(splitText, 15, 20);
-        doc.save(`contrat_${employee.lastName}_${employee.firstName}.pdf`);
+            doc.setFontSize(12);
+            const splitText = doc.splitTextToSize(text, 180);
+            doc.text(splitText, 15, 40);
+            doc.save(`contrat_${employee.lastName}_${employee.firstName}.pdf`);
+        }
+
+        if (logoUrl) {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = logoUrl;
+            img.onload = () => renderPdf(img);
+            img.onerror = () => {
+                console.error("Failed to load company logo for PDF.");
+                renderPdf(); // Render without logo if it fails to load
+            }
+        } else {
+            renderPdf(); // Render without logo if no URL
+        }
     }
 
     return (
@@ -134,7 +153,7 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
                 <DialogHeader>
                     <DialogTitle>Générer un contrat de travail</DialogTitle>
                     <DialogDescription>
-                        L'IA va générer un contrat de travail (CDD) basé sur les informations de l'employé.
+                        L'IA va générer un contrat de travail (CDD) basé sur les informations de l'employé. Vous pouvez modifier le texte avant de télécharger.
                     </DialogDescription>
                 </DialogHeader>
                  <div className="flex-1 overflow-y-auto pr-4">
@@ -145,9 +164,12 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
                         </div>
                      )}
                      {!isLoading && contractText && (
-                        <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border p-4 whitespace-pre-wrap">
-                            {contractText}
-                        </div>
+                        <Textarea
+                            value={contractText}
+                            onChange={(e) => setContractText(e.target.value)}
+                            className="h-full min-h-[40vh] text-sm"
+                            placeholder="Le contrat généré apparaîtra ici..."
+                        />
                      )}
                  </div>
                 <DialogFooter>
@@ -845,3 +867,4 @@ export default function EmployeeRecapPage() {
     </div>
   );
 }
+
