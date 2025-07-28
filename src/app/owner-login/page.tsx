@@ -22,13 +22,13 @@ export default function OwnerLoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
-    const { sessionData } = useSession();
+    const { sessionData, isLoggedIn } = useSession();
 
     useEffect(() => {
-        if (sessionData.isOwner) {
+        if (isLoggedIn && sessionData.userType === 'owner') {
             router.replace('/owner-dashboard');
         }
-    }, [sessionData, router]);
+    }, [sessionData, router, isLoggedIn]);
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -37,15 +37,13 @@ export default function OwnerLoginPage() {
 
         if (password === OWNER_PASSWORD) {
             sessionStorage.setItem('ownerLoggedIn', 'true');
-            sessionStorage.setItem('userType', 'owner'); // Differentiate owner
+            sessionStorage.setItem('userType', 'owner');
             toast({ title: 'Connexion réussie', description: 'Bienvenue, propriétaire.' });
-            // Manually reload to ensure useSession hook re-evaluates
             router.push('/owner-dashboard');
-            window.location.reload(); 
         } else {
             setError('Mot de passe incorrect.');
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (
@@ -92,5 +90,3 @@ export default function OwnerLoginPage() {
         </div>
     );
 }
-
-    

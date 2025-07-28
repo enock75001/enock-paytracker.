@@ -232,10 +232,10 @@ export default function OwnerDashboardPage() {
     };
 
     useEffect(() => {
-        if (isLoggedIn && sessionData.userType === 'owner') {
-            fetchData();
-        } else if (!isLoggedIn) {
+        if (!isLoggedIn || sessionData.userType !== 'owner') {
              router.replace('/owner-login');
+        } else {
+            fetchData();
         }
     }, [router, isLoggedIn, sessionData.userType]);
 
@@ -449,5 +449,3 @@ export default function OwnerDashboardPage() {
         </div>
     );
 }
-
-    
