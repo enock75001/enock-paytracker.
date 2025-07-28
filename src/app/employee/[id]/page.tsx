@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -608,22 +607,20 @@ export default function EmployeeRecapPage() {
   const { id } = params;
   const { employees, days, departments, updateEmployee, transferEmployee, deleteEmployee, isLoading, weekPeriod, company, loans, justifications, weekDates } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-  
+
   useEffect(() => {
-    if (isLoggedIn === false && isCheckingSession) {
+    if (isLoggedIn === null) {
+      // Session status is not yet determined, wait.
       return;
     }
-    setIsCheckingSession(false);
-
-    if (sessionData.userType !== 'admin') {
+    if (!isLoggedIn || sessionData.userType !== 'admin') {
       router.replace('/admin-login');
     }
-  }, [sessionData, isLoggedIn, router, isCheckingSession]);
+  }, [isLoggedIn, sessionData.userType, router]);
 
   const employee = employees.find(emp => emp.id === id);
 
-  if (isCheckingSession || isLoading) {
+  if (isLoggedIn === null || isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
              <p className="text-lg font-semibold">Chargement des données de l'employé...</p>
@@ -648,6 +645,7 @@ export default function EmployeeRecapPage() {
 
   const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
   const daysPresent = days.filter(day => {
+    if (!weekDates || !weekDates[days.indexOf(day)]) return false;
     const date = weekDates[days.indexOf(day)];
     const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
     return employee.attendance[day] || isJustified;
@@ -844,8 +842,9 @@ export default function EmployeeRecapPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {days.map(day => {
-                                            const date = weekDates[days.indexOf(day)];
+                                        {days.map((day, i) => {
+                                            const date = weekDates[i];
+                                            if (!date) return null; // Safety check
                                             const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
 
                                             return (
