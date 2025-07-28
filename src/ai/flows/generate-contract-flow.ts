@@ -1,5 +1,4 @@
 
-
 'use server';
 /**
  * @fileOverview Un agent IA pour générer des contrats de travail.
