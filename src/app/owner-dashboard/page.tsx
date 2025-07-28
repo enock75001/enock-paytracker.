@@ -410,7 +410,7 @@ export default function OwnerDashboardPage() {
             const batch = writeBatch(db);
 
             // Define collections to delete documents from
-            const collectionsToDelete = ['employees', 'departments', 'admins', 'archives', 'login_logs', 'loans', 'pay_stubs', 'notifications', 'messages', 'online_users', 'justifications'];
+            const collectionsToDelete = ['employees', 'departments', 'admins', 'archives', 'login_logs', 'loans', 'pay_stubs', 'notifications', 'messages', 'online_users', 'justifications', 'documents'];
 
             for (const coll of collectionsToDelete) {
                 const q = query(collection(db, coll), where("companyId", "==", companyId));

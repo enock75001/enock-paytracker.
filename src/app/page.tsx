@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/header";
 import { useEmployees } from "@/context/employee-provider";
-import { Users, FileText, MessageSquare } from "lucide-react";
+import { Users, FileText, MessageSquare, Briefcase, BarChart, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 
@@ -36,67 +36,69 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen bg-background">
         <Header />
         <main className="flex-1">
-            <section className="w-full py-12 md:py-24 lg:py-32">
+            <section className="w-full py-20 md:py-28 lg:py-32">
                 <div className="container px-4 md:px-6">
-                    <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-                        <div className="flex flex-col justify-center space-y-4">
-                            <div className="space-y-2">
-                                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
-                                    Simplifiez la Gestion de Paie de Votre Entreprise
+                    <div className="grid gap-6 lg:grid-cols-[1fr_550px] lg:gap-12 xl:grid-cols-[1fr_650px]">
+                        <div className="flex flex-col justify-center space-y-6">
+                            <div className="space-y-4">
+                                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
+                                    La Gestion de Paie Intelligente, Réinventée.
                                 </h1>
                                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                                    Enock PayTracker est l'outil tout-en-un pour suivre les présences, gérer les employés, et automatiser la paie en toute simplicité.
+                                    Enock PayTracker est la plateforme tout-en-un pour les entreprises modernes. Suivi des présences, gestion des employés, et paie automatisée, le tout avec la puissance de l'IA.
                                 </p>
                             </div>
                             <div className="flex flex-col gap-2 min-[400px]:flex-row">
                                 <Button asChild size="lg">
-                                    <Link href="/login">Commencer</Link>
+                                    <Link href="/login">Accéder à mon espace</Link>
+                                </Button>
+                                 <Button asChild size="lg" variant="outline">
+                                    <Link href="/login">Inscrire mon entreprise</Link>
                                 </Button>
                             </div>
                         </div>
                         <Image
                             src="https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png"
                             data-ai-hint="payroll management dashboard"
-                            width="600"
+                            width="650"
                             height="400"
                             alt="Hero"
-                            className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
+                            className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full lg:order-last"
                         />
                     </div>
                 </div>
             </section>
             
-            <section className="w-full py-12 md:py-24 lg:py-32 bg-secondary">
+            <section className="w-full py-20 md:py-28 lg:py-32 bg-secondary">
                 <div className="container px-4 md:px-6">
                     <div className="flex flex-col items-center justify-center space-y-4 text-center">
                         <div className="space-y-2">
-                            <Badge>Fonctionnalités Clés</Badge>
-                            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Une Solution Complète</h2>
+                            <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Une Plateforme Complète et Intuitive</h2>
                             <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                                De la présence à la paie, en passant par la gestion des avances et la communication interne.
+                                Tout ce dont vous avez besoin pour gérer efficacement votre personnel et vos finances, en un seul endroit.
                             </p>
                         </div>
                     </div>
-                    <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:gap-16 mt-12">
-                        <div className="grid gap-1 text-center">
-                            <Users className="h-8 w-8 mx-auto text-primary" />
-                            <h3 className="text-lg font-bold">Gestion des Employés</h3>
+                    <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:gap-16 mt-16">
+                        <div className="grid gap-2 text-center">
+                            <Users className="h-10 w-10 mx-auto text-primary" />
+                            <h3 className="text-xl font-bold">Gestion du Personnel</h3>
                             <p className="text-sm text-muted-foreground">
-                                Centralisez les informations de vos employés, gérez les départements et suivez les présences sans effort.
+                                Centralisez les informations, gérez les départements et suivez les présences sans effort.
                             </p>
                         </div>
-                        <div className="grid gap-1 text-center">
-                            <FileText className="h-8 w-8 mx-auto text-primary" />
-                            <h3 className="text-lg font-bold">Paie Automatisée</h3>
+                        <div className="grid gap-2 text-center">
+                            <FileText className="h-10 w-10 mx-auto text-primary" />
+                            <h3 className="text-xl font-bold">Paie et Finances</h3>
                             <p className="text-sm text-muted-foreground">
                                 Générez des fiches de paie précises, gérez les avances sur salaire et archivez vos paiements en un clic.
                             </p>
                         </div>
-                        <div className="grid gap-1 text-center">
-                            <MessageSquare className="h-8 w-8 mx-auto text-primary" />
-                            <h3 className="text-lg font-bold">Communication Intégrée</h3>
+                        <div className="grid gap-2 text-center">
+                            <Shield className="h-10 w-10 mx-auto text-primary" />
+                            <h3 className="text-xl font-bold">Administration Simplifiée</h3>
                             <p className="text-sm text-muted-foreground">
-                                Un système de messagerie interne pour une communication fluide entre administrateurs et responsables.
+                                Contrôlez les accès, gérez les justifications d'absence et communiquez via la messagerie interne.
                             </p>
                         </div>
                     </div>

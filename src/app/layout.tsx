@@ -6,7 +6,9 @@ import { EmployeeProvider } from '@/context/employee-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { PageProgressBar } from '@/components/page-progress-bar';
 import { Suspense } from 'react';
+import { Inter } from 'next/font/google';
 
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: 'Enock PayTracker',
@@ -24,15 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" style={{ colorScheme: 'dark' }}>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={cn('min-h-screen bg-background font-body antialiased')}>
+      <body className={cn('min-h-screen bg-background font-sans antialiased', inter.variable)}>
         <EmployeeProvider>
             <SuspenseWrapper>
               <PageProgressBar />

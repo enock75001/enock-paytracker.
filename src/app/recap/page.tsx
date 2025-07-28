@@ -115,14 +115,11 @@ export default function RecapPage() {
     const doc = new jsPDF();
     const logoUrl = company?.logoUrl || 'https://i.postimg.cc/xdLntsjG/Chat-GPT-Image-27-juil-2025-19-35-13.png';
     
-    // We create an Image object to load the image first.
-    // This is necessary because jsPDF might not handle all image formats or data URLs correctly without preloading.
     const img = new (window as any).Image();
     img.src = logoUrl;
-    img.crossOrigin = "Anonymous"; // Important for external images
+    img.crossOrigin = "Anonymous";
     
     img.onload = () => {
-      // Once the image is loaded, we add it to the PDF and then render the rest of the content.
       try {
         doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
       } catch (e) {
@@ -134,7 +131,6 @@ export default function RecapPage() {
 
     img.onerror = () => {
       console.error("Failed to load company logo for PDF.");
-      // If the image fails to load, we render the PDF without it.
       renderPdfContent(doc);
       doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
     };
