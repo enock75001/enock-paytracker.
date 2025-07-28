@@ -298,12 +298,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     if (sessionCompanyId && userRole === 'admin') {
       fetchDataForCompany(sessionCompanyId);
       setCompanyId(sessionCompanyId);
+    } else if (sessionCompanyId && userId && userRole === 'employee') {
+      fetchDataForEmployee(sessionCompanyId, userId);
+      setCompanyId(sessionCompanyId);
     } else {
-      // For employee/manager, data will be fetched on their respective pages.
-      // For owner, data is fetched on the owner dashboard.
       setLoading(false);
     }
-  }, [sessionCompanyId, userRole, fetchDataForCompany]);
+  }, [sessionCompanyId, userRole, userId, fetchDataForCompany, fetchDataForEmployee]);
 
   useEffect(() => {
     if (!companyId || !userId) return;
@@ -876,6 +877,7 @@ export const useEmployees = () => {
   }
   return context;
 };
+
 
 
 

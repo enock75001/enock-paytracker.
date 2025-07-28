@@ -36,7 +36,6 @@ const formatCurrency = (amount: number) => {
 
 function EmployeeInfoCard({ employee }: { employee: Employee | undefined }) {
     const { loans } = useEmployees();
-    const activeLoan = loans.find(l => l.employeeId === employee?.id && l.status === 'active');
     
     if (!employee) {
         return (
@@ -58,6 +57,8 @@ function EmployeeInfoCard({ employee }: { employee: Employee | undefined }) {
             </Card>
         )
     }
+
+    const activeLoan = loans.find(l => l.employeeId === employee?.id && l.status === 'active');
 
     return (
         <Card>
@@ -150,7 +151,7 @@ function CurrentPayCard({ employee }: { employee: Employee | undefined }) {
     const [justificationDialogOpen, setJustificationDialogOpen] = useState(false);
     const [selectedDay, setSelectedDay] = useState<{ day: string; date: Date } | null>(null);
 
-    if (!employee) return <Card><CardContent className="pt-6"><Skeleton className="h-48 w-full" /></CardContent></Card>;
+    if (!employee || !weekDates || weekDates.length === 0) return <Card><CardContent className="pt-6"><Skeleton className="h-48 w-full" /></CardContent></Card>;
     
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
     const daysPresent = days.filter(day => employee.attendance[day]).length;
@@ -485,7 +486,7 @@ function DocumentsCard({ employeeId }: { employeeId: string }) {
 export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
-    const { employeeName, userId, companyId } = sessionData;
+    const { employeeName, userId } = sessionData;
     const { siteSettings, employees, company, isLoading, fetchDataForEmployee } = useEmployees();
     const [isCheckingSession, setIsCheckingSession] = useState(true);
     
@@ -497,18 +498,18 @@ export default function EmployeeDashboardPage() {
             return;
         }
         setIsCheckingSession(false);
-
         if (sessionData.userType !== 'employee' || !userId) {
             router.replace('/employee-login');
-        } else if (userId && companyId) {
-            fetchDataForEmployee(companyId, userId);
         }
-    }, [sessionData, isLoggedIn, router, isCheckingSession, userId, companyId, fetchDataForEmployee]);
+    }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
 
-    if (isCheckingSession || isLoading) {
+    if (isCheckingSession || isLoading || !employee) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
-                <p>Chargement de votre espace...</p>
+                <div className="text-center">
+                    <p className="text-lg font-semibold">Chargement de votre espace...</p>
+                    <p className="text-sm text-muted-foreground">Veuillez patienter.</p>
+                </div>
             </div>
         );
     }
