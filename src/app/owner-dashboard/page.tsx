@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,7 +125,7 @@ function MaintenanceCard() {
     );
 }
 
-function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial }: { codes: RegistrationCode[], onGenerate: () => void, onGenerateTrial: () => void }) {
+function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial, onReactivate }: { codes: RegistrationCode[], onGenerate: () => void, onGenerateTrial: () => void, onReactivate: (codeId: string) => void }) {
     const getStatusBadge = (code: RegistrationCode) => {
         if (code.isUsed) {
             return <Badge variant="secondary" className="flex items-center gap-1"><Check className="h-3 w-3" />Utilisé</Badge>;
@@ -135,6 +135,10 @@ function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial }: { codes: 
         }
         return <Badge className="bg-green-500/20 text-green-400 flex items-center gap-1"><FileKey className="h-3 w-3" />Disponible</Badge>;
     };
+    
+    const isExpired = (code: RegistrationCode) => {
+        return code.expiresAt && new Date(code.expiresAt.toDate()) < new Date() && !code.isUsed;
+    }
 
     return (
         <Card>
@@ -160,6 +164,7 @@ function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial }: { codes: 
                                 <TableHead>Date de Création</TableHead>
                                 <TableHead>Date d'Expiration</TableHead>
                                 <TableHead>Utilisé par</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -170,10 +175,17 @@ function RegistrationCodesCard({ codes, onGenerate, onGenerateTrial }: { codes: 
                                     <TableCell>{format(code.createdAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: fr })}</TableCell>
                                     <TableCell>{code.expiresAt ? format(code.expiresAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: fr }) : 'Jamais'}</TableCell>
                                     <TableCell>{code.usedByCompanyName || 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        {isExpired(code) && (
+                                            <Button variant="outline" size="sm" onClick={() => onReactivate(code.id)}>
+                                                <RefreshCw className="mr-2 h-4 w-4" /> Réactiver
+                                            </Button>
+                                        )}
+                                    </TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">Aucun code généré.</TableCell>
+                                    <TableCell colSpan={6} className="h-24 text-center">Aucun code généré.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -220,10 +232,10 @@ export default function OwnerDashboardPage() {
     };
 
     useEffect(() => {
-        if (!isLoggedIn && sessionData.userType !== 'owner') {
-            router.replace('/owner-login');
-        } else if (sessionData.userType === 'owner') {
+        if (isLoggedIn && sessionData.userType === 'owner') {
             fetchData();
+        } else if (!isLoggedIn) {
+             router.replace('/owner-login');
         }
     }, [router, isLoggedIn, sessionData.userType]);
 
@@ -249,6 +261,13 @@ export default function OwnerDashboardPage() {
         });
         fetchData(); // Refresh data
     };
+
+    const handleReactivateCode = async (codeId: string) => {
+        const codeRef = doc(db, 'registration_codes', codeId);
+        await updateDoc(codeRef, { expiresAt: null });
+        toast({ title: 'Code Réactivé', description: 'Le code est maintenant permanent.' });
+        fetchData();
+    }
 
     const handleUpdateCompany = async () => {
         if (!editingCompany) return;
@@ -328,7 +347,12 @@ export default function OwnerDashboardPage() {
                 </div>
 
                 <MaintenanceCard />
-                <RegistrationCodesCard codes={registrationCodes} onGenerate={() => handleGenerateCode(false)} onGenerateTrial={() => handleGenerateCode(true)} />
+                <RegistrationCodesCard 
+                    codes={registrationCodes} 
+                    onGenerate={() => handleGenerateCode(false)} 
+                    onGenerateTrial={() => handleGenerateCode(true)} 
+                    onReactivate={handleReactivateCode}
+                />
 
                 <Card>
                     <CardHeader>
@@ -425,3 +449,5 @@ export default function OwnerDashboardPage() {
         </div>
     );
 }
+
+    
