@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -32,16 +33,27 @@ export function useSession() {
   const [isClient, setIsClient] = useState(false);
 
   const loadSession = useCallback(() => {
+    // We must read all values from sessionStorage inside this callback
     const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | 'employee' | 'owner' | null;
     const adminId = sessionStorage.getItem('adminId');
     const managerId = sessionStorage.getItem('managerId');
     const employeeId = sessionStorage.getItem('employeeId');
     const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn') === 'true';
     
-    const userId = ownerLoggedIn ? 'owner' : (adminId || managerId || employeeId);
+    // Determine userId based on what's available
+    let userId = null;
+    if (ownerLoggedIn) {
+        userId = 'owner'; // Special static ID for the owner
+    } else if (userType === 'admin') {
+        userId = adminId;
+    } else if (userType === 'manager') {
+        userId = managerId;
+    } else if (userType === 'employee') {
+        userId = employeeId;
+    }
     
     setSessionData({
-      userType,
+      userType: ownerLoggedIn ? 'owner' : userType,
       adminName: sessionStorage.getItem('adminName') || '',
       companyName: sessionStorage.getItem('companyName') || '',
       departmentName: sessionStorage.getItem('departmentName') || '',
@@ -59,7 +71,8 @@ export function useSession() {
     loadSession();
 
     // Listen to storage changes to keep session in sync across tabs
-    const handleStorageChange = () => {
+    const handleStorageChange = (event: StorageEvent) => {
+        if (event.key && event.key.startsWith('genkit')) return; // Ignore genkit flow state changes
         loadSession();
     };
 
@@ -72,6 +85,6 @@ export function useSession() {
 
   return {
     sessionData,
-    isLoggedIn: isClient && (!!sessionData.userType || sessionData.isOwner),
+    isLoggedIn: isClient && (!!sessionData.userId || sessionData.isOwner),
   };
 }

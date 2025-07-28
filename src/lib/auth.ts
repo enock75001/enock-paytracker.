@@ -19,6 +19,17 @@ export async function findCompanyByIdentifier(companyIdentifier: string): Promis
         throw new Error("Le compte de cette entreprise est actuellement suspendu. Veuillez contacter le support.");
     }
     
+    // Check for expired trial
+    const codeQuery = query(collection(db, "registration_codes"), where("usedByCompanyId", "==", companyDoc.id));
+    const codeSnapshot = await getDocs(codeQuery);
+    if (!codeSnapshot.empty) {
+        const codeDoc = codeSnapshot.docs[0];
+        const codeData = codeDoc.data();
+        if (codeData.expiresAt && new Date(codeData.expiresAt.toDate()) < new Date()) {
+            throw new Error("Votre période d'essai a expiré. Veuillez contacter le propriétaire pour activer votre compte de façon permanente.");
+        }
+    }
+    
     return companyData;
 }
 
