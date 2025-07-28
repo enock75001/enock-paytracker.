@@ -485,8 +485,8 @@ function DocumentsCard({ employeeId }: { employeeId: string }) {
 export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
-    const { employeeName, userId } = sessionData;
-    const { siteSettings, employees, company, isLoading } = useEmployees();
+    const { employeeName, userId, companyId } = sessionData;
+    const { siteSettings, employees, company, isLoading, fetchDataForEmployee } = useEmployees();
     const [isCheckingSession, setIsCheckingSession] = useState(true);
     
     const employee = employees.find(e => e.id === userId);
@@ -500,8 +500,10 @@ export default function EmployeeDashboardPage() {
 
         if (sessionData.userType !== 'employee' || !userId) {
             router.replace('/employee-login');
+        } else if (userId && companyId) {
+            fetchDataForEmployee(companyId, userId);
         }
-    }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
+    }, [sessionData, isLoggedIn, router, isCheckingSession, userId, companyId, fetchDataForEmployee]);
 
     if (isCheckingSession || isLoading) {
         return (

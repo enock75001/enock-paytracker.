@@ -50,7 +50,7 @@ interface EmployeeContextType {
   chatMessages: ChatMessageMap;
   sendMessage: (text: string, receiverId: string) => Promise<void>;
   userId: string;
-  userRole: 'admin' | 'manager' | 'employee' | null;
+  userRole: 'admin' | 'manager' | 'employee' | 'owner' | null;
   loans: Loan[];
   addLoan: (loanData: Omit<Loan, 'id' | 'balance' | 'status' | 'companyId'>) => Promise<void>;
   updateLoanStatus: (loanId: string, status: Loan['status']) => Promise<void>;
@@ -255,7 +255,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const companyDocRef = doc(db, 'companies', cId);
       const employeeDocRef = doc(db, 'employees', employeeId);
 
-      // Fetch company and employee in parallel
       const [companyDocSnap, employeeDocSnap] = await Promise.all([
         getDoc(companyDocRef),
         getDoc(employeeDocRef),
@@ -271,7 +270,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       const employeeData = { id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee;
       setEmployees([employeeData]);
       
-      // Fetch data relevant to this employee in parallel
       const loansQuery = query(collection(db, "loans"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
       const justificationsQuery = query(collection(db, "justifications"), where("companyId", "==", cId), where("employeeId", "==", employeeId));
 
@@ -286,7 +284,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       setLoans(loansData);
       setJustifications(justificationsData);
       
-      // Fetch documents after other data is loaded
       await fetchEmployeeDocuments(employeeId);
 
     } catch (error) {
@@ -298,17 +295,15 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   }, [clearData, fetchEmployeeDocuments]);
 
   useEffect(() => {
-    if (sessionCompanyId && userId && userRole) {
-      if (userRole === 'employee') {
-         fetchDataForEmployee(sessionCompanyId, userId);
-      } else {
-         fetchDataForCompany(sessionCompanyId);
-      }
+    if (sessionCompanyId && userRole === 'admin') {
+      fetchDataForCompany(sessionCompanyId);
       setCompanyId(sessionCompanyId);
     } else {
+      // For employee/manager, data will be fetched on their respective pages.
+      // For owner, data is fetched on the owner dashboard.
       setLoading(false);
     }
-  }, [sessionCompanyId, userId, userRole, fetchDataForCompany, fetchDataForEmployee]);
+  }, [sessionCompanyId, userRole, fetchDataForCompany]);
 
   useEffect(() => {
     if (!companyId || !userId) return;
@@ -881,5 +876,6 @@ export const useEmployees = () => {
   }
   return context;
 };
+
 
 
