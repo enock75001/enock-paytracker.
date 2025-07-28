@@ -27,8 +27,6 @@ export default function OwnerLoginPage() {
         setError('');
 
         if (password === OWNER_PASSWORD) {
-            // Set session storage and then redirect.
-            // This is a more direct way to handle the session for this specific case.
             sessionStorage.setItem('userType', 'owner');
             toast({ title: 'Connexion réussie', description: 'Bienvenue, propriétaire.' });
             router.push('/owner-dashboard');

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -488,22 +487,20 @@ export default function EmployeeDashboardPage() {
     const { sessionData, isLoggedIn } = useSession();
     const { employeeName, userId } = sessionData;
     const { siteSettings, employees, company, isLoading, fetchDataForEmployee } = useEmployees();
-    const [isCheckingSession, setIsCheckingSession] = useState(true);
     
     const employee = employees.find(e => e.id === userId);
     const isCompanyUnderMaintenance = company?.status === 'suspended';
 
     useEffect(() => {
-        if (isLoggedIn === false && isCheckingSession) {
-            return;
-        }
-        setIsCheckingSession(false);
-        if (sessionData.userType !== 'employee' || !userId) {
+        if (isLoggedIn === null) return; // Wait until session is confirmed
+        if (!isLoggedIn || sessionData.userType !== 'employee') {
             router.replace('/employee-login');
+        } else if (sessionData.companyId && sessionData.userId) {
+            fetchDataForEmployee(sessionData.companyId, sessionData.userId);
         }
-    }, [sessionData, isLoggedIn, router, isCheckingSession, userId]);
+    }, [isLoggedIn, sessionData, router, fetchDataForEmployee]);
 
-    if (isCheckingSession || isLoading || !employee) {
+    if (isLoggedIn === null || isLoading || !employee) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="text-center">

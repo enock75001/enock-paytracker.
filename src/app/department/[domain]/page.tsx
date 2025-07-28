@@ -580,26 +580,30 @@ export default function DepartmentPage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.domain as string);
-  const { departments, isLoading, siteSettings, company } = useEmployees();
+  const { departments, isLoading, siteSettings, company, fetchDataForCompany } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, managerName, userId, companyId, departmentName } = sessionData;
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    if (isLoggedIn === false && isCheckingSession) {
+    if (isLoggedIn === null) return;
+    if (!isLoggedIn || userType !== 'manager' || !companyId) {
+      router.replace('/manager-login');
       return;
     }
-    setIsCheckingSession(false);
-
-    if (userType !== 'manager' || departmentName !== domain || !userId) {
-      router.replace('/manager-login');
+    if (departmentName !== domain) {
+       router.replace('/manager-login'); // Should be logged into the correct department
     }
-  }, [userType, userId, isLoggedIn, router, isCheckingSession, departmentName, domain]);
+    // Fetch data if it's not already loaded for the company
+    if (!company) {
+        fetchDataForCompany(companyId);
+    }
+
+  }, [userType, userId, isLoggedIn, router, departmentName, domain, company, companyId, fetchDataForCompany]);
 
   const department = departments.find(d => d.name === domain);
   const isCompanyUnderMaintenance = company?.status === 'suspended';
 
-  if (isCheckingSession || isLoading) {
+  if (isLoggedIn === null || isLoading) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <p className="text-lg font-semibold">Chargement...</p>

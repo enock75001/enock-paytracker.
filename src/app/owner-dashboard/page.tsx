@@ -297,12 +297,11 @@ export default function OwnerDashboardPage() {
     const [allAdmins, setAllAdmins] = useState<Admin[]>([]);
     const [registrationCodes, setRegistrationCodes] = useState<RegistrationCode[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isCheckingSession, setIsCheckingSession] = useState(true);
     const [editingCompany, setEditingCompany] = useState<{ id: string, name: string, identifier: string } | null>(null);
     const [editingAdmin, setEditingAdmin] = useState<{ id: string, password: string } | null>(null);
     const router = useRouter();
     const { toast } = useToast();
-    const { sessionData } = useSession();
+    const { isLoggedIn, sessionData } = useSession();
 
 
     const fetchData = async () => {
@@ -338,15 +337,14 @@ export default function OwnerDashboardPage() {
     };
     
     useEffect(() => {
-        if (sessionData.userType === null) return; 
+        if (isLoggedIn === null) return; // Wait until session is checked
 
-        if (sessionData.userType !== 'owner') {
+        if (!isLoggedIn || sessionData.userType !== 'owner') {
              router.replace('/owner-login');
         } else {
-            setIsCheckingSession(false);
             fetchData();
         }
-    }, [router, sessionData]);
+    }, [router, isLoggedIn, sessionData]);
 
 
     const handleGenerateCode = async (isTrial: boolean) => {
@@ -440,7 +438,7 @@ export default function OwnerDashboardPage() {
     };
 
 
-    if (isCheckingSession || loading) {
+    if (isLoggedIn === null || loading) {
         return <div className="flex h-screen items-center justify-center">Chargement des données du propriétaire...</div>;
     }
 

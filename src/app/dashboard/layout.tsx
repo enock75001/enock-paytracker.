@@ -63,21 +63,17 @@ export default function DashboardLayout({
   const { isLoading, companyId, siteSettings, company } = useEmployees();
   const { sessionData, isLoggedIn } = useSession();
   const { userType, adminName, userId, companyName } = sessionData;
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
-    if (isLoggedIn === false && isCheckingSession) {
-      return;
-    }
-    setIsCheckingSession(false);
+    if (isLoggedIn === null) return; // Wait for session check
     
-    if (userType !== 'admin' || !userId) {
+    if (!isLoggedIn || userType !== 'admin' || !userId) {
       router.replace('/admin-login');
     }
-  }, [userType, userId, isLoggedIn, router, isCheckingSession]);
+  }, [userType, userId, isLoggedIn, router]);
 
 
-  if (isCheckingSession || isLoading) {
+  if (isLoggedIn === null || (isLoggedIn && isLoading)) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <div className="text-center">
@@ -106,7 +102,7 @@ export default function DashboardLayout({
       )
   }
 
-  if (!companyId && !isLoading) {
+  if (!companyId && isLoggedIn) {
        return (
         <div className="flex h-screen w-full items-center justify-center">
             <div className="text-center">

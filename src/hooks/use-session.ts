@@ -27,59 +27,47 @@ const initialSessionData: SessionData = {
   isOwner: false,
 };
 
-// This function now lives outside the hook to be callable directly
-const loadSessionFromStorage = (): SessionData => {
-    const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | 'employee' | 'owner' | null;
-    const adminId = sessionStorage.getItem('adminId');
-    const managerId = sessionStorage.getItem('managerId');
-    const employeeId = sessionStorage.getItem('employeeId');
-    const ownerLoggedIn = sessionStorage.getItem('ownerLoggedIn') === 'true';
-    
-    let userId = null;
-    if (ownerLoggedIn) {
-        userId = 'owner';
-    } else if (userType === 'admin') {
-        userId = adminId;
-    } else if (userType === 'manager') {
-        userId = managerId;
-    } else if (userType === 'employee') {
-        userId = employeeId;
-    }
-    
-    return {
-      userType: ownerLoggedIn ? 'owner' : userType,
-      adminName: sessionStorage.getItem('adminName') || '',
-      companyName: sessionStorage.getItem('companyName') || '',
-      departmentName: sessionStorage.getItem('departmentName') || '',
-      managerName: sessionStorage.getItem('managerName') || '',
-      employeeName: sessionStorage.getItem('employeeName') || '',
-      userId,
-      companyId: sessionStorage.getItem('companyId'),
-      isOwner: ownerLoggedIn,
-    };
-}
-
-
 export function useSession() {
   const [sessionData, setSessionData] = useState<SessionData>(initialSessionData);
-  const [isClient, setIsClient] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
   const loadSession = useCallback(() => {
-    setSessionData(loadSessionFromStorage());
+    if (typeof window !== 'undefined') {
+        const userType = sessionStorage.getItem('userType') as 'admin' | 'manager' | 'employee' | 'owner' | null;
+        const adminId = sessionStorage.getItem('adminId');
+        const managerId = sessionStorage.getItem('managerId');
+        const employeeId = sessionStorage.getItem('employeeId');
+
+        let currentUserId = null;
+        if (userType === 'admin') {
+            currentUserId = adminId;
+        } else if (userType === 'manager') {
+            currentUserId = managerId;
+        } else if (userType === 'employee') {
+            currentUserId = employeeId;
+        } else if (userType === 'owner') {
+            currentUserId = 'owner';
+        }
+        
+        const data: SessionData = {
+          userType,
+          adminName: sessionStorage.getItem('adminName') || '',
+          companyName: sessionStorage.getItem('companyName') || '',
+          departmentName: sessionStorage.getItem('departmentName') || '',
+          managerName: sessionStorage.getItem('managerName') || '',
+          employeeName: sessionStorage.getItem('employeeName') || '',
+          userId: currentUserId,
+          companyId: sessionStorage.getItem('companyId'),
+          isOwner: userType === 'owner',
+        };
+        setSessionData(data);
+        setIsLoggedIn(!!currentUserId);
+    } else {
+        setIsLoggedIn(false);
+    }
   }, []);
 
-  // This function will now be synchronous and directly update state
-  const setSession = (data: { userType: 'owner' }) => {
-      if (data.userType === 'owner') {
-          sessionStorage.setItem('ownerLoggedIn', 'true');
-          sessionStorage.setItem('userType', 'owner');
-          // Force a state update immediately after setting storage
-          setSessionData(loadSessionFromStorage());
-      }
-  };
-
   useEffect(() => {
-    setIsClient(true);
     loadSession();
 
     const handleStorageChange = (event: StorageEvent) => {
@@ -96,7 +84,6 @@ export function useSession() {
 
   return {
     sessionData,
-    isLoggedIn: isClient && (!!sessionData.userId || sessionData.isOwner),
-    setSession,
+    isLoggedIn,
   };
 }
