@@ -185,7 +185,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
               getDocs(employeesQuery),
               getDocs(archivesQuery),
               getDocs(loansQuery),
-              getDocs(justificationsQuery),
+              getDocs(justificationsSnapshot),
           ]);
           
           await fetchAdmins(cId);

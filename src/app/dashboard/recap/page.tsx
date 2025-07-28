@@ -40,6 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface WeeklySummary {
   employee: Employee;
@@ -57,9 +58,14 @@ const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
 };
 
-const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[]): WeeklySummary => {
+const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[], justifications: any[], weekDates: Date[]): WeeklySummary => {
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
-    const daysPresent = days.filter(day => employee.attendance[day]).length;
+    const daysPresent = days.filter(day => {
+        const date = weekDates[days.indexOf(day)];
+        const isJustified = justifications.some(j => j.employeeId === employee.id && j.status === 'approved' && j.date === format(date, 'yyyy-MM-dd'));
+        return employee.attendance[day] || isJustified;
+    }).length;
+
     const totalHoursPay = daysPresent * currentWage;
     
     const totalBonus = (employee.adjustments || []).filter(adj => adj.type === 'bonus').reduce((acc, adj) => acc + adj.amount, 0);
@@ -96,8 +102,8 @@ const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, Week
 };
 
 export default function RecapPage() {
-  const { employees, days, startNewWeek, weekPeriod, company, loans } = useEmployees();
-  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days, loans));
+  const { employees, days, startNewWeek, weekPeriod, company, loans, justifications, weekDates } = useEmployees();
+  const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days, loans, justifications, weekDates));
   const groupedSummaries = groupSummariesByDomain(weeklySummaries);
   const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
   const { toast } = useToast();
