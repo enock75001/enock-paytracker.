@@ -2,7 +2,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent, Document } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay, addMonths } from 'date-fns';
@@ -62,6 +62,9 @@ interface EmployeeContextType {
   justifications: AbsenceJustification[];
   updateJustificationStatus: (justificationId: string, status: 'approved' | 'rejected', reviewedBy: string) => Promise<void>;
   updateCompanyStatus: (newStatus: 'active' | 'suspended') => Promise<void>;
+  documents: Document[];
+  addDocument: (docData: Omit<Document, 'id' | 'companyId'>) => Promise<void>;
+  fetchEmployeeDocuments: (employeeId: string) => Promise<void>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -116,6 +119,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [justifications, setJustifications] = useState<AbsenceJustification[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   
   const { sessionData } = useSession();
@@ -146,6 +150,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setLoans([]);
     setNotifications([]);
     setJustifications([]);
+    setDocuments([]);
     setLoading(true);
   }, []);
 
@@ -268,6 +273,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
       setLoans(loansData);
       setJustifications(justificationsData);
+      await fetchEmployeeDocuments(employeeId);
 
     } catch (error) {
       console.error("Error fetching employee data:", error);
@@ -792,11 +798,6 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const updatedJustification = { ...justification, status, reviewedBy };
     setJustifications(prev => prev.map(j => j.id === justificationId ? updatedJustification : j));
     
-    // No longer updating attendance here, the logic in startNewWeek handles it
-    // if (status === 'approved') {
-    //     await updateAttendance(justification.employeeId, justification.dayName, true);
-    // }
-
     createNotificationForAllAdmins({
         title: `Justification ${status === 'approved' ? 'Approuvée' : 'Rejetée'}`,
         description: `La justification de ${justification.employeeName} a été ${status === 'approved' ? 'approuvée' : 'rejetée'} par ${reviewedBy}.`,
@@ -811,6 +812,29 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       await updateDoc(companyRef, { status: newStatus });
       setCompany(prev => prev ? { ...prev, status: newStatus } : null);
   }
+  
+  const addDocument = async (docData: Omit<Document, 'id' | 'companyId'>) => {
+    if (!companyId) throw new Error("Company ID is missing");
+    const newDocument: Omit<Document, 'id'> = {
+        ...docData,
+        companyId,
+    };
+    const docRef = await addDoc(collection(db, "documents"), newDocument);
+    setDocuments(prev => [{...newDocument, id: docRef.id}, ...prev]);
+  };
+  
+  const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
+        if (!companyId) return;
+        const q = query(
+            collection(db, "documents"), 
+            where("companyId", "==", companyId), 
+            where("employeeId", "==", employeeId),
+            orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const docs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Document[];
+        setDocuments(docs);
+  }, [companyId]);
 
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
@@ -837,6 +861,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     justifications,
     updateJustificationStatus,
     updateCompanyStatus,
+    documents,
+    addDocument,
+    fetchEmployeeDocuments,
   };
   
   return (
@@ -853,7 +880,4 @@ export const useEmployees = () => {
   }
   return context;
 };
-
-    
-
 

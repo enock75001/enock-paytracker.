@@ -39,7 +39,7 @@ import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Department, Employee, Adjustment, PayStub, CareerEvent } from '@/lib/types';
+import type { Department, Employee, Adjustment, PayStub, CareerEvent, Document } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -83,6 +83,7 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [contractText, setContractText] = useState('');
+    const { addDocument } = useEmployees();
     const { toast } = useToast();
 
     const handleGenerate = async () => {
@@ -110,24 +111,60 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
         }
     }
 
-    const downloadContractPdf = () => {
+    const downloadAndSaveContract = () => {
         const doc = new jsPDF();
         const logoUrl = company?.logoUrl;
+        const fileName = `contrat_${employee.lastName}_${employee.firstName}.pdf`;
         
         const renderPdf = (logoImage?: HTMLImageElement) => {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let cursorY = 20;
+
+            // --- Header ---
             if (logoImage) {
                 doc.addImage(logoImage, 'PNG', 15, 15, 30, 15);
             }
-            // Remove markdown for PDF text
-            const text = contractText
-                .replace(/#\s/g, '')
-                .replace(/##\s/g, '')
-                .replace(/\*\*/g, '');
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text(company?.name || 'Entreprise', pageWidth - 15, cursorY, { align: 'right' });
+            cursorY += 7;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(company?.description || '', pageWidth - 15, cursorY, { align: 'right' });
+            cursorY += 10;
+            doc.setDrawColor(221, 221, 221);
+            doc.line(15, cursorY, pageWidth - 15, cursorY);
+            cursorY += 20;
 
-            doc.setFontSize(12);
-            const splitText = doc.splitTextToSize(text, 180);
-            doc.text(splitText, 15, 40);
-            doc.save(`contrat_${employee.lastName}_${employee.firstName}.pdf`);
+            // --- Body ---
+            doc.setFontSize(11);
+            const text = contractText.replace(/#\s/g, '').replace(/##\s/g, '').replace(/\*\*/g, '');
+            const splitText = doc.splitTextToSize(text, pageWidth - 30);
+            doc.text(splitText, 15, cursorY);
+
+            // --- Footer ---
+            for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+                doc.setPage(i);
+                doc.setFontSize(9);
+                doc.setTextColor(150);
+                doc.text(`Page ${i}/${doc.getNumberOfPages()}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+                doc.text(`Généré par Enock PayTracker pour ${company?.name || ''}`, 15, pageHeight - 10);
+            }
+            
+            // --- Save and Store ---
+            const dataUrl = doc.output('datauristring');
+            addDocument({
+                employeeId: employee.id,
+                documentType: 'contract',
+                fileName: fileName,
+                dataUrl: dataUrl,
+                createdAt: new Date().toISOString(),
+            });
+
+            toast({ title: "Contrat Sauvegardé", description: "Le contrat a été généré et sauvegardé pour l'employé." });
+            doc.save(fileName);
+            setIsOpen(false);
         }
 
         if (logoUrl) {
@@ -135,12 +172,9 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
             img.crossOrigin = "Anonymous";
             img.src = logoUrl;
             img.onload = () => renderPdf(img);
-            img.onerror = () => {
-                console.error("Failed to load company logo for PDF.");
-                renderPdf(); // Render without logo if it fails to load
-            }
+            img.onerror = () => { renderPdf(); }
         } else {
-            renderPdf(); // Render without logo if no URL
+            renderPdf();
         }
     }
 
@@ -174,7 +208,7 @@ function GenerateContractDialog({ employee, company }: { employee: Employee, com
                  </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Fermer</Button></DialogClose>
-                     {contractText && !isLoading && <Button onClick={downloadContractPdf}><Download className="mr-2 h-4 w-4"/>Télécharger en PDF</Button>}
+                     {contractText && !isLoading && <Button onClick={downloadAndSaveContract}><Download className="mr-2 h-4 w-4"/>Sauvegarder & Télécharger</Button>}
                     <Button onClick={handleGenerate} disabled={isLoading}>
                        {isLoading ? 'Génération...' : contractText ? 'Régénérer' : 'Générer le contrat'}
                     </Button>

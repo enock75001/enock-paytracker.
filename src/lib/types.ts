@@ -49,6 +49,16 @@ export type CareerEvent = {
     newValue?: string | number;
 };
 
+export interface Document {
+  id: string;
+  employeeId: string;
+  companyId: string;
+  documentType: 'contract' | 'payslip' | 'other';
+  fileName: string;
+  dataUrl: string; // Base64 data URL of the document
+  createdAt: string; // ISO Timestamp
+}
+
 
 export interface Employee {
   id: string;
@@ -184,16 +194,4 @@ export interface RegistrationCode {
     expiresAt?: any; // Firestore Timestamp
     usedByCompanyId?: string;
     usedByCompanyName?: string;
-}
-
-// Types for Document Management
-export interface Document {
-  id: string;
-  employeeId: string;
-  companyId: string;
-  documentType: 'contract' | 'payslip' | 'other';
-  fileName: string;
-  storagePath: string; // Path in Firebase Storage
-  downloadUrl: string; // Public URL for downloading
-  createdAt: string; // ISO Timestamp
 }

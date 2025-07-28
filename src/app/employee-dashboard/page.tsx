@@ -6,11 +6,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/use-session';
 import { Header } from '@/components/header';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, FileText, UserCircle, Download, FilePlus } from 'lucide-react';
+import { History, Briefcase, Calendar, Home, Phone, Wallet, Receipt, User, CheckCircle, XCircle, FileText, UserCircle, Download, FilePlus, Archive } from 'lucide-react';
 import { useEmployees } from '@/context/employee-provider';
-import type { PayStub, Employee, AbsenceJustification, Company } from '@/lib/types';
+import type { PayStub, Employee, AbsenceJustification, Company, Document as DocumentType } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
@@ -411,6 +411,77 @@ function PayHistoryCard({ employeeId }: { employeeId: string }) {
     )
 }
 
+function DocumentsCard({ employeeId }: { employeeId: string }) {
+    const { documents, fetchEmployeeDocuments } = useEmployees();
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!employeeId) return;
+        const loadDocs = async () => {
+            setLoading(true);
+            await fetchEmployeeDocuments(employeeId);
+            setLoading(false);
+        };
+        loadDocs();
+    }, [employeeId, fetchEmployeeDocuments]);
+    
+    const downloadDocument = (doc: DocumentType) => {
+        const link = document.createElement('a');
+        link.href = doc.dataUrl;
+        link.download = doc.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Archive className="h-6 w-6"/>
+                    Mes Documents
+                </CardTitle>
+                <CardDescription>Consultez vos contrats et autres documents.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="space-y-2 pt-6"><Skeleton className="h-8 w-full" /></div>
+                ) : documents.length === 0 ? (
+                    <div className="text-center py-8">
+                        <p className="text-muted-foreground">Aucun document trouvé.</p>
+                    </div>
+                ) : (
+                    <div className="border rounded-md">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nom du Fichier</TableHead>
+                                    <TableHead>Date d'ajout</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {documents.map(doc => (
+                                    <TableRow key={doc.id}>
+                                        <TableCell className="font-medium">{doc.fileName}</TableCell>
+                                        <TableCell>{format(parseISO(doc.createdAt), 'dd MMMM yyyy', { locale: fr })}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => downloadDocument(doc)}>
+                                                <Download className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+
 export default function EmployeeDashboardPage() {
     const router = useRouter();
     const { sessionData, isLoggedIn } = useSession();
@@ -470,10 +541,11 @@ export default function EmployeeDashboardPage() {
                 </div>
 
                 <Tabs defaultValue="dashboard" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="dashboard"><UserCircle className="mr-2"/>Mon Profil</TabsTrigger>
                         <TabsTrigger value="current_pay"><FileText className="mr-2"/>Paie Actuelle</TabsTrigger>
                         <TabsTrigger value="history"><History className="mr-2"/>Historique</TabsTrigger>
+                        <TabsTrigger value="documents"><Archive className="mr-2"/>Documents</TabsTrigger>
                     </TabsList>
                     <TabsContent value="dashboard" className="mt-6">
                         <EmployeeInfoCard employee={employee} />
@@ -483,6 +555,9 @@ export default function EmployeeDashboardPage() {
                     </TabsContent>
                     <TabsContent value="history" className="mt-6">
                         <PayHistoryCard employeeId={userId!} />
+                    </TabsContent>
+                     <TabsContent value="documents" className="mt-6">
+                        <DocumentsCard employeeId={userId!} />
                     </TabsContent>
                 </Tabs>
                 
