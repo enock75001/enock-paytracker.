@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay, addMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { useSession } from '@/hooks/use-session';
@@ -525,7 +525,25 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const archiveRef = doc(collection(db, "archives"));
     batch.set(archiveRef, newArchiveData);
 
-    const { days: nextPeriodDays } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
+    const companyRef = doc(db, 'companies', companyId);
+    const currentStartDate = company.payPeriodStartDate ? parseISO(company.payPeriodStartDate) : new Date();
+    let nextStartDate;
+
+    switch (company.payPeriod) {
+        case 'monthly':
+            nextStartDate = addMonths(startOfMonth(currentStartDate), 1);
+            break;
+        case 'bi-weekly':
+            nextStartDate = addDays(currentStartDate, 14);
+            break;
+        case 'weekly':
+        default:
+            nextStartDate = addDays(currentStartDate, 7);
+            break;
+    }
+    batch.update(companyRef, { payPeriodStartDate: nextStartDate.toISOString() });
+
+    const { days: nextPeriodDays } = generateDaysAndPeriod(company.payPeriod, nextStartDate.toISOString());
     const payDate = new Date().toISOString();
 
     for (const emp of employees) {
