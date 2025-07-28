@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/header';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X, RefreshCw, Users, Code, UserShield } from 'lucide-react';
+import { KeyRound, Building, Pen, Save, PlusCircle, Trash2, Ban, PlayCircle, Mail, Settings, Server, Phone, Clock, FileKey, Check, X, RefreshCw, Users, Code, UserCog } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -249,7 +249,7 @@ function AnalyticsSection({ companies, employees, codes, admins }: { companies: 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Admins Totaux</CardTitle>
-                    <UserShield className="h-4 w-4 text-muted-foreground" />
+                    <UserCog className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{totalAdmins}</div>
@@ -559,5 +559,3 @@ export default function OwnerDashboardPage() {
         </div>
     );
 }
-
-    
