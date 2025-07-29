@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt, TrendingUp, TrendingDown, Building, Route, FileSignature, Loader2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, Calendar, Home, Phone, User, Wallet, UserCog, MoveRight, Trash2, Edit, Download, CheckCircle, XCircle, PlusCircle, History, Receipt, TrendingUp, TrendingDown, Building, Route, FileSignature, Loader2, Archive } from 'lucide-react';
 import { differenceInWeeks, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -38,7 +38,7 @@ import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Department, Employee, Adjustment, PayStub, CareerEvent, Document } from '@/lib/types';
+import type { Department, Employee, Adjustment, PayStub, CareerEvent, Document as DocumentType } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -601,6 +601,79 @@ function CareerHistoryTab({ careerHistory }: { careerHistory: CareerEvent[] }) {
     )
 }
 
+function DocumentsTab({ employeeId }: { employeeId: string }) {
+    const { documents, fetchEmployeeDocuments } = useEmployees();
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadDocs = async () => {
+            setLoading(true);
+            await fetchEmployeeDocuments(employeeId);
+            setLoading(false);
+        };
+        loadDocs();
+    }, [employeeId, fetchEmployeeDocuments]);
+
+    const downloadDocument = (doc: DocumentType) => {
+        const link = document.createElement('a');
+        link.href = doc.dataUrl;
+        link.download = doc.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+            </div>
+        )
+    }
+
+    if (documents.length === 0) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-muted-foreground">Aucun document trouvé pour cet employé.</p>
+            </div>
+        )
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Documents de l'Employé</CardTitle>
+                <CardDescription>Consultez les documents liés à cet employé.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nom du Fichier</TableHead>
+                            <TableHead>Date d'ajout</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {documents.map(doc => (
+                            <TableRow key={doc.id}>
+                                <TableCell className="font-medium">{doc.fileName}</TableCell>
+                                <TableCell>{format(parseISO(doc.createdAt), 'dd MMMM yyyy', { locale: fr })}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => downloadDocument(doc)}>
+                                        <Download className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function EmployeeRecapPage() {
   const params = useParams();
   const router = useRouter();
@@ -818,10 +891,11 @@ export default function EmployeeRecapPage() {
 
             <div className="lg:col-span-2 space-y-8">
                  <Tabs defaultValue="current_period" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="current_period">Période Actuelle</TabsTrigger>
-                        <TabsTrigger value="history"><History className="mr-2 h-4 w-4"/>Historique de Paie</TabsTrigger>
+                        <TabsTrigger value="history"><History className="mr-2 h-4 w-4"/>Historique Paie</TabsTrigger>
                         <TabsTrigger value="career">Carrière</TabsTrigger>
+                        <TabsTrigger value="documents"><Archive className="mr-2 h-4 w-4"/>Documents</TabsTrigger>
                     </TabsList>
                     <TabsContent value="current_period">
                         <Card>
@@ -892,6 +966,9 @@ export default function EmployeeRecapPage() {
                     </TabsContent>
                     <TabsContent value="career">
                        <CareerHistoryTab careerHistory={employee.careerHistory || []} />
+                    </TabsContent>
+                    <TabsContent value="documents">
+                        <DocumentsTab employeeId={employee.id} />
                     </TabsContent>
                 </Tabs>
             </div>

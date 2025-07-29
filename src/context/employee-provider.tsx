@@ -820,7 +820,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setLoans(prev => prev.map(l => l.id === loanId ? { ...l, status } : l));
   };
   
-  const submitAbsenceJustification = async (justificationData: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt' | 'reviewedAt' | 'reviewedBy'>) => {
+  const submitAbsenceJustification = async (justificationData: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt'>) => {
     if (!companyId) throw new Error("Company ID is missing");
     const newJustification: Omit<AbsenceJustification, 'id'> = {
       ...justificationData,
