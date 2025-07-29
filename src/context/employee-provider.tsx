@@ -2,7 +2,7 @@
 
 'use client';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent, Document } from '@/lib/types';
+import { type Employee, type Department, type ArchivedPayroll, type Admin, type Company, type PayPeriod, type Adjustment, type PayStub, OnlineUser, ChatMessage, Loan, Notification, SiteSettings, AbsenceJustification, CareerEvent, Document, AuditLog, AuditLogType } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, writeBatch, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc, query, where, arrayUnion, arrayRemove, orderBy, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, parseISO, getDay, addMonths } from 'date-fns';
@@ -66,6 +66,7 @@ interface EmployeeContextType {
   documents: Document[];
   addDocument: (docData: Omit<Document, 'id' | 'companyId'>) => Promise<void>;
   fetchEmployeeDocuments: (employeeId: string) => Promise<void>;
+  fetchAuditLogs: () => Promise<AuditLog[]>;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -134,7 +135,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   
   const { sessionData, isLoggedIn } = useSession();
-  const { userId, userRole, companyId: sessionCompanyId } = sessionData;
+  const { userId, userRole, adminName, sessionCompanyId } = sessionData;
 
   const { days, period: weekPeriod, dates: weekDates } = generateDaysAndPeriod(company?.payPeriod, company?.payPeriodStartDate);
   
@@ -156,6 +157,22 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [employees, days, weekDates, justifications, loans]);
   
+    const createAuditLog = useCallback(async (type: AuditLogType, details: string) => {
+        if (!companyId || !userId || !adminName) return;
+        const log: Omit<AuditLog, 'id'> = {
+            companyId,
+            timestamp: new Date().toISOString(),
+            user: {
+                id: userId,
+                name: adminName,
+                role: 'admin',
+            },
+            type,
+            details,
+        };
+        await addDoc(collection(db, 'audit_logs'), log);
+    }, [companyId, userId, adminName]);
+
   const fetchEmployeeDocuments = useCallback(async (employeeId: string) => {
         if (!companyId) return;
         const q = query(
@@ -457,6 +474,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const docRef = await addDoc(collection(db, "employees"), newEmployee);
     setEmployees(prev => [...prev, { ...newEmployee, id: docRef.id }].sort((a,b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
     
+    await createAuditLog('employee_add', `A ajouté l'employé(e) ${employeeData.firstName} ${employeeData.lastName} au département ${employeeData.domain}.`);
+
     createNotificationForAllAdmins({
         title: "Nouvel Employé Ajouté",
         description: `${employeeData.firstName} ${employeeData.lastName} a été ajouté au département ${employeeData.domain}.`,
@@ -500,6 +519,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   
     await updateDoc(docRef, updatedData);
     
+    await createAuditLog('employee_update', `A mis à jour le profil de l'employé(e) ${data.firstName} ${data.lastName}.`);
+
     const updatedLocalEmployee = {
         ...employeeToUpdate,
         ...data,
@@ -522,6 +543,9 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const deleteEmployee = async (employeeId: string) => {
+    const employeeToDelete = employees.find(e => e.id === employeeId);
+    if (!employeeToDelete) return;
+
     const isManager = departments.some(d => d.managerId === employeeId);
     if (isManager) {
         throw new Error("Cet employé est manager d'un département. Veuillez d'abord assigner un nouveau manager.");
@@ -532,6 +556,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     }
     await deleteDoc(doc(db, "employees", employeeId));
     setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+    await createAuditLog('employee_delete', `A supprimé l'employé(e) ${employeeToDelete.firstName} ${employeeToDelete.lastName}.`);
   };
   
   const transferEmployee = async (employeeId: string, newDomain: string) => {
@@ -572,6 +597,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     const newDepartment = { ...department, companyId };
     const docRef = await addDoc(collection(db, "departments"), newDepartment);
     setDepartments([...departments, { ...newDepartment, id: docRef.id }]);
+    await createAuditLog('department_add', `A créé le département ${department.name}.`);
   };
 
   const updateDepartment = async (departmentId: string, updatedDepartmentData: Omit<Department, 'id' | 'companyId'>) => {
@@ -579,6 +605,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
       
       const deptRef = doc(db, "departments", departmentId);
       await updateDoc(deptRef, updatedDepartmentData);
+      
+      await createAuditLog('department_update', `A mis à jour le département ${updatedDepartmentData.name}.`);
 
       if (companyId) {
         fetchDataForCompany(companyId);
@@ -595,6 +623,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
      await deleteDoc(doc(db, "departments", departmentId));
      setDepartments(prev => prev.filter(d => d.id !== departmentId));
+     await createAuditLog('department_delete', `A supprimé le département ${department.name}.`);
   };
   
   const startNewWeek = async () => {
@@ -630,6 +659,8 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     
     const archiveRef = doc(collection(db, "archives"));
     batch.set(archiveRef, newArchiveData);
+    
+    await createAuditLog('payroll_archive', `A archivé la paie pour la période: ${weekPeriod}.`);
 
     const companyRef = doc(db, 'companies', companyId);
     
@@ -804,6 +835,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
 
   const addLoan = async (loanData: Omit<Loan, 'id' | 'balance' | 'status' | 'companyId'>) => {
     if (!companyId) throw new Error("Company ID is missing");
+    const employee = employees.find(e => e.id === loanData.employeeId);
     const newLoan: Omit<Loan, 'id'> = {
       ...loanData,
       companyId,
@@ -812,12 +844,18 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     };
     const docRef = await addDoc(collection(db, "loans"), newLoan);
     setLoans(prev => [...prev, { ...newLoan, id: docRef.id }]);
+    await createAuditLog('loan_add', `A accordé une avance de ${loanData.amount} à ${employee?.firstName} ${employee?.lastName}.`);
   };
 
   const updateLoanStatus = async (loanId: string, status: Loan['status']) => {
+    const loan = loans.find(l => l.id === loanId);
+    if (!loan) return;
+    const employee = employees.find(e => e.id === loan.employeeId);
+
     const loanRef = doc(db, "loans", loanId);
     await updateDoc(loanRef, { status });
     setLoans(prev => prev.map(l => l.id === loanId ? { ...l, status } : l));
+    await createAuditLog('loan_update_status', `A changé le statut de l'avance de ${employee?.firstName} ${employee?.lastName} à "${status}".`);
   };
   
   const submitAbsenceJustification = async (justificationData: Omit<AbsenceJustification, 'id' | 'companyId' | 'status' | 'submittedAt'>) => {
@@ -879,6 +917,17 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     setDocuments(prev => [{...newDocument, id: docRef.id}, ...prev]);
   };
   
+  const fetchAuditLogs = async (): Promise<AuditLog[]> => {
+    if (!companyId) return [];
+    const q = query(
+        collection(db, "audit_logs"), 
+        where("companyId", "==", companyId), 
+        orderBy("timestamp", "desc"),
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AuditLog[];
+  };
+
   const value = { 
     employees, departments, archives, admins, company, companyId, setCompanyId, isLoading: loading,
     addEmployee, updateEmployee, updateAttendance, deleteEmployee, transferEmployee, 
@@ -907,6 +956,7 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     documents,
     addDocument,
     fetchEmployeeDocuments,
+    fetchAuditLogs,
   };
   
   return (

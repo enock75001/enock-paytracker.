@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
-import { Home, Briefcase, UserPlus, FileText, Archive, HandCoins, Settings, History, Users } from 'lucide-react';
+import { Home, Briefcase, UserPlus, FileText, Archive, HandCoins, Settings, History, Users, ListChecks } from 'lucide-react';
 import { Header } from "@/components/header";
 import { useEffect, useState } from "react";
 import { useEmployees } from "@/context/employee-provider";
@@ -46,7 +46,8 @@ const menuGroups = [
     {
         label: "Système",
         items: [
-            { href: '/dashboard/logs', label: 'Historique', icon: History },
+            { href: '/dashboard/logs', label: 'Historique Connexions', icon: History },
+            { href: '/dashboard/audit', label: "Journal d'Audit", icon: ListChecks },
             { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
         ]
     }

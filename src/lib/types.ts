@@ -149,6 +149,24 @@ export interface LoginLog {
   timestamp: string; // ISO string
 }
 
+export type AuditLogType = 
+  | 'employee_add' | 'employee_update' | 'employee_delete'
+  | 'department_add' | 'department_update' | 'department_delete'
+  | 'payroll_archive' | 'loan_add' | 'loan_update_status';
+
+export interface AuditLog {
+  id?: string;
+  companyId: string;
+  timestamp: string; // ISO string
+  user: {
+    id: string;
+    name: string;
+    role: 'admin' | 'manager' | 'system';
+  };
+  type: AuditLogType;
+  details: string; // e.g., "Employee John Doe was added to department Chantier."
+}
+
 export interface ChatMessage {
   id?: string;
   conversationId: string;
