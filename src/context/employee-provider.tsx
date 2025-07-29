@@ -921,11 +921,13 @@ export const EmployeeProvider = ({ children }: { children: ReactNode }) => {
     if (!companyId) return [];
     const q = query(
         collection(db, "audit_logs"), 
-        where("companyId", "==", companyId), 
-        orderBy("timestamp", "desc"),
+        where("companyId", "==", companyId)
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AuditLog[];
+    const logs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as AuditLog[];
+    // Sort client-side to avoid composite index
+    logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return logs;
   };
 
   const value = { 
