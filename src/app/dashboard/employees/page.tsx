@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Eye, Trash2 } from 'lucide-react';
+import { Users, Eye, Trash2, Search } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -36,10 +36,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 
 export default function EmployeesPage() {
   const { employees, departments, transferEmployee, deleteEmployee } = useEmployees();
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleDepartmentChange = async (employeeId: string, newDepartmentName: string) => {
     try {
@@ -72,6 +75,10 @@ export default function EmployeesPage() {
         });
     }
   };
+  
+  const filteredEmployees = employees.filter(employee =>
+    `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -94,6 +101,18 @@ export default function EmployeesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+             <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Rechercher un employé par nom..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 w-full md:w-1/3"
+                />
+             </div>
+          </div>
           <div className="border rounded-md">
             <Table>
               <TableHeader>
@@ -105,7 +124,7 @@ export default function EmployeesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.map((employee) => (
+                {filteredEmployees.map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -176,6 +195,11 @@ export default function EmployeesPage() {
                 ))}
               </TableBody>
             </Table>
+             {filteredEmployees.length === 0 && (
+                <div className="text-center p-8 text-muted-foreground">
+                    Aucun employé trouvé pour "{searchTerm}".
+                </div>
+            )}
           </div>
         </CardContent>
       </Card>

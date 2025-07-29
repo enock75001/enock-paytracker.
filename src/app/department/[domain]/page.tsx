@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X, ShieldQuestion } from 'lucide-react';
+import { Eye, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, AlertTriangle, Check, X, ShieldQuestion, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -184,7 +184,12 @@ function RegisterInDepartment({ domain }: { domain: string }) {
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
   const { employees, updateAttendance, days, weekPeriod, weekDates, company, justifications } = useEmployees();
+  const [searchTerm, setSearchTerm] = useState('');
+
   const employeesInDomain = employees.filter(emp => emp.domain === domain);
+  const filteredEmployees = employeesInDomain.filter(employee =>
+    `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
@@ -319,7 +324,7 @@ function AttendanceTab({ domain }: { domain: string }) {
   return (
     <Card className="mt-6">
         <CardHeader>
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start flex-wrap gap-4">
                 <div>
                     <CardTitle className="text-2xl font-bold font-headline capitalize">Feuille de Présence</CardTitle>
                     <CardDescription>
@@ -330,6 +335,16 @@ function AttendanceTab({ domain }: { domain: string }) {
                     <Download className="mr-2 h-4 w-4" />
                     Télécharger la Présence
                 </Button>
+            </div>
+            <div className="relative mt-4">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Rechercher un employé par nom..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 w-full md:w-1/3"
+                />
             </div>
         </CardHeader>
         <CardContent>
@@ -349,7 +364,7 @@ function AttendanceTab({ domain }: { domain: string }) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {employeesInDomain.map(employee => (
+                    {filteredEmployees.map(employee => (
                     <TableRow key={employee.id}>
                         <TableCell className="sticky left-0 bg-card z-10">
                         <div className="flex items-center gap-3">
@@ -401,10 +416,15 @@ function AttendanceTab({ domain }: { domain: string }) {
                     ))}
                 </TableBody>
                 </Table>
+                 {filteredEmployees.length === 0 && (
+                    <div className="text-center p-8 text-muted-foreground">
+                        Aucun employé trouvé pour "{searchTerm}".
+                    </div>
+                )}
             </div>
             {/* Mobile View: Cards */}
             <div className="md:hidden space-y-4">
-                {employeesInDomain.map(employee => (
+                {filteredEmployees.map(employee => (
                     <Card key={employee.id} className="w-full">
                         <CardHeader className="flex flex-row items-center justify-between pb-4">
                              <div className="flex items-center gap-3">
@@ -452,6 +472,11 @@ function AttendanceTab({ domain }: { domain: string }) {
                         </CardContent>
                     </Card>
                 ))}
+                 {filteredEmployees.length === 0 && (
+                    <div className="text-center p-8 text-muted-foreground">
+                        Aucun employé trouvé pour "{searchTerm}".
+                    </div>
+                )}
             </div>
       </CardContent>
     </Card>
