@@ -15,16 +15,7 @@ export async function findCompanyByIdentifier(companyIdentifier: string): Promis
     const companyDoc = querySnapshot.docs[0];
     const companyData = { id: companyDoc.id, ...companyDoc.data() } as Company & { id: string };
 
-    if (companyData.status === 'suspended') {
-        const userType = 'admin' // A placeholder, as we don't know the user type yet.
-                                  // This error is primarily for non-superadmins.
-                                  // Superadmins will be handled in their respective login flows.
-        if (userType !== 'superadmin') {
-            throw new Error("Le compte de cette entreprise est actuellement suspendu. Veuillez contacter votre administrateur.");
-        }
-    }
-    
-    // Check for expired trial
+    // Trial Expiration check is universal
     const codeQuery = query(collection(db, "registration_codes"), where("usedByCompanyId", "==", companyDoc.id));
     const codeSnapshot = await getDocs(codeQuery);
     if (!codeSnapshot.empty) {
@@ -142,7 +133,7 @@ export async function loginAdmin(companyId: string, name: string, password: stri
 export async function loginEmployee(companyId: string, phone: string): Promise<Employee | null> {
     const companyDoc = await getDoc(doc(db, "companies", companyId));
     if (companyDoc.exists() && companyDoc.data().status === 'suspended') {
-        throw new Error("Le compte de cette entreprise est temporairement suspendu.");
+        throw new Error("Le compte de cette entreprise est temporairement suspendu. Veuillez contacter votre responsable.");
     }
 
     const q = query(collection(db, "employees"), 
@@ -163,7 +154,7 @@ export async function loginEmployee(companyId: string, phone: string): Promise<E
 export async function findManagerByPin(companyId: string, pin: string): Promise<{ manager: Employee, department: Department }> {
     const companyDoc = await getDoc(doc(db, "companies", companyId));
     if (companyDoc.exists() && companyDoc.data().status === 'suspended') {
-        throw new Error("Le compte de cette entreprise est temporairement suspendu.");
+        throw new Error("Le compte de cette entreprise est temporairement suspendu. Veuillez contacter votre administrateur.");
     }
 
     // The PIN is the manager's phone number

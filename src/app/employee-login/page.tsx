@@ -63,16 +63,16 @@ export default function EmployeeLoginPage() {
                 setLoading(false);
                 return;
             }
-            
-            if (rememberMe) {
-                localStorage.setItem('rememberedCompanyId', companyIdentifier);
-            } else {
-                localStorage.removeItem('rememberedCompanyId');
-            }
 
             const employee = await loginEmployee(company.id, phone);
 
             if (employee) {
+                if (rememberMe) {
+                    localStorage.setItem('rememberedCompanyId', companyIdentifier);
+                } else {
+                    localStorage.removeItem('rememberedCompanyId');
+                }
+                
                 sessionStorage.setItem('userType', 'employee');
                 sessionStorage.setItem('employeeId', employee.id);
                 sessionStorage.setItem('employeeName', `${employee.firstName} ${employee.lastName}`);

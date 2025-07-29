@@ -66,16 +66,16 @@ export default function ManagerLoginPage() {
                 setLoading(false);
                 return;
             }
-            
-            if (rememberMe) {
-                localStorage.setItem('rememberedCompanyId', companyIdentifier);
-            } else {
-                localStorage.removeItem('rememberedCompanyId');
-            }
 
             const { manager, department } = await findManagerByPin(company.id, pin);
 
             if (manager && department) {
+                 if (rememberMe) {
+                    localStorage.setItem('rememberedCompanyId', companyIdentifier);
+                } else {
+                    localStorage.removeItem('rememberedCompanyId');
+                }
+
                 sessionStorage.setItem('userType', 'manager');
                 sessionStorage.setItem('departmentName', department.name);
                 sessionStorage.setItem('managerId', manager.id);

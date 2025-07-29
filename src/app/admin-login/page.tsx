@@ -71,21 +71,23 @@ export default function AdminLoginPage() {
         }
 
         try {
+            // Find company first to check status, but don't throw error here.
+            // The loginAdmin function will handle role-based access.
             const company = await findCompanyByIdentifier(companyIdentifier);
             if (!company) {
                 setError("Aucune entreprise trouvée avec cet ID.");
                 setLoading(false);
                 return;
             }
-            
-            if (rememberMe) {
-                localStorage.setItem('rememberedCompanyId', companyIdentifier);
-            } else {
-                localStorage.removeItem('rememberedCompanyId');
-            }
 
             const admin = await loginAdmin(company.id, name, password);
             if (admin) {
+                 if (rememberMe) {
+                    localStorage.setItem('rememberedCompanyId', companyIdentifier);
+                } else {
+                    localStorage.removeItem('rememberedCompanyId');
+                }
+
                 sessionStorage.setItem('userType', 'admin');
                 sessionStorage.setItem('adminName', admin.name);
                 sessionStorage.setItem('adminId', admin.id);
