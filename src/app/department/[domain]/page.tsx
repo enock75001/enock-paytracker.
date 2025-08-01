@@ -21,7 +21,7 @@ import { Eye, Download, UserPlus, CalendarCheck, ShieldCheck, ShieldAlert, Alert
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, isSameDay, parseISO } from "date-fns"
+import { format, isSameDay, parseISO, getDay } from "date-fns"
 import {
   Form,
   FormControl,
@@ -180,6 +180,23 @@ function RegisterInDepartment({ domain }: { domain: string }) {
     )
 }
 
+const groupDatesByWeek = (dates: Date[]): Date[][] => {
+    if (!dates || dates.length === 0) return [];
+    
+    const weeks: Date[][] = [];
+    let currentWeek: Date[] = [];
+
+    dates.forEach((date, index) => {
+        currentWeek.push(date);
+        // In fr locale, getDay() 0 is Sunday. So, a week ends on Sunday.
+        if (getDay(date) === 0 || index === dates.length - 1) {
+            weeks.push(currentWeek);
+            currentWeek = [];
+        }
+    });
+
+    return weeks;
+};
 
 // Component for Attendance Tab
 function AttendanceTab({ domain }: { domain: string }) {
@@ -198,6 +215,8 @@ function AttendanceTab({ domain }: { domain: string }) {
       const dateString = format(date, 'yyyy-MM-dd');
       return justifications.find(j => j.employeeId === employeeId && j.date === dateString);
   }
+  
+  const weeklyGroupedDates = groupDatesByWeek(weekDates);
 
   const downloadAttendancePdf = () => {
     const doc = new jsPDF();
@@ -206,6 +225,105 @@ function AttendanceTab({ domain }: { domain: string }) {
     img.crossOrigin = "Anonymous";
     img.src = logoUrl;
 
+    const renderPdfContent = (doc: jsPDF) => {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let cursorY = 15;
+        
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(40, 58, 90);
+        doc.text(company?.name || "Entreprise", pageWidth / 2, cursorY + 7, { align: 'center' });
+        cursorY += 10;
+        
+        if (company?.description) {
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(128, 128, 128);
+            doc.text(company.description, pageWidth / 2, cursorY + 5, { align: 'center' });
+            cursorY += 5;
+        }
+        cursorY += 5;
+
+        doc.setDrawColor(221, 221, 221);
+        doc.line(14, cursorY, pageWidth - 14, cursorY);
+        cursorY += 10;
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(40, 58, 90);
+        doc.text(`Feuille de Présence & Paie - ${domain}`, pageWidth / 2, cursorY, { align: 'center' });
+        cursorY += 5;
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(weekPeriod, pageWidth / 2, cursorY, { align: 'center' });
+        cursorY += 10;
+
+        weeklyGroupedDates.forEach((week, weekIndex) => {
+            const weekDays = week.map(d => format(d, 'EEEE dd', { locale: fr }));
+            const weekStart = format(week[0], 'dd MMM', { locale: fr });
+            const weekEnd = format(week[week.length - 1], 'dd MMM', { locale: fr });
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Semaine ${weekIndex + 1}: ${weekStart} - ${weekEnd}`, 14, cursorY);
+            cursorY += 7;
+
+            const head = [['Employé', ...weekDays.map(d => d.substring(0,3)), 'Présents', 'Paie']];
+
+            let departmentTotalPay = 0;
+
+            const body = employeesInDomain.map(employee => {
+                const daysPresent = week.filter(date => {
+                    const dayString = format(date, 'EEEE dd', { locale: fr });
+                    return employee.attendance[dayString];
+                }).length;
+                const weeklyPay = daysPresent * (employee.currentWeekWage || employee.dailyWage || 0);
+                departmentTotalPay += weeklyPay;
+                const attendanceStatus = week.map(date => {
+                    const dayString = format(date, 'EEEE dd', { locale: fr });
+                    return employee.attendance[dayString] ? 'P' : 'A'
+                });
+                
+                return [
+                    `${employee.firstName} ${employee.lastName}`,
+                    ...attendanceStatus,
+                    daysPresent.toString(),
+                    formatCurrency(weeklyPay)
+                ];
+            });
+
+            (doc as any).autoTable({
+                startY: cursorY,
+                head: head,
+                body: body,
+                theme: 'striped',
+                headStyles: { fillColor: [44, 62, 80], halign: 'center', fontStyle: 'bold' },
+                footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 50 },
+                    [week.length + 1]: { halign: 'center', fontStyle: 'bold' },
+                    [week.length + 2]: { halign: 'right', fontStyle: 'bold' },
+                },
+                didParseCell: function(data: any) {
+                    if (data.section === 'body' && data.column.index > 0 && data.column.index <= week.length) {
+                         data.cell.styles.halign = 'center';
+                        if (data.cell.raw === 'P') {
+                            data.cell.styles.textColor = [39, 174, 96];
+                        } else {
+                            data.cell.styles.textColor = [192, 57, 43];
+                        }
+                    }
+                },
+            });
+
+            cursorY = (doc as any).autoTable.previous.finalY + 15;
+        })
+
+        doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
     img.onload = () => {
         try {
             doc.addImage(img, 'PNG', 14, 15, 30, 15, undefined, 'FAST');
@@ -213,103 +331,13 @@ function AttendanceTab({ domain }: { domain: string }) {
              console.error("Error adding image to PDF:", e);
         }
         renderPdfContent(doc);
-        doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     img.onerror = () => {
         console.error("Failed to load company logo for PDF.");
         renderPdfContent(doc);
-        doc.save(`presence_paie_${domain.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
     }
   };
-
-  const renderPdfContent = (doc: jsPDF) => {
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let cursorY = 15;
-    
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(40, 58, 90);
-    doc.text(company?.name || "Entreprise", pageWidth / 2, cursorY + 7, { align: 'center' });
-    cursorY += 10;
-    
-    if (company?.description) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(128, 128, 128);
-        doc.text(company.description, pageWidth / 2, cursorY + 5, { align: 'center' });
-        cursorY += 5;
-    }
-    cursorY += 5;
-
-    doc.setDrawColor(221, 221, 221);
-    doc.line(14, cursorY, pageWidth - 14, cursorY);
-    cursorY += 10;
-    
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(40, 58, 90);
-    doc.text(`Feuille de Présence & Paie - ${domain}`, pageWidth / 2, cursorY, { align: 'center' });
-    cursorY += 5;
-    
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(weekPeriod, pageWidth / 2, cursorY, { align: 'center' });
-    cursorY += 10;
-    
-    const head = [['Employé', ...days.map(d => d.substring(0,3)), 'Présents', 'Paie']];
-
-    let departmentTotalPay = 0;
-
-    const body = employeesInDomain.map(employee => {
-        const daysPresent = days.filter(day => employee.attendance[day]).length;
-        const weeklyPay = daysPresent * (employee.currentWeekWage || employee.dailyWage || 0);
-        departmentTotalPay += weeklyPay;
-        const attendanceStatus = days.map(day => employee.attendance[day] ? 'P' : 'A');
-        
-        return [
-            `${employee.firstName} ${employee.lastName}`,
-            ...attendanceStatus,
-            daysPresent.toString(),
-            formatCurrency(weeklyPay)
-        ];
-    });
-
-    (doc as any).autoTable({
-        startY: cursorY,
-        head: head,
-        body: body,
-        foot: [[
-            { content: 'Total Département', colSpan: days.length + 2, styles: { halign: 'right', fontStyle: 'bold' } },
-            { content: `${formatCurrency(departmentTotalPay)}`, styles: { halign: 'right', fontStyle: 'bold' } },
-        ]],
-        theme: 'striped',
-        headStyles: { fillColor: [44, 62, 80], halign: 'center', fontStyle: 'bold' },
-        footStyles: { fillColor: [236, 240, 241], textColor: [44, 62, 80], fontStyle: 'bold' },
-        columnStyles: {
-            0: { fontStyle: 'bold' },
-            [days.length + 1]: { halign: 'center', fontStyle: 'bold' },
-            [days.length + 2]: { halign: 'right', fontStyle: 'bold' },
-        },
-        didParseCell: function(data: any) {
-            if (data.section === 'body' && data.column.index > 0 && data.column.index <= days.length) {
-                 data.cell.styles.halign = 'center';
-                if (data.cell.raw === 'P') {
-                    data.cell.styles.textColor = [39, 174, 96]; // Green for Present
-                } else {
-                    data.cell.styles.textColor = [192, 57, 43]; // Red for Absent
-                }
-            }
-        },
-        didDrawPage: function (data: any) {
-            const pageHeight = doc.internal.pageSize.getHeight();
-            doc.setFontSize(9);
-            doc.setTextColor(150);
-            doc.text(`Généré par Enock PayTracker pour ${company?.name || ''} le ${new Date().toLocaleDateString('fr-FR')}`, data.settings.margin.left, pageHeight - 10);
-        }
-    });
-  }
   
   if (!weekDates || weekDates.length === 0 || weekDates.length !== days.length) {
       return (
@@ -349,73 +377,89 @@ function AttendanceTab({ domain }: { domain: string }) {
         </CardHeader>
         <CardContent>
             {/* Desktop View: Table */}
-            <div className="hidden md:block overflow-x-auto border rounded-lg">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead className="w-[250px] min-w-[250px] sticky left-0 bg-card z-10">Employé</TableHead>
-                    {days.map((day, index) => (
-                        <TableHead key={day} className="text-center min-w-[80px]">
-                            <div className='font-bold capitalize'>{day.split(' ')[0]}</div>
-                            <div className="font-normal text-xs">{format(weekDates[index], 'dd')}</div>
-                        </TableHead>
-                    ))}
-                    <TableHead className="text-right sticky right-0 bg-card z-10">Détails</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {filteredEmployees.map(employee => (
-                    <TableRow key={employee.id}>
-                        <TableCell className="sticky left-0 bg-card z-10">
-                        <div className="flex items-center gap-3">
-                            <Avatar>
-                            <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
-                            <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                            <div className="font-medium">{employee.firstName} ${employee.lastName}</div>
-                            <div className="text-sm text-muted-foreground">{formatCurrency(employee.currentWeekWage || employee.dailyWage || 0)}/jour</div>
-                            </div>
-                        </div>
-                        </TableCell>
-                        {days.map((day, index) => {
-                            if (!weekDates?.[index]) return null;
-                            const isToday = isSameDay(weekDates[index], today);
-                            const justification = getJustificationForDay(employee.id, weekDates[index]);
-                            const isJustified = justification?.status === 'approved';
-                            
-                            return (
-                                <TableCell key={day} className="text-center">
-                                    <div className="flex flex-col items-center justify-center">
-                                        <Checkbox
-                                            checked={employee.attendance[day]}
-                                            onCheckedChange={(checked) =>
-                                                updateAttendance(employee.id, day, !!checked)
-                                            }
-                                            aria-label={`Attendance for ${day}`}
-                                            disabled={!isToday}
-                                        />
-                                         {isJustified && employee.attendance[day] && (
-                                            <span className="text-xs text-green-500 mt-1 flex items-center gap-1" title="Absence justifiée et approuvée">
-                                                <ShieldCheck className="h-3 w-3" />
-                                            </span>
-                                        )}
+            <div className="hidden md:block space-y-8">
+             {weeklyGroupedDates.map((week, weekIndex) => {
+                const weekStart = format(week[0], 'dd MMM', { locale: fr });
+                const weekEnd = format(week[week.length - 1], 'dd MMM', { locale: fr });
+                const weekDays = week.map(d => format(d, 'EEEE dd', { locale: fr }));
+
+                return (
+                 <div key={weekIndex} className="border rounded-lg overflow-hidden">
+                    <div className="bg-secondary/50 px-4 py-2 font-semibold">
+                       Semaine {weekIndex + 1}: {weekStart} - {weekEnd}
+                    </div>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead className="w-[250px] min-w-[250px] sticky left-0 bg-card z-10">Employé</TableHead>
+                                {week.map((date, index) => (
+                                    <TableHead key={index} className="text-center min-w-[80px]">
+                                        <div className='font-bold capitalize'>{format(date, 'EEEE', {locale: fr}).split(' ')[0]}</div>
+                                        <div className="font-normal text-xs">{format(date, 'dd')}</div>
+                                    </TableHead>
+                                ))}
+                                <TableHead className="text-right sticky right-0 bg-card z-10">Détails</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredEmployees.map(employee => (
+                                <TableRow key={employee.id}>
+                                    <TableCell className="sticky left-0 bg-card z-10">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar>
+                                        <AvatarImage src={employee.photoUrl} alt={`${employee.firstName} ${employee.lastName}`} data-ai-hint="person portrait" />
+                                        <AvatarFallback>{employee.firstName.charAt(0)}{employee.lastName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                        <div className="font-medium">{employee.firstName} ${employee.lastName}</div>
+                                        <div className="text-sm text-muted-foreground">{formatCurrency(employee.currentWeekWage || employee.dailyWage || 0)}/jour</div>
+                                        </div>
                                     </div>
-                                </TableCell>
-                            )
-                        })}
-                        <TableCell className="text-right sticky right-0 bg-card z-10">
-                            <Link href={`/employee/${employee.id}`} passHref>
-                                <Button variant="ghost" size="icon">
-                                    <Eye className="h-4 w-4" />
-                                    <span className="sr-only">Voir les détails</span>
-                                </Button>
-                            </Link>
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
+                                    </TableCell>
+                                    {week.map((date) => {
+                                        const dayString = format(date, 'EEEE dd', { locale: fr });
+                                        if (!date) return null;
+                                        const isToday = isSameDay(date, today);
+                                        const justification = getJustificationForDay(employee.id, date);
+                                        const isJustified = justification?.status === 'approved';
+                                        
+                                        return (
+                                            <TableCell key={dayString} className="text-center">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <Checkbox
+                                                        checked={employee.attendance[dayString]}
+                                                        onCheckedChange={(checked) =>
+                                                            updateAttendance(employee.id, dayString, !!checked)
+                                                        }
+                                                        aria-label={`Attendance for ${dayString}`}
+                                                        disabled={!isToday}
+                                                    />
+                                                     {isJustified && employee.attendance[dayString] && (
+                                                        <span className="text-xs text-green-500 mt-1 flex items-center gap-1" title="Absence justifiée et approuvée">
+                                                            <ShieldCheck className="h-3 w-3" />
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        )
+                                    })}
+                                    <TableCell className="text-right sticky right-0 bg-card z-10">
+                                        <Link href={`/employee/${employee.id}`} passHref>
+                                            <Button variant="ghost" size="icon">
+                                                <Eye className="h-4 w-4" />
+                                                <span className="sr-only">Voir les détails</span>
+                                            </Button>
+                                        </Link>
+                                    </TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                 </div>
+                )
+             })}
                  {filteredEmployees.length === 0 && (
                     <div className="text-center p-8 text-muted-foreground">
                         Aucun employé trouvé pour "{searchTerm}".
@@ -705,3 +749,5 @@ export default function DepartmentPage() {
     </div>
   );
 }
+
+    
