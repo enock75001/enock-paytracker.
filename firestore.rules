@@ -1,0 +1,113 @@
+
+rules_version = '2';
+
+// By default, deny all reads and writes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if a user is an authenticated admin for a given company.
+    function isAdmin(companyId) {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.companyId == companyId;
+    }
+
+    // Helper function to check if a user is a manager of a specific department in a company.
+    function isManagerOf(companyId, departmentName) {
+      let employeeId = request.auth.uid;
+      // Check if employee exists and is a manager of any department.
+      let managerDepartments = get(/databases/$(database)/documents/companies/$(companyId)/departments).data.filter(d => d.managerId == employeeId);
+      // Check if the employee is the manager of the specific department.
+      return managerDepartments.size() > 0 && managerDepartments[0].name == departmentName;
+    }
+
+    // Companies: Public read for some fields, restricted write.
+    match /companies/{companyId} {
+      allow read: if true; // Allow reading basic company info for login.
+      allow write: if isAdmin(companyId); // Only admins of the company can update it.
+    }
+    
+    // Admins: Only authenticated users can attempt to read (login checks). Creation/deletion is server-side.
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Disallow client-side creation/update of admins for security.
+    }
+
+    // Employees: Granular access control.
+    match /employees/{employeeId} {
+        // Allow read if user is an admin of the company, or if the user is reading their own document.
+        allow read: if isAdmin(resource.data.companyId) || request.auth.uid == employeeId;
+        // Allow write only if user is an admin of the company.
+        allow write: if isAdmin(resource.data.companyId);
+    }
+    
+    // Departments: Only admins can manage them.
+    match /departments/{departmentId} {
+      allow read, write: if isAdmin(resource.data.companyId);
+    }
+    
+    // Archives & PayStubs: Read-only for admins. Created server-side.
+    match /archives/{archiveId} {
+        allow read: if isAdmin(resource.data.companyId);
+        allow write: if false;
+    }
+    match /pay_stubs/{stubId} {
+        allow read: if isAdmin(resource.data.companyId) || request.auth.uid == resource.data.employeeId;
+        allow write: if false;
+    }
+    
+    // Loans: Admins can manage, employees can read their own.
+    match /loans/{loanId} {
+        allow read: if isAdmin(resource.data.companyId) || request.auth.uid == resource.data.employeeId;
+        allow write: if isAdmin(resource.data.companyId);
+    }
+
+    // Justifications: Can be created by the employee, read by admins, and updated by managers/admins.
+    match /justifications/{justificationId} {
+        allow create: if request.auth.uid == request.resource.data.employeeId;
+        allow read: if isAdmin(resource.data.companyId) || request.auth.uid == resource.data.employeeId;
+        allow update: if isAdmin(resource.data.companyId);
+    }
+    
+    // Documents: Can be created by admins, read by admin or the employee.
+    match /documents/{documentId} {
+        allow read: if isAdmin(resource.data.companyId) || request.auth.uid == resource.data.employeeId;
+        allow create: if isAdmin(request.resource.data.companyId);
+        allow delete: if isAdmin(resource.data.companyId);
+    }
+    
+    // Notifications: Read-only for clients, created by server logic.
+    match /notifications/{notificationId} {
+      allow read, update: if isAdmin(resource.data.companyId);
+      allow create, delete: if false;
+    }
+
+    // Chat Messages: Only conversation participants can read/write.
+    match /messages/{messageId} {
+        allow read, create: if request.auth.uid in resource.data.conversationParticipants;
+        allow update, delete: if false;
+    }
+    
+    // Online Users: Users can only update their own presence.
+    match /online_users/{userId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth.uid == userId;
+    }
+    
+    // Logs (login, audit): Write-only for server, no client access.
+    match /login_logs/{logId} {
+      allow read, write: if false;
+    }
+    match /audit_logs/{logId} {
+      allow read, write: if false; // Should only be written from a trusted server environment.
+    }
+    
+    // Site Settings & Codes: Read-only for clients.
+    match /site_settings/{settingId} {
+        allow read: if true;
+        allow write: if false;
+    }
+     match /registration_codes/{codeId} {
+        allow read, write: if false; // Only accessible from owner dashboard or trusted server env.
+    }
+  }
+}
