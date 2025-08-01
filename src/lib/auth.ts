@@ -100,6 +100,32 @@ export async function registerCompany(
 
     await batch.commit();
 
+    // TODO: Intégration de l'envoi d'email transactionnel
+    // Pour activer cette fonctionnalité, vous devez intégrer un service d'envoi d'email comme SendGrid, Mailgun, ou Resend.
+    // Vous pouvez utiliser une Cloud Function Firebase (déclenchée par la création d'une nouvelle entreprise)
+    // ou appeler une API Route Next.js depuis cette fonction.
+    
+    // Exemple de logique à implémenter :
+    /*
+    const ownerEmail = 'VOTRE_ADRESSE_EMAIL_PROPRIETAIRE@example.com';
+
+    // 1. Envoyer un email de bienvenue à l'administrateur de l'entreprise
+    await sendEmail({
+        to: adminEmail,
+        subject: `Bienvenue sur Enock PayTracker, ${companyName} !`,
+        html: `<h1>Bienvenue !</h1><p>Votre entreprise, ${companyName}, a été inscrite avec succès.</p><p>Votre identifiant entreprise est : <strong>${companyIdentifier}</strong></p><p>Vous pouvez maintenant vous connecter à votre espace administrateur.</p>`
+    });
+
+    // 2. Envoyer un email de notification au propriétaire du site
+    await sendEmail({
+        to: ownerEmail,
+        subject: `Nouvelle Inscription : ${companyName}`,
+        html: `<h1>Nouvelle entreprise inscrite</h1><ul><li>Nom : ${companyName}</li><li>ID : ${companyIdentifier}</li><li>Admin : ${adminName}</li><li>Email : ${adminEmail}</li><li>Téléphone : ${adminPhone}</li></ul>`
+    });
+    */
+    // La fonction `sendEmail` serait une fonction personnalisée qui utilise le SDK de votre service d'email.
+
+
     return {
         company: { id: companyRef.id, ...newCompany },
         admin: { id: adminRef.id, ...newAdmin }
