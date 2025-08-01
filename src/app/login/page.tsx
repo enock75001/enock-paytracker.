@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { payPeriods } from "@/lib/data";
+import { countries } from "@/lib/countries";
 import type { PayPeriod } from "@/lib/types";
 
 
@@ -105,7 +106,8 @@ function CompanyRegistrationForm() {
     const [companyIdNumber, setCompanyIdNumber] = useState('');
     const [adminName, setAdminName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
-    const [adminPhone, setAdminPhone] = useState('');
+    const [phone, setPhone] = useState('');
+    const [phoneCode, setPhoneCode] = useState('225');
     const [adminPassword, setAdminPassword] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
     const [registrationCode, setRegistrationCode] = useState('');
@@ -121,8 +123,9 @@ function CompanyRegistrationForm() {
         setLoading(true);
         
         const companyIdentifier = `EPT-${companyIdNumber}`;
+        const adminPhone = `+${phoneCode}${phone}`;
 
-        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !adminPhone || !adminPassword || !payPeriod || !registrationCode) {
+        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !phone || !adminPassword || !payPeriod || !registrationCode) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -214,9 +217,31 @@ function CompanyRegistrationForm() {
             </div>
              <div className="space-y-2">
                 <Label htmlFor="admin-phone">Votre Numéro de Téléphone</Label>
-                 <div className="relative">
-                    <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input id="admin-phone" type="tel" value={adminPhone} onChange={e => setAdminPhone(e.target.value)} placeholder="+2250102030405" required className="pl-8"/>
+                 <div className="flex">
+                    <Select
+                        onValueChange={setPhoneCode}
+                        defaultValue={phoneCode}
+                    >
+                        <SelectTrigger className="w-[150px] rounded-r-none">
+                            <SelectValue placeholder="Indicatif" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {countries.map((country) => (
+                            <SelectItem key={country.code} value={country.phone}>
+                                {country.code} (+{country.phone})
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Input 
+                        id="admin-phone" 
+                        type="tel" 
+                        value={phone} 
+                        onChange={e => setPhone(e.target.value)} 
+                        placeholder="0102030405" 
+                        required 
+                        className="rounded-l-none"
+                    />
                 </div>
             </div>
              <div className="space-y-2">
