@@ -13,14 +13,16 @@ import { useToast } from "@/hooks/use-toast";
 import { registerCompany } from "@/lib/auth";
 import { useEmployees } from "@/context/employee-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, KeyRound, Phone, Mail, User, ArrowLeft } from "lucide-react";
+import { AlertCircle, KeyRound, Phone, Mail, User, ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { payPeriods } from "@/lib/data";
 import { countries } from "@/lib/countries";
 import type { PayPeriod } from "@/lib/types";
@@ -116,6 +118,7 @@ function CompanyRegistrationForm() {
     const { toast } = useToast();
     const router = useRouter();
     const { setCompanyId: setGlobalCompanyId, fetchDataForCompany } = useEmployees();
+    const [comboboxOpen, setComboboxOpen] = useState(false);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -218,21 +221,50 @@ function CompanyRegistrationForm() {
              <div className="space-y-2">
                 <Label htmlFor="admin-phone">Votre Numéro de Téléphone</Label>
                  <div className="flex">
-                    <Select
-                        onValueChange={setPhoneCode}
-                        defaultValue={phoneCode}
-                    >
-                        <SelectTrigger className="w-[150px] rounded-r-none">
-                            <SelectValue placeholder="Indicatif" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {countries.map((country) => (
-                            <SelectItem key={country.code} value={country.phone}>
-                                {country.code} (+{country.phone})
-                            </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={comboboxOpen}
+                            className="w-[150px] justify-between rounded-r-none"
+                            >
+                            {phoneCode
+                                ? `+${countries.find((country) => country.phone === phoneCode)?.phone}`
+                                : "Indicatif"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0">
+                            <Command>
+                                <CommandInput placeholder="Rechercher pays..." />
+                                <CommandList>
+                                    <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                                    <CommandGroup>
+                                        {countries.map((country) => (
+                                        <CommandItem
+                                            key={country.code}
+                                            value={country.name}
+                                            onSelect={() => {
+                                                setPhoneCode(country.phone)
+                                                setComboboxOpen(false)
+                                            }}
+                                        >
+                                            <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                phoneCode === country.phone ? "opacity-100" : "opacity-0"
+                                            )}
+                                            />
+                                            {country.name} (+{country.phone})
+                                        </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+
                     <Input 
                         id="admin-phone" 
                         type="tel" 
@@ -252,17 +284,16 @@ function CompanyRegistrationForm() {
                 </div>
             </div>
             <div className="space-y-2">
-                <Label htmlFor="pay-period">Période de Paie</Label>
-                <Select onValueChange={(value: PayPeriod) => setPayPeriod(value)} defaultValue={payPeriod}>
-                    <SelectTrigger id="pay-period">
-                        <SelectValue placeholder="Choisir une période de paie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {payPeriods.map(period => (
-                            <SelectItem key={period.value} value={period.value}>{period.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Label>Période de Paie</Label>
+                <select
+                    value={payPeriod}
+                    onChange={(e) => setPayPeriod(e.target.value as PayPeriod)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {payPeriods.map(period => (
+                        <option key={period.value} value={period.value}>{period.label}</option>
+                    ))}
+                </select>
             </div>
             {error && (
                 <Alert variant="destructive">
@@ -277,5 +308,3 @@ function CompanyRegistrationForm() {
         </form>
     );
 }
-
-    
