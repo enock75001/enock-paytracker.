@@ -8,11 +8,14 @@ import { PageProgressBar } from '@/components/page-progress-bar';
 import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const inter = Inter({ 
+  subsets: ['latin'], 
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'Enock PayTracker',
-  description: 'Employee management and payroll application for multiple companies.',
+  description: 'La Gestion de Paie Intelligente, Réinventée.',
 };
 
 function SuspenseWrapper({children}: {children: React.ReactNode}) {
@@ -25,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" style={{ colorScheme: 'dark' }}>
+    <html lang="fr" className="dark" style={{ colorScheme: 'dark' }}>
       <body className={cn('min-h-screen bg-background font-sans antialiased', inter.variable)}>
         <EmployeeProvider>
             <SuspenseWrapper>

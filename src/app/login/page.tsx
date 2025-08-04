@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { registerCompany } from "@/lib/auth";
 import { useEmployees } from "@/context/employee-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, KeyRound, Phone, Mail, User, ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
+import { AlertCircle, KeyRound, Phone, Mail, User, ArrowLeft, Check, ChevronsUpDown, Building } from "lucide-react";
 import {
   Tabs,
   TabsContent,
@@ -109,7 +109,7 @@ function CompanyRegistrationForm() {
     const [adminName, setAdminName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
     const [phone, setPhone] = useState('');
-    const [phoneCode, setPhoneCode] = useState('225');
+    const [selectedCountry, setSelectedCountry] = useState(countries.find(c => c.code === 'CI'));
     const [adminPassword, setAdminPassword] = useState('');
     const [payPeriod, setPayPeriod] = useState<PayPeriod>('weekly');
     const [registrationCode, setRegistrationCode] = useState('');
@@ -126,9 +126,9 @@ function CompanyRegistrationForm() {
         setLoading(true);
         
         const companyIdentifier = `EPT-${companyIdNumber}`;
-        const adminPhone = `+${phoneCode}${phone}`;
+        const adminPhone = `+${selectedCountry?.phone}${phone}`;
 
-        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !phone || !adminPassword || !payPeriod || !registrationCode) {
+        if (!companyName || !companyIdNumber || !adminName || !adminEmail || !phone || !adminPassword || !payPeriod || !registrationCode || !selectedCountry) {
             setError("Tous les champs sont requis.");
             setLoading(false);
             return;
@@ -141,7 +141,7 @@ function CompanyRegistrationForm() {
         }
 
         try {
-            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPhone, adminPassword, payPeriod, registrationCode);
+            const { company, admin } = await registerCompany(companyName, companyIdentifier, adminName, adminEmail, adminPhone, adminPassword, payPeriod, registrationCode, selectedCountry.currency);
             
             sessionStorage.setItem('userType', 'admin');
             sessionStorage.setItem('adminName', admin.name);
@@ -186,7 +186,10 @@ function CompanyRegistrationForm() {
             </div>
              <div className="space-y-2">
                 <Label htmlFor="company-name">Nom de l'entreprise</Label>
-                <Input id="company-name" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Mon Entreprise SAS" required />
+                <div className="relative">
+                    <Building className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="company-name" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Mon Entreprise SAS" required className="pl-8" />
+                </div>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="company-id">ID de l'Entreprise (chiffres uniquement)</Label>
@@ -229,8 +232,8 @@ function CompanyRegistrationForm() {
                             aria-expanded={comboboxOpen}
                             className="w-[150px] justify-between rounded-r-none"
                             >
-                            {phoneCode
-                                ? `+${countries.find((country) => country.phone === phoneCode)?.phone}`
+                            {selectedCountry
+                                ? `+${selectedCountry.phone}`
                                 : "Indicatif"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
@@ -246,14 +249,14 @@ function CompanyRegistrationForm() {
                                             key={country.code}
                                             value={country.name}
                                             onSelect={() => {
-                                                setPhoneCode(country.phone)
+                                                setSelectedCountry(country)
                                                 setComboboxOpen(false)
                                             }}
                                         >
                                             <Check
                                             className={cn(
                                                 "mr-2 h-4 w-4",
-                                                phoneCode === country.phone ? "opacity-100" : "opacity-0"
+                                                selectedCountry?.code === country.code ? "opacity-100" : "opacity-0"
                                             )}
                                             />
                                             {country.name} (+{country.phone})

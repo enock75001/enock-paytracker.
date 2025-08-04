@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/header";
 import { useEmployees } from "@/context/employee-provider";
-import { Users, FileText, MessageSquare, Briefcase, BarChart, Shield } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Users, FileText, Shield, DollarSign, BrainCircuit, MessageSquare } from "lucide-react";
 import Image from "next/image";
 
 
@@ -88,17 +87,17 @@ export default function LandingPage() {
                             </p>
                         </div>
                         <div className="grid gap-2 text-center">
-                            <FileText className="h-10 w-10 mx-auto text-primary" />
+                            <DollarSign className="h-10 w-10 mx-auto text-primary" />
                             <h3 className="text-xl font-bold">Paie et Finances</h3>
                             <p className="text-sm text-muted-foreground">
                                 Générez des fiches de paie précises, gérez les avances sur salaire et archivez vos paiements en un clic.
                             </p>
                         </div>
                         <div className="grid gap-2 text-center">
-                            <Shield className="h-10 w-10 mx-auto text-primary" />
-                            <h3 className="text-xl font-bold">Administration Simplifiée</h3>
+                            <BrainCircuit className="h-10 w-10 mx-auto text-primary" />
+                            <h3 className="text-xl font-bold">Assistance par IA</h3>
                             <p className="text-sm text-muted-foreground">
-                                Contrôlez les accès, gérez les justifications d'absence et communiquez via la messagerie interne.
+                                Laissez l'IA générer des rapports de synthèse et des contrats de travail pour vous faire gagner du temps.
                             </p>
                         </div>
                     </div>

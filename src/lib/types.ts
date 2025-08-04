@@ -14,6 +14,7 @@ export interface Company {
     superAdminEmail: string;
     superAdminPhone: string;
     payPeriod: PayPeriod;
+    currency: string; // e.g., 'XOF', 'EUR', 'USD'
     payPeriodStartDate?: string; // ISO string for the start date of the first pay period
     logoUrl?: string;
     description?: string;

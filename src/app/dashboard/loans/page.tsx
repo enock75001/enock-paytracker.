@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { formatCurrency } from '@/lib/currency';
 
 const loanSchema = z.object({
   employeeId: z.string({ required_error: 'Veuillez sélectionner un employé.' }),
@@ -28,12 +29,9 @@ const loanSchema = z.object({
   startDate: z.coerce.date({ required_error: 'Une date de début est requise.' }),
 });
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
-};
 
 export default function LoansPage() {
-    const { employees, loans, addLoan, updateLoanStatus } = useEmployees();
+    const { employees, loans, addLoan, updateLoanStatus, company } = useEmployees();
     const { toast } = useToast();
     const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -107,10 +105,10 @@ export default function LoansPage() {
                                     <FormItem><FormLabel>Employé</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un employé" /></SelectTrigger></FormControl><SelectContent>{employees.map(e => <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="amount" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Montant Total de l'Avance (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Montant Total de l'Avance ({company?.currency})</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="repaymentAmount" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Montant à Rembourser par Période (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Montant à Rembourser par Période ({company?.currency})</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="startDate" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Date de Début du Remboursement</FormLabel><FormControl><Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} /></FormControl><FormMessage /></FormItem>
@@ -154,9 +152,9 @@ export default function LoansPage() {
                                     <TableRow key={loan.id}>
                                         <TableCell className="font-medium">{getEmployeeName(loan.employeeId)}</TableCell>
                                         <TableCell>{getStatusBadge(loan.status)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(loan.amount)}</TableCell>
-                                        <TableCell className="text-right font-bold text-primary">{formatCurrency(loan.balance)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(loan.repaymentAmount)}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(loan.amount, company?.currency)}</TableCell>
+                                        <TableCell className="text-right font-bold text-primary">{formatCurrency(loan.balance, company?.currency)}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(loan.repaymentAmount, company?.currency)}</TableCell>
                                         <TableCell>{format(new Date(loan.startDate), 'dd MMMM yyyy', { locale: fr })}</TableCell>
                                         <TableCell className="text-right">
                                             {loan.status === 'active' || loan.status === 'paused' ? (

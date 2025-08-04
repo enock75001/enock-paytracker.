@@ -38,7 +38,8 @@ export async function registerCompany(
     adminPhone: string,
     adminPassword: string, 
     payPeriod: PayPeriod,
-    registrationCode: string
+    registrationCode: string,
+    currency: string
 ): Promise<{company: Company & {id: string}, admin: Admin & {id: string}}> {
     
     // Verify registration code
@@ -81,6 +82,7 @@ export async function registerCompany(
         superAdminEmail: adminEmail, 
         superAdminPhone: adminPhone,
         payPeriod,
+        currency,
         payPeriodStartDate: new Date().toISOString(),
         logoUrl: '',
         description: '',

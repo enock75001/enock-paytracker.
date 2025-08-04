@@ -26,6 +26,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { ImagePicker } from '@/components/image-picker';
+import { formatCurrency } from '@/lib/currency';
 
 const registerSchema = z.object({
   firstName: z.string().min(2, { message: 'Le prénom doit contenir au moins 2 caractères.' }),
@@ -39,12 +40,9 @@ const registerSchema = z.object({
   photoUrl: z.string().optional(),
 });
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
-};
 
 export default function RegisterPage() {
-    const { addEmployee, departments } = useEmployees();
+    const { addEmployee, departments, company } = useEmployees();
     const { toast } = useToast()
     const domains = departments.map(d => d.name);
 
@@ -151,11 +149,11 @@ export default function RegisterPage() {
                             )} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <FormField control={form.control} name="dailyWage" render={({ field }) => (
-                                    <FormItem><FormLabel>Salaire Journalier (FCFA)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Salaire Journalier ({company?.currency || '...'})</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                  <div className="space-y-2">
                                     <FormLabel>Salaire Mensuel (estimation)</FormLabel>
-                                    <Input value={formatCurrency(monthlyWage)} readOnly disabled />
+                                    <Input value={formatCurrency(monthlyWage, company?.currency)} readOnly disabled />
                                     <p className="text-xs text-muted-foreground">Basé sur 26 jours de travail.</p>
                                 </div>
                             </div>

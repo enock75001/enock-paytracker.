@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/currency';
 
 interface WeeklySummary {
   employee: Employee;
@@ -54,9 +55,6 @@ interface WeeklySummary {
   currentWage: number;
 }
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('de-DE').format(amount) + ' FCFA';
-};
 
 const calculateWeeklyPay = (employee: Employee, days: string[], loans: any[], justifications: any[], weekDates: Date[]): WeeklySummary => {
     const currentWage = employee.currentWeekWage || employee.dailyWage || 0;
@@ -103,10 +101,10 @@ const groupSummariesByDomain = (summaries: WeeklySummary[]): Record<string, Week
 };
 
 export default function RecapPage() {
-  const { employees, days, startNewWeek, weekPeriod, company, loans, justifications, weekDates } = useEmployees();
+  const { employees, days, startNewWeek, weekPeriod, company, loans, justifications, weekDates, weeklyPayroll } = useEmployees();
   const weeklySummaries = employees.map(emp => calculateWeeklyPay(emp, days, loans, justifications, weekDates));
   const groupedSummaries = groupSummariesByDomain(weeklySummaries);
-  const totalPayroll = weeklySummaries.reduce((sum, summary) => sum + summary.totalPay, 0);
+  const totalPayroll = weeklyPayroll;
   const { toast } = useToast();
 
   const handleStartNewWeek = () => {
@@ -189,11 +187,11 @@ export default function RecapPage() {
             tableBody.push([
                 { content: `${s.employee.firstName} ${s.employee.lastName}` },
                 { content: s.daysPresent.toString(), styles: { halign: 'center' } },
-                { content: formatCurrency(s.totalHoursPay), styles: { halign: 'right' } },
-                { content: formatCurrency(s.totalBonus), styles: { halign: 'right' } },
-                { content: formatCurrency(s.totalDeduction), styles: { halign: 'right' } },
-                { content: formatCurrency(s.loanRepayment), styles: { halign: 'right' } },
-                { content: formatCurrency(s.totalPay), styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: formatCurrency(s.totalHoursPay, company?.currency), styles: { halign: 'right' } },
+                { content: formatCurrency(s.totalBonus, company?.currency), styles: { halign: 'right' } },
+                { content: formatCurrency(s.totalDeduction, company?.currency), styles: { halign: 'right' } },
+                { content: formatCurrency(s.loanRepayment, company?.currency), styles: { halign: 'right' } },
+                { content: formatCurrency(s.totalPay, company?.currency), styles: { halign: 'right', fontStyle: 'bold' } },
             ]);
         });
     });
@@ -222,7 +220,7 @@ export default function RecapPage() {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(40, 58, 90);
-    doc.text(`Total Général à Payer: ${formatCurrency(totalPayroll)}`, 14, finalY + 20);
+    doc.text(`Total Général à Payer: ${formatCurrency(totalPayroll, company?.currency)}`, 14, finalY + 20);
 
     doc.save(`recap_paie_${new Date().toISOString().split('T')[0]}.pdf`);
   };
@@ -278,7 +276,7 @@ export default function RecapPage() {
                                 <Badge variant="secondary">{summaries.length} employés</Badge>
                             </div>
                             <div className="text-lg font-semibold pr-4">
-                                Total: {formatCurrency(domainTotal)}
+                                Total: {formatCurrency(domainTotal, company?.currency)}
                             </div>
                         </div>
                     </AccordionTrigger>
@@ -315,28 +313,28 @@ export default function RecapPage() {
                                         <Badge variant="outline">{summary.daysPresent}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {formatCurrency(summary.totalHoursPay)}
+                                        {formatCurrency(summary.totalHoursPay, company?.currency)}
                                     </TableCell>
                                      <TableCell className="text-right">
                                         <div className={cn("flex items-center justify-end gap-1 font-medium", summary.totalBonus > 0 ? "text-green-400" : "text-muted-foreground")}>
                                             <ArrowUpCircle className="h-4 w-4" />
-                                            {formatCurrency(summary.totalBonus)}
+                                            {formatCurrency(summary.totalBonus, company?.currency)}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                          <div className={cn("flex items-center justify-end gap-1 font-medium", summary.totalDeduction > 0 ? "text-red-400" : "text-muted-foreground")}>
                                             <ArrowDownCircle className="h-4 w-4" />
-                                            {formatCurrency(summary.totalDeduction)}
+                                            {formatCurrency(summary.totalDeduction, company?.currency)}
                                         </div>
                                     </TableCell>
                                      <TableCell className="text-right">
                                          <div className={cn("flex items-center justify-end gap-1 font-medium", summary.loanRepayment > 0 ? "text-red-400" : "text-muted-foreground")}>
                                             <Receipt className="h-4 w-4" />
-                                            {formatCurrency(summary.loanRepayment)}
+                                            {formatCurrency(summary.loanRepayment, company?.currency)}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-bold text-lg text-primary">
-                                        {formatCurrency(summary.totalPay)}
+                                        {formatCurrency(summary.totalPay, company?.currency)}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Link href={`/employee/${summary.employee.id}`} passHref>
@@ -352,7 +350,7 @@ export default function RecapPage() {
                             <TableFooter>
                                 <TableRow className='bg-secondary/50 hover:bg-secondary/50'>
                                     <TableCell colSpan={6} className="text-right font-bold text-lg">Total Département</TableCell>
-                                    <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal)}</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">{formatCurrency(domainTotal, company?.currency)}</TableCell>
                                     <TableCell />
                                 </TableRow>
                             </TableFooter>
@@ -371,7 +369,7 @@ export default function RecapPage() {
         </CardHeader>
         <CardContent>
             <div className="text-4xl font-bold text-primary">
-                {formatCurrency(totalPayroll)}
+                {formatCurrency(totalPayroll, company?.currency)}
             </div>
              <p className="text-muted-foreground mt-2">
                 Ceci est la somme totale à payer à tous les employés pour la période en cours.
